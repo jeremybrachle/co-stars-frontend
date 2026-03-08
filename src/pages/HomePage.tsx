@@ -1,27 +1,18 @@
-import { Link } from "react-router-dom"
+// import { Link } from "react-router-dom"
+import TitleSection from "../components/TitleSection"
+import NavigationMenu from "../components/NavigationMenu"
 
 function HomePage() {
   return (
     <div>
-      <h1>Actor Connection Game</h1>
 
-      <ul>
-        <li>
-          <Link to="/speed-round">Speed Round</Link>
-        </li>
+      <TitleSection
+        title="🎭 Co-Stars"
+        subtitle="Choose a level or create your own path!"
+      />
 
-        <li>
-          <Link to="/adventure">Adventure Mode</Link>
-        </li>
+      <NavigationMenu />
 
-        <li>
-          <Link to="/custom-level">Custom Level</Link>
-        </li>
-
-        <li>
-          <Link to="/settings">Settings</Link>
-        </li>
-      </ul>
     </div>
   )
 }
