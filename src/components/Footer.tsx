@@ -1,7 +1,7 @@
 function Footer() {
   return (
     <div className="footer">
-      © Copyright Jeremy Brachle 2026
+      Jeremy Brachle © Copyright 2026
     </div>
   )
 }

@@ -1,3 +1,22 @@
+.nav-btn-adventure {
+  margin-top: 2.9em;
+}
+.subtitle-extra-space {
+  margin-bottom: 1.5em !important;
+}
+/* .home-divider removed */
+.home-menu-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.2em;
+}
+
+.subtitle-tight {
+  font-size: 1.2em;
+  margin-bottom: 0.15em;
+  opacity: 0.92;
+}
 /* body {
   margin: 0;
   padding: 0;
@@ -13,18 +32,84 @@
   color: white;
 } */
 
+
 body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-
   display: flex;
   flex-direction: column;
-
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-
   font-family: Arial, sans-serif;
   color: white;
+}
+
+.home-bg.dramatic-home {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.home-bg.dramatic-home::before {
+  display: none;
+}
+
+.home-center-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 10vh;
+  z-index: 1;
+  margin-top: 1.5vh;
+  padding: 2.5em 2em;
+  border-radius: 24px;
+  border: 2.5px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.10);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+.nav-menu-container {
+  margin-top: 0;
+  z-index: 2;
+}
+
+.nav-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 1.7em;
+  align-items: center;
+}
+
+.nav-btn-visual {
+  display: flex;
+  align-items: center;
+  gap: 1.2em;
+  border-radius: 16px;
+  padding: 0.5em 1.2em;
+  transition: box-shadow 0.2s, background 0.2s;
+  background: none;
+  box-shadow: none;
+}
+
+.nav-btn-visual:hover {
+  background: none;
+  box-shadow: none;
+}
+
+.nav-icon {
+  font-size: 2.2em;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+  transition: transform 0.2s;
+}
+
+.nav-btn-visual:hover .nav-icon {
+  transform: scale(1.15) rotate(-8deg);
 }
 
 #root {
@@ -56,7 +141,7 @@ h1 {
 
 .subtitle {
   font-size: 1.25em;
-  margin-bottom: 2.5em;
+  margin-bottom: 0.7em;
   opacity: 0.9;
 }
 
@@ -68,7 +153,7 @@ h1 {
 
 .subtitle {
   font-size: 1.2em;
-  margin-bottom: 2em;
+  margin-bottom: 0.7em;
   opacity: 0.9;
 }
 
