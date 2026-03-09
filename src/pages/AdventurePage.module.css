@@ -25,6 +25,26 @@
   position: relative;
   overflow: hidden;
 }
+/* Slightly darker gold with subtle gradient */
+/* Richer gold gradient for better contrast */
+/*
+ * GOLD CARD COLOR OPTIONS (uncomment one pair for normal/hover):
+ * Option 1: Warm Gold (current)
+ *   background: linear-gradient(135deg, #c2a54e 0%, #b09a5f 100%);
+ *   hover:     linear-gradient(135deg, #cbaa4a 0%, #b09a5f 100%);
+ * Option 2: Deep Gold to Bronze
+ *   background: linear-gradient(135deg, #b88909 0%, #7c5e2b 100%);
+ *   hover:     linear-gradient(135deg, #e6b800 0%, #a67c00 100%);
+ * Option 3: Gold to Purple (complimentary)
+ *   background: linear-gradient(135deg, #e6c200 0%, #764ba2 100%);
+ *   hover:     linear-gradient(135deg, #ffe066 0%, #5f3c99 100%);
+ * Option 4: Rose Gold
+ *   background: linear-gradient(135deg, #e7bfa7 0%, #b88965 100%);
+ *   hover:     linear-gradient(135deg, #ffd6b3 0%, #a67c52 100%);
+ * Option 5: Gold to Deep Blue (high contrast)
+ *   background: linear-gradient(135deg, #ffd700 0%, #185a9d 100%);
+ *   hover:     linear-gradient(135deg, #ffe066 0%, #27408b 100%);
+ */
 .adventureLevelCard1,
 .adventureLevelCard2,
 .adventureLevelCard3,
@@ -33,12 +53,35 @@
 .adventureLevelCard6,
 .adventureLevelCard7,
 .adventureLevelCard8 {
-  background: #bfa760;
-  /* Muted gold, complements purple background, less bright */
+  /* Option 1: Warm Gold (default) */
+  background: linear-gradient(335deg, #ffd700 0%, #185a9d 100%);
 }
-.adventureLevelCard:hover {
+
+/* Prevent global button:hover from overriding background */
+/*
+ * To try a different color combo, comment out the current background and uncomment the desired option below for both normal and hover states.
+ */
+.adventureLevelCard:hover,
+.adventureLevelCard1:hover,
+.adventureLevelCard2:hover,
+.adventureLevelCard3:hover,
+.adventureLevelCard4:hover,
+.adventureLevelCard5:hover,
+.adventureLevelCard6:hover,
+.adventureLevelCard7:hover,
+.adventureLevelCard8:hover {
   transform: translateY(-5px) scale(1.04);
-  /* No border color change, stays gold */
+  /* Option 1: Warm Gold (default) */
+  /* background: linear-gradient(135deg, #cbaa4a 0%, #b09a5f 100%); */
+  background: linear-gradient(335deg, #ffd700 0%, #185a9d 100%);
+  /* Option 2: Deep Gold to Bronze */
+  /* background: linear-gradient(135deg, #e6b800 0%, #a67c00 100%); */
+  /* Option 3: Gold to Purple */
+  /* background: linear-gradient(135deg, #ffe066 0%, #5f3c99 100%); */
+  /* Option 4: Rose Gold */
+  /* background: linear-gradient(135deg, #ffd6b3 0%, #a67c52 100%); */
+  /* Option 5: Gold to Deep Blue */
+  /* background: linear-gradient(335deg, #ffe066 0%, #27408b 100%); */
 }
 .adventureStars {
   margin-top: 14px;
@@ -55,15 +98,16 @@
   margin: 0;
   padding: 0.1em 0 0.1em 0;
 }
+/* Improved contrast for actor names */
 .adventureActorName {
   font-size: 0.98em;
   font-weight: 600;
   margin: 0.18em 0 0.08em 0;
   padding: 0.10em 0.3em 0.10em 0.3em;
   border-radius: 8px;
-  background: none;
-  text-shadow: 0 2px 6px rgba(40,40,40,0.55);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.82);
+  color: #2d2100;
+  text-shadow: none;
   max-width: 90%;
   overflow-wrap: break-word;
   white-space: normal;
