@@ -1,6 +1,7 @@
 import { useState } from "react";
 import HomeButton from "../components/HomeButton";
 import styles from "./AdventurePage.module.css";
+import { useNavigate } from "react-router-dom";
 
 const levels = [
   { actorA: "Matt Damon", actorB: "Daniel Craig", stars: 3 },
@@ -25,6 +26,8 @@ function AdventurePage() {
   const handlePrev = () => setPage((p) => (p === 0 ? totalPages - 1 : p - 1));
   const handleNext = () => setPage((p) => (p === totalPages - 1 ? 0 : p + 1));
 
+  const navigate = useNavigate();
+
   return (
     <div className={styles.adventurePageWrapper}>
       <div className={styles.adventureHomeBtn}>
@@ -45,7 +48,15 @@ function AdventurePage() {
                 </div>
                 <button
                   className={styles.levelButton}
-                  onClick={() => console.log("Clicked level", globalIdx + 1)}
+                  // onClick={() => console.log("Clicked level", globalIdx + 1)}
+                  onClick={() =>
+                    navigate("/game", {
+                      state: {
+                        actorA: level.actorA,
+                        actorB: level.actorB
+                      }
+                    })
+                  }
                 >
                   <span className={styles.levelActorLeft}>{level.actorA}</span>
                   <span className={styles.levelVs}>vs.</span>
