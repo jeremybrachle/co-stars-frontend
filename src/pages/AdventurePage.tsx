@@ -1,7 +1,6 @@
-import TitleSection from "../components/TitleSection"
-import { useNavigate } from "react-router-dom"
-import HomeButton from "../components/HomeButton"
-import styles from "./AdventurePage.module.css"
+import { useState } from "react";
+import HomeButton from "../components/HomeButton";
+import styles from "./AdventurePage.module.css";
 
 const levels = [
   { actorA: "Matt Damon", actorB: "Daniel Craig", stars: 3 },
@@ -12,10 +11,19 @@ const levels = [
   { actorA: "Jennifer Lawrence", actorB: "Chris Pratt", stars: 1 },
   { actorA: "Emma Stone", actorB: "Ryan Gosling", stars: 2 },
   { actorA: "Natalie Portman", actorB: "Jake Gyllenhaal", stars: 5 }
-]
+];
+
+const LEVELS_PER_PAGE = 4;
 
 function AdventurePage() {
-  const navigate = useNavigate()
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(levels.length / LEVELS_PER_PAGE);
+  const startIdx = page * LEVELS_PER_PAGE;
+  const endIdx = startIdx + LEVELS_PER_PAGE;
+  const pageLevels = levels.slice(startIdx, endIdx);
+
+  const handlePrev = () => setPage((p) => (p === 0 ? totalPages - 1 : p - 1));
+  const handleNext = () => setPage((p) => (p === totalPages - 1 ? 0 : p + 1));
 
   return (
     <div className={styles.adventurePageWrapper}>
@@ -25,50 +33,50 @@ function AdventurePage() {
       <div className={styles.adventureContent}>
         <h1 className={styles.adventureTitle}>🎭 Adventure Mode</h1>
         <div className={styles.adventureSubtitle}>Choose a level</div>
-        <div className={styles.adventureLevelsGrid}>
-          {levels.map((level, index) => {
-            const stars = []
-            for (let i = 1; i <= 5; i++) {
-              stars.push(
-                <span
-                  key={i}
-                  className={i <= level.stars ? "star" : "star empty"}
-                >
-                  ★
-                </span>
-              )
-            }
+        <div className={styles.levelsListWrapper}>
+          {pageLevels.map((level, idx) => {
+            const globalIdx = startIdx + idx;
             return (
-              <button
-                key={index}
-                className={[
-                  styles.adventureLevelCard,
-                  styles[`adventureLevelCard${index + 1}`]
-                ].join(' ')}
-                onClick={() => console.log("Clicked level", index + 1)}
-              >
-                <div className={styles.adventureStars}>{stars}</div>
-                <div className={styles.adventureActors}>
-                  <div className={styles.adventureActorName}>{level.actorA}</div>
-                  <div className={styles.adventureVs}>vs.</div>
-                  <div className={styles.adventureActorName}>{level.actorB}</div>
+              <div key={globalIdx} className={styles.levelRowWrapper}>
+                <div className={styles.levelLabel}>
+                  Level {globalIdx + 1} &nbsp;·&nbsp; {Array.from({length: level.stars}).map((_, i) => (
+                    <span key={i} className={styles.levelStar}>★</span>
+                  ))}
                 </div>
-                <div className={styles.adventureLevelNumber}>
-                  Level {index + 1}
-                </div>
-              </button>
-            )
+                <button
+                  className={styles.levelButton}
+                  onClick={() => console.log("Clicked level", globalIdx + 1)}
+                >
+                  <span className={styles.levelActorLeft}>{level.actorA}</span>
+                  <span className={styles.levelVs}>vs.</span>
+                  <span className={styles.levelActorRight}>{level.actorB}</span>
+                </button>
+              </div>
+            );
           })}
         </div>
-        <button
-          className={styles.adventureBackBtn}
-          onClick={() => navigate("/")}
-        >
-          ← Back
-        </button>
+        <div className={styles.paginationNav}>
+          <button
+            className={styles.paginationArrow}
+            onClick={handlePrev}
+            aria-label="Previous page"
+          >
+            ←
+          </button>
+          <span className={styles.paginationLabel}>
+            Page {page + 1} of {totalPages}
+          </span>
+          <button
+            className={styles.paginationArrow}
+            onClick={handleNext}
+            aria-label="Next page"
+          >
+            →
+          </button>
+        </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default AdventurePage
+export default AdventurePage;

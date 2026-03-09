@@ -1,141 +1,120 @@
-/*
-  To revert to the previous teal gradient, use:
-  background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
-  #43cea2 (teal-green) to #185a9d (deep blue)
 
-  To revert to the previous blue gradient, use:
-  background: linear-gradient(135deg, #4f8cff 0%, #185a9d 100%);
-  #4f8cff (blue) to #185a9d (deep blue)
-*/
-.adventureLevelCard {
-  width: 200px;
-  height: 260px;
-  border-radius: 22px;
-  border: 2px solid rgba(255,255,255,0.18);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  text-align: center;
-  font-size: 0.98em;
-  color: #fff;
-  cursor: pointer;
-  transition: transform 0.2s, border 0.2s;
-  box-shadow: 0 6px 14px rgba(0,0,0,0.18);
-  position: relative;
-  overflow: hidden;
-}
-/* Slightly darker gold with subtle gradient */
-/* Richer gold gradient for better contrast */
-/*
- * GOLD CARD COLOR OPTIONS (uncomment one pair for normal/hover):
- * Option 1: Warm Gold (current)
- *   background: linear-gradient(135deg, #c2a54e 0%, #b09a5f 100%);
- *   hover:     linear-gradient(135deg, #cbaa4a 0%, #b09a5f 100%);
- * Option 2: Deep Gold to Bronze
- *   background: linear-gradient(135deg, #b88909 0%, #7c5e2b 100%);
- *   hover:     linear-gradient(135deg, #e6b800 0%, #a67c00 100%);
- * Option 3: Gold to Purple (complimentary)
- *   background: linear-gradient(135deg, #e6c200 0%, #764ba2 100%);
- *   hover:     linear-gradient(135deg, #ffe066 0%, #5f3c99 100%);
- * Option 4: Rose Gold
- *   background: linear-gradient(135deg, #e7bfa7 0%, #b88965 100%);
- *   hover:     linear-gradient(135deg, #ffd6b3 0%, #a67c52 100%);
- * Option 5: Gold to Deep Blue (high contrast)
- *   background: linear-gradient(135deg, #ffd700 0%, #185a9d 100%);
- *   hover:     linear-gradient(135deg, #ffe066 0%, #27408b 100%);
- */
-.adventureLevelCard1,
-.adventureLevelCard2,
-.adventureLevelCard3,
-.adventureLevelCard4,
-.adventureLevelCard5,
-.adventureLevelCard6,
-.adventureLevelCard7,
-.adventureLevelCard8 {
-  /* Option 1: Warm Gold (default) */
-  background: linear-gradient(335deg, #ffd700 0%, #185a9d 100%);
-}
-
-/* Prevent global button:hover from overriding background */
-/*
- * To try a different color combo, comment out the current background and uncomment the desired option below for both normal and hover states.
- */
-.adventureLevelCard:hover,
-.adventureLevelCard1:hover,
-.adventureLevelCard2:hover,
-.adventureLevelCard3:hover,
-.adventureLevelCard4:hover,
-.adventureLevelCard5:hover,
-.adventureLevelCard6:hover,
-.adventureLevelCard7:hover,
-.adventureLevelCard8:hover {
-  transform: translateY(-5px) scale(1.04);
-  /* Option 1: Warm Gold (default) */
-  /* background: linear-gradient(135deg, #cbaa4a 0%, #b09a5f 100%); */
-  background: linear-gradient(335deg, #ffd700 0%, #185a9d 100%);
-  /* Option 2: Deep Gold to Bronze */
-  /* background: linear-gradient(135deg, #e6b800 0%, #a67c00 100%); */
-  /* Option 3: Gold to Purple */
-  /* background: linear-gradient(135deg, #ffe066 0%, #5f3c99 100%); */
-  /* Option 4: Rose Gold */
-  /* background: linear-gradient(135deg, #ffd6b3 0%, #a67c52 100%); */
-  /* Option 5: Gold to Deep Blue */
-  /* background: linear-gradient(335deg, #ffe066 0%, #27408b 100%); */
-}
-.adventureStars {
-  margin-top: 14px;
-  margin-bottom: 10px;
-  font-size: 1.1em;
-}
-.adventureActors {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  flex: 1;
+/* New Adventure Mode Styles */
+.levelsListWrapper {
   width: 100%;
-  margin: 0;
-  padding: 0.1em 0 0.1em 0;
+  max-width: 520px;
+  margin: 2.5em 0 2.5em 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.2em;
 }
-/* Improved contrast for actor names */
-.adventureActorName {
-  font-size: 0.98em;
+
+.levelRowWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3em;
+}
+
+.levelLabel {
+  font-size: 1.08em;
   font-weight: 600;
-  margin: 0.18em 0 0.08em 0;
-  padding: 0.10em 0.3em 0.10em 0.3em;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.82);
-  color: #2d2100;
-  text-shadow: none;
-  max-width: 90%;
-  overflow-wrap: break-word;
-  white-space: normal;
-  word-break: break-word;
-}
-.adventureVs {
-  font-size: 1.08em;
-  font-weight: bold;
-  margin: 0.18em 0 0.18em 0;
-  color: #ffe066;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.35);
-  letter-spacing: 0.03em;
-}
-.adventureLevelNumber {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  font-weight: bold;
-  border: 2px solid #fff;
-  border-radius: 12px;
-  padding: 4px 18px;
-  background: rgba(0,0,0,0.13);
-  font-size: 1.08em;
-  letter-spacing: 0.04em;
   color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
-  margin-top: 1.2em;
+  margin-bottom: 0.18em;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.levelStar {
+  color: #ffe066;
+  font-size: 1.1em;
+  margin-right: 0.08em;
+}
+
+.levelButton {
+  width: 100%;
+  min-height: 54px;
+  background: #ff5252;
+  border: none;
+  border-radius: 13px;
+  color: #fff;
+  font-size: 1.13em;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7em 1.5em;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
+  outline: none;
+  margin: 0;
+}
+.levelButton:hover, .levelButton:focus {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  transform: translateY(-2px) scale(1.025);
+}
+.levelActorLeft, .levelActorRight {
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.levelActorLeft {
+  text-align: left;
+}
+.levelActorRight {
+  text-align: right;
+}
+.levelVs {
+  font-size: 1.04em;
+  font-weight: 500;
+  color: #ffe066;
+  margin: 0 1.2em;
+  letter-spacing: 0.02em;
+}
+
+.paginationNav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5em;
+  margin-top: 2.5em;
+}
+.paginationArrow {
+  background: #ff5252;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  font-size: 1.3em;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+  transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.paginationArrow:disabled {
+  background: #e0e0e0;
+  color: #aaa;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.paginationArrow:not(:disabled):hover, .paginationArrow:not(:disabled):focus {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  transform: scale(1.08);
+}
+.paginationLabel {
+  color: #fff;
+  font-size: 1.08em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 .adventurePageWrapper {
   min-height: 100vh;
