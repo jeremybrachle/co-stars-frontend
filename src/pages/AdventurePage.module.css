@@ -1,3 +1,7 @@
+:root {
+  --level-scale: 1;
+}
+
 
 /* New Adventure Mode Styles */
 .levelsListWrapper {
@@ -35,28 +39,34 @@
 
 .levelButton {
   width: 100%;
-  min-height: 54px;
+  /* min-height: 80px;              taller */
+  min-height: calc(80px * var(--level-scale));
+  font-size: calc(1.25em * var(--level-scale));
+  padding: calc(1.1em * var(--level-scale)) calc(2.2em * var(--level-scale));
+
   background: #ff5252;
   border: none;
-  border-radius: 13px;
+  border-radius: 16px;
   color: #fff;
-  font-size: 1.13em;
+  /* font-size: 1.25em;             slightly larger text */
   font-weight: 600;
-  display: flex;
+
+  display: grid;                 /* switch from flex */
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  padding: 0.7em 1.5em;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+
+  /* padding: 1.1em 2.2em;          more internal padding */
+
+  box-shadow: 0 6px 20px rgba(0,0,0,0.16);
   cursor: pointer;
   transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
   outline: none;
-  margin: 0;
 }
 .levelButton:hover, .levelButton:focus {
   box-shadow: 0 8px 24px rgba(0,0,0,0.18);
   transform: translateY(-2px) scale(1.025);
 }
-.levelActorLeft, .levelActorRight {
+/* .levelActorLeft, .levelActorRight {
   max-width: 40%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -67,13 +77,38 @@
 }
 .levelActorRight {
   text-align: right;
+} */
+
+.levelActorLeft {
+  text-align: left;
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.levelActorRight {
+  text-align: right;
+  justify-self: end;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .levelVs {
-  font-size: 1.04em;
-  font-weight: 500;
-  color: #ffe066;
-  margin: 0 1.2em;
-  letter-spacing: 0.02em;
+  justify-self: center;
+  font-size: 1.15em;
+  font-weight: 600;
+  /* color: #ffe066; */
+  color: #ecdb7b;
+  letter-spacing: 0.03em;
+}
+
+.levelsListWrapper {
+  width: 100%;
+  max-width: 650px;
 }
 
 .paginationNav {
