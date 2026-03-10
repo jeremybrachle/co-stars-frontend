@@ -11,8 +11,10 @@ type Props = {
   rewinds: number;
   shuffles: number;
   isDisabled: boolean;
+  onBack: () => void;
   onSuggestion: (choice: string) => void;
   onSelectSide: (side: "top" | "bottom") => void;
+  onReverse: () => void;
   onShuffle: () => void;
 };
 
@@ -26,8 +28,10 @@ function GameRightPanel({
   rewinds,
   shuffles,
   isDisabled,
+  onBack,
   onSuggestion,
   onSelectSide,
+  onReverse,
   onShuffle,
 }: Props) {
   const [isWriteInOpen, setIsWriteInOpen] = useState(false);
@@ -72,6 +76,18 @@ function GameRightPanel({
       </button>
 
       <div className={`game-right-panel__content${isDisabled ? " game-right-panel__content--disabled" : ""}`}>
+        <div className="game-right-panel__toolbar">
+          <button type="button" className="game-right-panel__toolbar-button" onClick={onBack} aria-label="Back">
+            <span className="game-right-panel__toolbar-icon" aria-hidden="true">↶</span>
+          </button>
+          <button type="button" className="game-right-panel__toolbar-button" onClick={onShuffle} aria-label="Shuffle">
+            <span className="game-right-panel__toolbar-icon" aria-hidden="true">⟳</span>
+          </button>
+          <button type="button" className="game-right-panel__toolbar-button" onClick={onReverse} aria-label="Reverse">
+            <span className="game-right-panel__toolbar-icon" aria-hidden="true">⇅</span>
+          </button>
+        </div>
+
         <div className="game-right-panel__label">
           <span className="game-right-panel__label-prefix">Movies for </span>
           <span className="game-right-panel__label-selection">{currentSelection}</span>
@@ -129,10 +145,6 @@ function GameRightPanel({
             +
           </button>
         )}
-
-        <button className="game-right-panel__wide-button game-right-panel__shuffle-button" disabled={isDisabled} onClick={onShuffle}>
-          Shuffle
-        </button>
       </div>
 
       <div className="game-right-panel__score-panel">

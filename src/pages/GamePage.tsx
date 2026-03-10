@@ -11,8 +11,11 @@ function GamePage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const actorA = location.state?.actorA || "George Clooney";
-  const actorB = location.state?.actorB || "Tobey Maguire";
+  const initialActorA = location.state?.actorA || "George Clooney";
+  const initialActorB = location.state?.actorB || "Tobey Maguire";
+
+  const [actorA, setActorA] = useState(initialActorA);
+  const [actorB, setActorB] = useState(initialActorB);
 
   const [selectedSide, setSelectedSide] = useState<"top" | "bottom">("top");
 
@@ -72,6 +75,33 @@ function GamePage() {
     setBottomPath((currentPath) => currentPath.slice(0, -1));
     setLockedSide(null);
     setRewinds((currentRewinds) => currentRewinds + 1);
+  };
+
+  const handleBackCurrentPathItem = () => {
+    if (selectedSide === "top") {
+      handleRemoveTopPathItem();
+      return;
+    }
+
+    handleRemoveBottomPathItem();
+  };
+
+  const handleReverseSides = () => {
+    setActorA(actorB);
+    setActorB(actorA);
+    setTopPath(bottomPath);
+    setBottomPath(topPath);
+    setLockedSide((currentLockedSide) => {
+      if (currentLockedSide === "top") {
+        return "bottom";
+      }
+
+      if (currentLockedSide === "bottom") {
+        return "top";
+      }
+
+      return null;
+    });
   };
 
   const handleResetBoard = () => {
@@ -136,8 +166,10 @@ function GamePage() {
             rewinds={rewinds}
             shuffles={shuffles}
             isDisabled={isPathLimitReached}
+            onBack={handleBackCurrentPathItem}
             onSuggestion={handleSuggestion}
             onSelectSide={setSelectedSide}
+            onReverse={handleReverseSides}
             onShuffle={() => setShuffles((count) => count + 1)}
           />
         </div>
