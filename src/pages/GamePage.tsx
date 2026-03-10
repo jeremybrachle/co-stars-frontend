@@ -5,6 +5,8 @@ import GameLogo from "../components/GameLogo";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
 import "./GamePage.css";
 
+const MAX_PATH_LENGTH = 19;
+
 function GamePage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -16,6 +18,7 @@ function GamePage() {
 
   const [topPath, setTopPath] = useState<string[]>([]);
   const [bottomPath, setBottomPath] = useState<string[]>([]);
+  const [lockedSide, setLockedSide] = useState<"top" | "bottom" | null>(null);
 
   const [turns, setTurns] = useState(0);
   const [rewinds, setRewinds] = useState(0);
@@ -30,7 +33,18 @@ function GamePage() {
     "Batman & Robin",
   ];
 
+  const totalSelections = topPath.length + bottomPath.length;
+  const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
+
   const handleSuggestion = (choice: string) => {
+    if (isPathLimitReached) {
+      return;
+    }
+
+    if (totalSelections + 1 >= MAX_PATH_LENGTH) {
+      setLockedSide(selectedSide);
+    }
+
     if (selectedSide === "top") {
       setTopPath((currentPath) => [...currentPath, choice]);
     } else {
@@ -46,6 +60,7 @@ function GamePage() {
     }
 
     setTopPath((currentPath) => currentPath.slice(0, -1));
+    setLockedSide(null);
     setRewinds((currentRewinds) => currentRewinds + 1);
   };
 
@@ -55,7 +70,18 @@ function GamePage() {
     }
 
     setBottomPath((currentPath) => currentPath.slice(0, -1));
+    setLockedSide(null);
     setRewinds((currentRewinds) => currentRewinds + 1);
+  };
+
+  const handleResetBoard = () => {
+    setSelectedSide("top");
+    setTopPath([]);
+    setBottomPath([]);
+    setLockedSide(null);
+    setTurns(0);
+    setRewinds(0);
+    setShuffles(0);
   };
 
   const currentSelection =
@@ -90,19 +116,28 @@ function GamePage() {
           selectedSide={selectedSide}
           topPath={topPath}
           bottomPath={bottomPath}
+          lockedSide={lockedSide}
           onSelectSide={setSelectedSide}
           onRemoveTopPathItem={handleRemoveTopPathItem}
           onRemoveBottomPathItem={handleRemoveBottomPathItem}
         />
-        <GameRightPanel
-          currentSelection={currentSelection}
-          suggestions={suggestions}
-          turns={turns}
-          rewinds={rewinds}
-          shuffles={shuffles}
-          onSuggestion={handleSuggestion}
-          onShuffle={() => setShuffles((count) => count + 1)}
-        />
+        <div className="gameSidebar">
+          <div className={`gameSidebarWarning${isPathLimitReached ? " gameSidebarWarning--visible" : ""}`}>
+            Max path length reached. Try again and keep it under 19 total selections, or clear some selections to continue.
+          </div>
+
+          <GameRightPanel
+            currentSelection={currentSelection}
+            suggestions={suggestions}
+            turns={turns}
+            rewinds={rewinds}
+            shuffles={shuffles}
+            isDisabled={isPathLimitReached}
+            onSuggestion={handleSuggestion}
+            onShuffle={() => setShuffles((count) => count + 1)}
+            onResetBoard={handleResetBoard}
+          />
+        </div>
       </div>
     </div>
   );

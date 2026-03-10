@@ -1,6 +1,35 @@
 import "./GameLeftPanel.css";
 
 type SelectedSide = "top" | "bottom";
+type Side = SelectedSide;
+type BoardPoint = {
+  row: number;
+  col: number;
+};
+
+type BoardToken = {
+  key: string;
+  text: string;
+  fontSize: number;
+  side: Side;
+  coord: BoardPoint;
+  startArrow?: string;
+  outgoingArrow?: string;
+  isCurrent: boolean;
+  isDimmed: boolean;
+  removable: boolean;
+  onSelect?: () => void;
+  onRemove?: () => void;
+};
+
+type BoardEllipsis = {
+  key: string;
+  side: Side;
+  coord: BoardPoint;
+  isDimmed: boolean;
+  startArrow?: string;
+  onSelect: () => void;
+};
 
 type Props = {
   actorA: string;
@@ -8,13 +37,46 @@ type Props = {
   selectedSide: SelectedSide;
   topPath: string[];
   bottomPath: string[];
+  lockedSide: SelectedSide | null;
   onSelectSide: (side: SelectedSide) => void;
   onRemoveTopPathItem: () => void;
   onRemoveBottomPathItem: () => void;
 };
 
-const DownArrow = () => <span className="game-left-panel__arrow">↓</span>;
-const UpArrow = () => <span className="game-left-panel__arrow">↑</span>;
+const GRID_COLUMNS = 4;
+const GRID_ROWS = 5;
+const TOTAL_SLOTS = GRID_COLUMNS * GRID_ROWS;
+const MAX_PATH_LENGTH = TOTAL_SLOTS - 1;
+function buildSnakeOrder() {
+  const snakeOrder: BoardPoint[] = [];
+
+  for (let row = 0; row < GRID_ROWS; row += 1) {
+    const columns = row % 2 === 0 ? [0, 1, 2, 3] : [3, 2, 1, 0];
+    columns.forEach((col) => {
+      snakeOrder.push({ row, col });
+    });
+  }
+
+  return snakeOrder;
+}
+
+const TOP_ORDER = buildSnakeOrder();
+
+function buildBottomSnakeOrder() {
+  const snakeOrder: BoardPoint[] = [];
+
+  for (let row = GRID_ROWS - 1; row >= 0; row -= 1) {
+    const isBottomOffsetEven = (GRID_ROWS - 1 - row) % 2 === 0;
+    const columns = isBottomOffsetEven ? [3, 2, 1, 0] : [0, 1, 2, 3];
+    columns.forEach((col) => {
+      snakeOrder.push({ row, col });
+    });
+  }
+
+  return snakeOrder;
+}
+
+const BOTTOM_ORDER = buildBottomSnakeOrder();
 
 function VerticalEllipsisBox({
   onClick,
@@ -33,100 +95,249 @@ function VerticalEllipsisBox({
   );
 }
 
+function getDirectionalArrow(from: BoardPoint, to: BoardPoint) {
+  const rowDelta = Math.sign(to.row - from.row);
+  const colDelta = Math.sign(to.col - from.col);
+
+  if (rowDelta === 1 && colDelta === 0) return "↓";
+  if (rowDelta === -1 && colDelta === 0) return "↑";
+  if (rowDelta === 0 && colDelta === 1) return "→";
+  if (rowDelta === 0 && colDelta === -1) return "←";
+  if (rowDelta === 1 && colDelta === 1) return "↘";
+  if (rowDelta === 1 && colDelta === -1) return "↙";
+  if (rowDelta === -1 && colDelta === 1) return "↗";
+  if (rowDelta === -1 && colDelta === -1) return "↖";
+
+  return "•";
+}
+
+function getOrderForSide(side: Side) {
+  return side === "top" ? TOP_ORDER : BOTTOM_ORDER;
+}
+
+function getArrowPositionClass(arrow?: string) {
+  switch (arrow) {
+    case "↓":
+      return "game-left-panel__board-arrow--down";
+    case "↑":
+      return "game-left-panel__board-arrow--up";
+    case "→":
+      return "game-left-panel__board-arrow--right";
+    case "←":
+      return "game-left-panel__board-arrow--left";
+    case "↘":
+      return "game-left-panel__board-arrow--down-right";
+    case "↙":
+      return "game-left-panel__board-arrow--down-left";
+    case "↗":
+      return "game-left-panel__board-arrow--up-right";
+    case "↖":
+      return "game-left-panel__board-arrow--up-left";
+    default:
+      return "";
+  }
+}
+
+function buildBoardTokens({
+  path,
+  side,
+  isActivePath,
+  isBoardLocked,
+  cappedSide,
+  fontSize,
+  onSelectSide,
+  onRemove,
+}: {
+  path: string[];
+  side: Side;
+  isActivePath: boolean;
+  isBoardLocked: boolean;
+  cappedSide: Side | null;
+  fontSize: number;
+  onSelectSide: (side: Side) => void;
+  onRemove: () => void;
+}) {
+  const order = getOrderForSide(side);
+  const slotPath = path.slice(0, MAX_PATH_LENGTH);
+  const canRenderEllipsis = !isBoardLocked || cappedSide === side;
+  const ellipsisCoord = canRenderEllipsis && path.length < TOTAL_SLOTS ? order[path.length] : null;
+
+  const tokens: BoardToken[] = slotPath.map((step, index) => {
+    const coord = order[index];
+    const isCurrent = isActivePath && index === slotPath.length - 1;
+    const nextCoord =
+      index < slotPath.length - 1 ? order[index + 1] : ellipsisCoord;
+
+    return {
+      key: `${side}-${step}-${index}`,
+      text: step,
+      fontSize,
+      side,
+      coord,
+      startArrow: index === 0 ? (side === "top" ? "↓" : "↑") : undefined,
+      outgoingArrow: nextCoord ? getDirectionalArrow(coord, nextCoord) : undefined,
+      isCurrent,
+      isDimmed: !isActivePath,
+      removable: isCurrent,
+      onSelect: isCurrent ? () => onSelectSide(side) : undefined,
+      onRemove: isCurrent ? onRemove : undefined,
+    };
+  });
+
+  return {
+    tokens,
+    ellipsis:
+      ellipsisCoord !== null
+        ? {
+            key: `${side}-ellipsis-${path.length}`,
+            side,
+            coord: ellipsisCoord,
+            isDimmed: !isActivePath,
+            startArrow: path.length === 0 ? (side === "top" ? "↓" : "↑") : undefined,
+            onSelect: () => onSelectSide(side),
+          }
+        : null,
+  };
+}
+
+function renderStepRow({
+  text,
+  fontSize,
+  isCurrent,
+  removable,
+  onRemove,
+  onSelect,
+}: {
+  text: string;
+  fontSize: number;
+  isCurrent: boolean;
+  removable: boolean;
+  onRemove?: () => void;
+  onSelect?: () => void;
+}) {
+  return (
+    <div className="game-left-panel__step-row">
+      {removable ? (
+        <button
+          type="button"
+          className="game-left-panel__remove-button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove?.();
+          }}
+          aria-label={`Remove ${text} from current path`}
+        >
+          ×
+        </button>
+      ) : null}
+      <div
+        className={`game-left-panel__actor-box game-left-panel__board-box${isCurrent ? " game-left-panel__actor-box--path-current-primary" : " game-left-panel__actor-box--placed"}`}
+        style={{ fontSize }}
+        onClick={onSelect}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function renderBoardToken(token: BoardToken) {
+  const tokenRow = renderStepRow({
+    text: token.text,
+    fontSize: token.fontSize,
+    isCurrent: token.isCurrent,
+    removable: token.removable,
+    onRemove: token.onRemove,
+    onSelect: token.onSelect,
+  });
+
+  const originArrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${token.side === "top" ? "game-left-panel__board-arrow--up-origin" : "game-left-panel__board-arrow--down-origin"}${token.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
+  const arrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${getArrowPositionClass(token.outgoingArrow)}${token.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
+
+  return (
+    <div className={`game-left-panel__board-slot${token.isDimmed ? " game-left-panel__board-slot--inactive" : ""}`}>
+      {token.startArrow ? <span className={originArrowClassName}>{token.startArrow}</span> : null}
+      {token.outgoingArrow ? <span className={arrowClassName}>{token.outgoingArrow}</span> : null}
+      {tokenRow}
+    </div>
+  );
+}
+
+function renderBoardEllipsis(ellipsis: BoardEllipsis) {
+  const arrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${ellipsis.side === "top" ? "game-left-panel__board-arrow--up-origin" : "game-left-panel__board-arrow--down-origin"}${ellipsis.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
+
+  return (
+    <div className={`game-left-panel__board-slot${ellipsis.isDimmed ? " game-left-panel__board-slot--inactive" : ""}`}>
+      {ellipsis.startArrow ? <span className={arrowClassName}>{ellipsis.startArrow}</span> : null}
+      <VerticalEllipsisBox onClick={ellipsis.onSelect} highlight={!ellipsis.isDimmed} />
+    </div>
+  );
+}
+
 function GameLeftPanel({
   actorA,
   actorB,
   selectedSide,
   topPath,
   bottomPath,
+  lockedSide,
   onSelectSide,
   onRemoveTopPathItem,
   onRemoveBottomPathItem,
 }: Props) {
   const baseFont = 22;
   const minFont = 12;
+  const topFontSize = Math.max(minFont, baseFont - topPath.length * 2);
+  const bottomFontSize = Math.max(minFont, baseFont - bottomPath.length * 2);
+  const isBoardLocked = topPath.length + bottomPath.length >= MAX_PATH_LENGTH;
+  const cappedSide = isBoardLocked ? lockedSide : null;
 
-  const renderTopPath = (pathArr: string[]) => {
-    const fontSize = Math.max(minFont, baseFont - pathArr.length * 2);
-    const isActivePath = selectedSide === "top";
+  const topBoardState = buildBoardTokens({
+    path: topPath,
+    side: "top",
+    isActivePath: selectedSide === "top",
+    isBoardLocked,
+    cappedSide,
+    fontSize: topFontSize,
+    onSelectSide,
+    onRemove: onRemoveTopPathItem,
+  });
 
-    return (
-      <div className={`game-left-panel__path-stack${isActivePath ? "" : " game-left-panel__path-stack--inactive"}`}>
-        <DownArrow />
-        {pathArr.map((step, idx) => {
-          const isLast = idx === pathArr.length - 1;
-          return (
-            <div key={`${step}-${idx}`} className="game-left-panel__step-group">
-              <div className="game-left-panel__step-row">
-                {isLast && isActivePath ? (
-                  <button
-                    type="button"
-                    className="game-left-panel__remove-button"
-                    onClick={onRemoveTopPathItem}
-                    aria-label={`Remove ${step} from top path`}
-                  >
-                    ×
-                  </button>
-                ) : null}
-                <div
-                  className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
-                  style={{ fontSize }}
-                  onClick={isLast ? () => onSelectSide("top") : undefined}
-                >
-                  {step}
-                </div>
-                {isLast && isActivePath ? <div className="game-left-panel__remove-spacer" aria-hidden="true" /> : null}
-              </div>
-              <DownArrow />
-            </div>
-          );
-        })}
-        <VerticalEllipsisBox onClick={() => onSelectSide("top")} highlight={selectedSide === "top"} />
-      </div>
+  const bottomBoardState = buildBoardTokens({
+    path: bottomPath,
+    side: "bottom",
+    isActivePath: selectedSide === "bottom",
+    isBoardLocked,
+    cappedSide,
+    fontSize: bottomFontSize,
+    onSelectSide,
+    onRemove: onRemoveBottomPathItem,
+  });
+
+  const boardCells = TOP_ORDER.map((coord) => {
+    const topToken = topBoardState.tokens.find(
+      (token) => token.coord.row === coord.row && token.coord.col === coord.col,
     );
-  };
-
-  const renderBottomPath = (pathArr: string[]) => {
-    const fontSize = Math.max(minFont, baseFont - pathArr.length * 2);
-    const reversed = pathArr.slice().reverse();
-    const isActivePath = selectedSide === "bottom";
-
-    return (
-      <div className={`game-left-panel__path-stack game-left-panel__path-stack--bottom${isActivePath ? "" : " game-left-panel__path-stack--inactive"}`}>
-        <VerticalEllipsisBox onClick={() => onSelectSide("bottom")} highlight={selectedSide === "bottom"} />
-        {reversed.map((step, revIdx) => {
-          const idx = pathArr.length - 1 - revIdx;
-          const isLastSelected = idx === pathArr.length - 1;
-          return (
-            <div key={`${step}-${idx}`} className="game-left-panel__step-group">
-              <UpArrow />
-              <div className="game-left-panel__step-row">
-                {isLastSelected && isActivePath ? (
-                  <button
-                    type="button"
-                    className="game-left-panel__remove-button"
-                    onClick={onRemoveBottomPathItem}
-                    aria-label={`Remove ${step} from bottom path`}
-                  >
-                    ×
-                  </button>
-                ) : null}
-                <div
-                  className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
-                  style={{ fontSize }}
-                  onClick={isLastSelected ? () => onSelectSide("bottom") : undefined}
-                >
-                  {step}
-                </div>
-                {isLastSelected && isActivePath ? <div className="game-left-panel__remove-spacer" aria-hidden="true" /> : null}
-              </div>
-            </div>
-          );
-        })}
-        <UpArrow />
-      </div>
+    const bottomToken = bottomBoardState.tokens.find(
+      (token) => token.coord.row === coord.row && token.coord.col === coord.col,
     );
-  };
+    const topEllipsis =
+      topBoardState.ellipsis?.coord.row === coord.row && topBoardState.ellipsis.coord.col === coord.col
+        ? topBoardState.ellipsis
+        : null;
+    const bottomEllipsis =
+      bottomBoardState.ellipsis?.coord.row === coord.row && bottomBoardState.ellipsis.coord.col === coord.col
+        ? bottomBoardState.ellipsis
+        : null;
+
+    return {
+      coord,
+      topToken,
+      bottomToken,
+      topEllipsis,
+      bottomEllipsis,
+    };
+  });
 
   return (
     <section className="game-left-panel">
@@ -138,8 +349,22 @@ function GameLeftPanel({
       </div>
 
       <div className="game-left-panel__path-area">
-        <div className="game-left-panel__path-region">{renderTopPath(topPath)}</div>
-        <div className="game-left-panel__path-region">{renderBottomPath(bottomPath)}</div>
+        <div className="game-left-panel__board">
+          {boardCells.map(({ coord, topToken, bottomToken, topEllipsis, bottomEllipsis }) => (
+            <div
+              key={`cell-${coord.row}-${coord.col}`}
+              className="game-left-panel__board-cell"
+              style={{ gridColumn: coord.col + 1, gridRow: coord.row + 1 }}
+            >
+              {topToken ? renderBoardToken(topToken) : topEllipsis ? renderBoardEllipsis(topEllipsis) : null}
+              {bottomToken
+                ? renderBoardToken(bottomToken)
+                : bottomEllipsis
+                  ? renderBoardEllipsis(bottomEllipsis)
+                  : null}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div
