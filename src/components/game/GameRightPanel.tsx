@@ -42,7 +42,10 @@ function GameRightPanel({
   return (
     <aside className="game-right-panel">
       <div className="game-right-panel__content">
-        <div className="game-right-panel__label">{`Movies for ${currentSelection}`}</div>
+        <div className="game-right-panel__label">
+          <span className="game-right-panel__label-prefix">Movies for </span>
+          <span className="game-right-panel__label-selection">{currentSelection}</span>
+        </div>
 
         <div className="game-right-panel__grid">
           {suggestions.slice(0, 6).map((suggestion, idx) => (

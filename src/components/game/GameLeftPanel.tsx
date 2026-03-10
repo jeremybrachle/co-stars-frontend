@@ -44,6 +44,7 @@ function GameLeftPanel({
 
   const renderTopPath = (pathArr: string[]) => {
     const fontSize = Math.max(minFont, baseFont - pathArr.length * 2);
+    const isActivePath = selectedSide === "top";
 
     return (
       <div className="game-left-panel__path-stack">
@@ -53,7 +54,7 @@ function GameLeftPanel({
           return (
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
               <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast ? " game-left-panel__actor-box--path-current" : ""}`}
+                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast ? ` ${isActivePath ? "game-left-panel__actor-box--path-current-primary" : "game-left-panel__actor-box--path-current-secondary"}` : ""}`}
                 style={{ fontSize }}
                 onClick={isLast ? () => onSelectSide("top") : undefined}
               >
@@ -71,6 +72,7 @@ function GameLeftPanel({
   const renderBottomPath = (pathArr: string[]) => {
     const fontSize = Math.max(minFont, baseFont - pathArr.length * 2);
     const reversed = pathArr.slice().reverse();
+    const isActivePath = selectedSide === "bottom";
 
     return (
       <div className="game-left-panel__path-stack game-left-panel__path-stack--bottom">
@@ -82,7 +84,7 @@ function GameLeftPanel({
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
               <UpArrow />
               <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected ? " game-left-panel__actor-box--path-current" : ""}`}
+                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected ? ` ${isActivePath ? "game-left-panel__actor-box--path-current-primary" : "game-left-panel__actor-box--path-current-secondary"}` : ""}`}
                 style={{ fontSize }}
                 onClick={isLastSelected ? () => onSelectSide("bottom") : undefined}
               >
