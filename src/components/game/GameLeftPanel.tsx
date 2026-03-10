@@ -23,7 +23,7 @@ function VerticalEllipsisBox({
 }) {
   return (
     <div
-      className={`game-left-panel__actor-box game-left-panel__ellipsis${highlight ? " game-left-panel__actor-box--current" : ""}`}
+      className={`game-left-panel__actor-box game-left-panel__ellipsis${highlight ? " game-left-panel__ellipsis--active" : ""}`}
       onClick={onClick}
     >
       <span className="game-left-panel__ellipsis-icon">⋮</span>
@@ -53,7 +53,7 @@ function GameLeftPanel({
           return (
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
               <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--completed${isLast ? " game-left-panel__actor-box--current" : ""}`}
+                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast ? " game-left-panel__actor-box--path-current" : ""}`}
                 style={{ fontSize }}
                 onClick={isLast ? () => onSelectSide("top") : undefined}
               >
@@ -82,7 +82,7 @@ function GameLeftPanel({
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
               <UpArrow />
               <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--completed${isLastSelected ? " game-left-panel__actor-box--current" : ""}`}
+                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected ? " game-left-panel__actor-box--path-current" : ""}`}
                 style={{ fontSize }}
                 onClick={isLastSelected ? () => onSelectSide("bottom") : undefined}
               >
@@ -99,7 +99,7 @@ function GameLeftPanel({
   return (
     <section className="game-left-panel">
       <div
-        className={`game-left-panel__actor-box${selectedSide === "top" ? " game-left-panel__actor-box--active game-left-panel__actor-box--current" : ""}`}
+        className={`game-left-panel__actor-box${selectedSide === "top" ? " game-left-panel__actor-box--selected-side" : ""}`}
         onClick={() => onSelectSide("top")}
       >
         {actorA}
@@ -111,7 +111,7 @@ function GameLeftPanel({
       </div>
 
       <div
-        className={`game-left-panel__actor-box${selectedSide === "bottom" ? " game-left-panel__actor-box--active game-left-panel__actor-box--current" : ""}`}
+        className={`game-left-panel__actor-box${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side" : ""}`}
         onClick={() => onSelectSide("bottom")}
       >
         {actorB}

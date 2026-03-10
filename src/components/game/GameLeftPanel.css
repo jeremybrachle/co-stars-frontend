@@ -17,22 +17,29 @@
   padding: 16px;
   border-radius: 10px;
   border: 3px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
   text-align: center;
   cursor: pointer;
   transition: 0.2s;
 }
 
-.game-left-panel__actor-box--active {
-  border-color: #3b82f6;
-  background: rgba(59, 130, 246, 0.15);
+.game-left-panel__actor-box--selected-side {
+  border-color: #38bdf8;
+  background: rgba(14, 165, 233, 0.22);
+  box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.2), 0 10px 24px rgba(8, 145, 178, 0.2);
 }
 
-.game-left-panel__actor-box--current {
-  border-color: #facc15;
+.game-left-panel__actor-box--placed {
+  border-color: #94a3b8;
+  background: rgba(71, 85, 105, 0.32);
+  color: rgba(255, 255, 255, 0.92);
 }
 
-.game-left-panel__actor-box--completed {
-  border-color: rgba(100, 100, 100, 0.8);
+.game-left-panel__actor-box--path-current {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.22);
+  box-shadow: 0 0 0 1px rgba(251, 146, 60, 0.18), 0 8px 18px rgba(194, 65, 12, 0.2);
 }
 
 .game-left-panel__path-area {
@@ -91,6 +98,12 @@
   margin: 10px auto;
   border-width: 2px;
   background: rgba(255, 255, 255, 0.05);
+}
+
+.game-left-panel__ellipsis--active {
+  border-color: #c084fc;
+  background: rgba(168, 85, 247, 0.22);
+  box-shadow: 0 0 0 1px rgba(216, 180, 254, 0.18), 0 8px 18px rgba(126, 34, 206, 0.18);
 }
 
 .game-left-panel__ellipsis-icon {
