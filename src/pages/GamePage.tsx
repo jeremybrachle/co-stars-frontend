@@ -127,6 +127,9 @@ function GamePage() {
           </div>
 
           <GameRightPanel
+            actorA={actorA}
+            actorB={actorB}
+            selectedSide={selectedSide}
             currentSelection={currentSelection}
             suggestions={suggestions}
             turns={turns}
@@ -134,11 +137,15 @@ function GamePage() {
             shuffles={shuffles}
             isDisabled={isPathLimitReached}
             onSuggestion={handleSuggestion}
+            onSelectSide={setSelectedSide}
             onShuffle={() => setShuffles((count) => count + 1)}
-            onResetBoard={handleResetBoard}
           />
         </div>
       </div>
+
+      <button type="button" className="gameResetButton" onClick={handleResetBoard} aria-label="Reset board">
+        ↺
+      </button>
     </div>
   );
 }

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import "./GameRightPanel.css";
 
 type Props = {
+  actorA: string;
+  actorB: string;
+  selectedSide: "top" | "bottom";
   currentSelection: string;
   suggestions: string[];
   turns: number;
@@ -9,11 +12,14 @@ type Props = {
   shuffles: number;
   isDisabled: boolean;
   onSuggestion: (choice: string) => void;
+  onSelectSide: (side: "top" | "bottom") => void;
   onShuffle: () => void;
-  onResetBoard: () => void;
 };
 
 function GameRightPanel({
+  actorA,
+  actorB,
+  selectedSide,
   currentSelection,
   suggestions,
   turns,
@@ -21,8 +27,8 @@ function GameRightPanel({
   shuffles,
   isDisabled,
   onSuggestion,
+  onSelectSide,
   onShuffle,
-  onResetBoard,
 }: Props) {
   const [isWriteInOpen, setIsWriteInOpen] = useState(false);
   const [writeInValue, setWriteInValue] = useState("");
@@ -56,6 +62,15 @@ function GameRightPanel({
 
   return (
     <aside className="game-right-panel">
+      <button
+        type="button"
+        className={`game-right-panel__side-rail game-right-panel__side-rail--top${selectedSide === "top" ? " game-right-panel__side-rail--active game-right-panel__side-rail--active-top" : ""}`}
+        onClick={() => onSelectSide("top")}
+        aria-label={`Select ${actorA}`}
+      >
+        <span className="game-right-panel__side-rail-path" aria-hidden="true" />
+      </button>
+
       <div className={`game-right-panel__content${isDisabled ? " game-right-panel__content--disabled" : ""}`}>
         <div className="game-right-panel__label">
           <span className="game-right-panel__label-prefix">Movies for </span>
@@ -135,8 +150,13 @@ function GameRightPanel({
         </div>
       </div>
 
-      <button type="button" className="game-right-panel__reset-button" onClick={onResetBoard}>
-        Reset Board
+      <button
+        type="button"
+        className={`game-right-panel__side-rail game-right-panel__side-rail--bottom${selectedSide === "bottom" ? " game-right-panel__side-rail--active game-right-panel__side-rail--active-bottom" : ""}`}
+        onClick={() => onSelectSide("bottom")}
+        aria-label={`Select ${actorB}`}
+      >
+        <span className="game-right-panel__side-rail-path" aria-hidden="true" />
       </button>
     </aside>
   );

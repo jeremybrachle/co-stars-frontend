@@ -342,7 +342,7 @@ function GameLeftPanel({
   return (
     <section className="game-left-panel">
       <div
-        className={`game-left-panel__actor-box${selectedSide === "top" ? " game-left-panel__actor-box--selected-side" : ""}`}
+        className={`game-left-panel__actor-box game-left-panel__actor-box--top${selectedSide === "top" ? " game-left-panel__actor-box--selected-side-top" : ""}`}
         onClick={() => onSelectSide("top")}
       >
         {actorA}
@@ -368,7 +368,7 @@ function GameLeftPanel({
       </div>
 
       <div
-        className={`game-left-panel__actor-box${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side" : ""}`}
+        className={`game-left-panel__actor-box game-left-panel__actor-box--bottom${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side-bottom" : ""}`}
         onClick={() => onSelectSide("bottom")}
       >
         {actorB}
