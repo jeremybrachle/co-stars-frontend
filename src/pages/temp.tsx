@@ -99,7 +99,7 @@ function GamePage() {
 
     return (
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 8, flex: 1, minHeight: 0 }}>
-        {/* <UpArrow /> */}
+        <UpArrow />
         <VerticalEllipsisBox onClick={() => onSelect(pathArr.length)} highlight={selectedSide === "bottom"} />
         {reversed.map((step, revIdx) => {
           const idx = pathArr.length - 1 - revIdx;
