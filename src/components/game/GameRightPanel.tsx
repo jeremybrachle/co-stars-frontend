@@ -44,11 +44,18 @@ function GameRightPanel({
       </div>
 
       <div className="game-right-panel__score-panel">
-        <span>Turns: {turns}</span>
-        <span>|</span>
-        <span>Shuffles: {shuffles}</span>
-        <span>|</span>
-        <span>Rewinds: {rewinds}</span>
+        <div className="game-right-panel__score-item">
+          <span className="game-right-panel__score-label">Turns:</span>
+          <span className="game-right-panel__score-value">{turns}</span>
+        </div>
+        <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
+          <span className="game-right-panel__score-label">Shuffles:</span>
+          <span className="game-right-panel__score-value">{shuffles}</span>
+        </div>
+        <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
+          <span className="game-right-panel__score-label">Rewinds:</span>
+          <span className="game-right-panel__score-value">{rewinds}</span>
+        </div>
       </div>
     </aside>
   );
