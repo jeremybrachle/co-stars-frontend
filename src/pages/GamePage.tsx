@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import HomeButton from "../components/HomeButton";
+import GameLogo from "../components/GameLogo";
 import "./GamePage.css";
 
 // Unicode icons
@@ -38,8 +39,8 @@ function GamePage() {
   const [topPath, setTopPath] = useState<string[]>([]);
   const [bottomPath, setBottomPath] = useState<string[]>([]);
 
-  const [turns, setTurns] = useState(0);
-  const [rewinds, setRewinds] = useState(0);
+  const [turns] = useState(0);
+  const [rewinds] = useState(0);
   const [shuffles, setShuffles] = useState(0);
 
   const suggestions = [
@@ -129,10 +130,15 @@ function GamePage() {
   return (
     <div className="gamePage">
       <div className="topBar">
-        <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate("/adventure")}>
-          ← Back
-        </button>
-        <div className="homeWrapper">
+        <div className="topBarSide topBarSideLeft">
+          <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate("/adventure")}>
+            ← Back
+          </button>
+        </div>
+        <div className="topBarCenter">
+          <GameLogo className="gameLogo" />
+        </div>
+        <div className="topBarSide topBarSideRight homeWrapper">
           <HomeButton />
         </div>
       </div>
