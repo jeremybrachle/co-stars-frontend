@@ -137,9 +137,19 @@ function GamePage() {
         </div>
       </div>
 
-      <div className="gameContainer">
-        {/* Left Panel */}
-        <div className="leftPanel" style={{ height: "75vh", minHeight: 500, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+      <div className="gameContainer" style={{ gap: 32 }}>
+        {/* Left Panel (wider) */}
+        <div
+          className="leftPanel"
+          style={{
+            flex: 2.1,
+            height: "75vh",
+            minHeight: 500,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
           <div className={`actorBox ${selectedSide === "top" ? "active current" : ""}`} onClick={() => setSelectedSide("top")}>{actorA}</div>
 
           <div
@@ -172,23 +182,70 @@ function GamePage() {
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div className="rightPanel" style={{ display: "flex", flexDirection: "column", alignItems: "center", height: "75vh", minHeight: 500, justifyContent: "flex-start", position: "relative" }}>
-          {/* Main label */}
-          <div style={{ marginTop: 20, marginBottom: 12, fontWeight: 700, fontSize: "1.6em", color: "white", textShadow: "0 1px 8px #2228" }}>
-            {`Movies for ${currentSelection}`}
-          </div>
+        {/* Right Panel (narrower, centered content) */}
+        <div
+          className="rightPanel"
+          style={{
+            flex: 1,
+            minWidth: 320,
+            maxWidth: 400,
+            height: "8vh",
+            minHeight: 540,
+            maxHeight: 620,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+            padding: 0,
+            marginTop: 92,
+            marginBottom: 16,
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: 0,
+              padding: 0,
+            }}
+          >
+            {/* Main label */}
+            <div
+              style={{
+                marginTop: 0,
+                marginBottom: 30,
+                fontWeight: 700,
+                fontSize: "1.35em",
+                color: "white",
+                textShadow: "0 1px 8px #2228",
+                textAlign: "center",
+              }}
+            >
+              {`Movies for ${currentSelection}`}
+            </div>
 
-          {/* Suggestions grid */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 8px", justifyItems: "center", alignItems: "center" }}>
+            {/* Suggestions grid */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px 10px",
+                justifyItems: "center",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
               {suggestions.slice(0, 6).map((s, i) => (
                 <button
                   key={i}
                   className="suggestionButton"
                   style={{
-                    width: 160,
-                    height: 60,
+                    width: 140,
+                    height: 48,
                     margin: 0,
                     fontWeight: 500,
                     fontSize: "1.05em",
@@ -207,7 +264,7 @@ function GamePage() {
             {/* Plus Button */}
             <button
               className="suggestionButton"
-              style={{ width: 340, height: 50, marginTop: 6, fontSize: "1.15em", fontWeight: 500 }}
+              style={{ width: 290, height: 40, marginTop: 6, fontSize: "1.1em", fontWeight: 500 }}
             >
               +
             </button>
@@ -215,10 +272,10 @@ function GamePage() {
             {/* Shuffle Button */}
             <button
               style={{
-                width: 340,
+                width: 290,
                 height: 50,
-                marginTop: 6,
-                fontSize: "1.15em",
+                marginTop: 8,
+                fontSize: "1.1em",
                 fontWeight: 500,
                 backgroundColor: "#ff5252",
                 border: "none",
