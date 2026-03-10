@@ -48,8 +48,10 @@
 }
 
 .game-right-panel__label-selection {
-  color: #c084fc;
-  text-shadow: 0 0 0 1px rgba(216, 180, 254, 0.12), 0 6px 18px rgba(126, 34, 206, 0.22);
+  color: white;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.18em;
 }
 
 

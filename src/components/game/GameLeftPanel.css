@@ -42,12 +42,6 @@
   box-shadow: 0 0 0 1px rgba(216, 180, 254, 0.18), 0 8px 18px rgba(126, 34, 206, 0.18);
 }
 
-.game-left-panel__actor-box--path-current-secondary {
-  border-color: #c084fc;
-  background: rgba(192, 132, 252, 0.2);
-  box-shadow: 0 0 0 1px rgba(233, 213, 255, 0.16), 0 8px 18px rgba(147, 51, 234, 0.14);
-}
-
 .game-left-panel__path-area {
   flex: 1;
   margin: 20px 0;
@@ -74,6 +68,10 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
+}
+
+.game-left-panel__path-stack--inactive {
+  opacity: 0.48;
 }
 
 .game-left-panel__path-stack--bottom {

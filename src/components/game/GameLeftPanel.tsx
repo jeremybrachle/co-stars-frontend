@@ -47,14 +47,14 @@ function GameLeftPanel({
     const isActivePath = selectedSide === "top";
 
     return (
-      <div className="game-left-panel__path-stack">
+      <div className={`game-left-panel__path-stack${isActivePath ? "" : " game-left-panel__path-stack--inactive"}`}>
         <DownArrow />
         {pathArr.map((step, idx) => {
           const isLast = idx === pathArr.length - 1;
           return (
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
               <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast ? ` ${isActivePath ? "game-left-panel__actor-box--path-current-primary" : "game-left-panel__actor-box--path-current-secondary"}` : ""}`}
+                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
                 style={{ fontSize }}
                 onClick={isLast ? () => onSelectSide("top") : undefined}
               >
@@ -75,7 +75,7 @@ function GameLeftPanel({
     const isActivePath = selectedSide === "bottom";
 
     return (
-      <div className="game-left-panel__path-stack game-left-panel__path-stack--bottom">
+      <div className={`game-left-panel__path-stack game-left-panel__path-stack--bottom${isActivePath ? "" : " game-left-panel__path-stack--inactive"}`}>
         <VerticalEllipsisBox onClick={() => onSelectSide("bottom")} highlight={selectedSide === "bottom"} />
         {reversed.map((step, revIdx) => {
           const idx = pathArr.length - 1 - revIdx;
@@ -84,7 +84,7 @@ function GameLeftPanel({
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
               <UpArrow />
               <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected ? ` ${isActivePath ? "game-left-panel__actor-box--path-current-primary" : "game-left-panel__actor-box--path-current-secondary"}` : ""}`}
+                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
                 style={{ fontSize }}
                 onClick={isLastSelected ? () => onSelectSide("bottom") : undefined}
               >
