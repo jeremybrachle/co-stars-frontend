@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./GameRightPanel.css";
 
 type Props = {
@@ -19,6 +20,25 @@ function GameRightPanel({
   onSuggestion,
   onShuffle,
 }: Props) {
+  const [isWriteInOpen, setIsWriteInOpen] = useState(false);
+  const [writeInValue, setWriteInValue] = useState("");
+
+  const handleCloseWriteIn = () => {
+    setIsWriteInOpen(false);
+    setWriteInValue("");
+  };
+
+  const handleSubmitWriteIn = () => {
+    const trimmedValue = writeInValue.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    onSuggestion(trimmedValue);
+    setWriteInValue("");
+    setIsWriteInOpen(false);
+  };
+
   return (
     <aside className="game-right-panel">
       <div className="game-right-panel__content">
@@ -36,7 +56,42 @@ function GameRightPanel({
           ))}
         </div>
 
-        <button className="game-right-panel__suggestion-button game-right-panel__wide-button">+</button>
+        {isWriteInOpen ? (
+          <div className="game-right-panel__write-in-panel">
+            <input
+              type="text"
+              value={writeInValue}
+              onChange={(event) => setWriteInValue(event.target.value)}
+              placeholder="Type a movie title"
+              className="game-right-panel__write-in-input"
+              autoFocus
+            />
+            <div className="game-right-panel__write-in-actions">
+              <button
+                className="game-right-panel__suggestion-button game-right-panel__write-in-toggle"
+                onClick={handleCloseWriteIn}
+                aria-label="Close write in"
+              >
+                −
+              </button>
+              <button
+                className="game-right-panel__go-button"
+                onClick={handleSubmitWriteIn}
+                disabled={writeInValue.trim().length === 0}
+              >
+                Go
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            className="game-right-panel__suggestion-button game-right-panel__wide-button"
+            onClick={() => setIsWriteInOpen(true)}
+            aria-label="Open write in"
+          >
+            +
+          </button>
+        )}
 
         <button className="game-right-panel__wide-button game-right-panel__shuffle-button" onClick={onShuffle}>
           Shuffle
