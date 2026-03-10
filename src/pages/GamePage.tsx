@@ -17,8 +17,8 @@ function GamePage() {
   const [topPath, setTopPath] = useState<string[]>([]);
   const [bottomPath, setBottomPath] = useState<string[]>([]);
 
-  const [turns] = useState(0);
-  const [rewinds] = useState(0);
+  const [turns, setTurns] = useState(0);
+  const [rewinds, setRewinds] = useState(0);
   const [shuffles, setShuffles] = useState(0);
 
   const suggestions = [
@@ -31,8 +31,31 @@ function GamePage() {
   ];
 
   const handleSuggestion = (choice: string) => {
-    if (selectedSide === "top") setTopPath([...topPath, choice]);
-    else setBottomPath([...bottomPath, choice]);
+    if (selectedSide === "top") {
+      setTopPath((currentPath) => [...currentPath, choice]);
+    } else {
+      setBottomPath((currentPath) => [...currentPath, choice]);
+    }
+
+    setTurns((currentTurns) => currentTurns + 1);
+  };
+
+  const handleRemoveTopPathItem = () => {
+    if (topPath.length === 0) {
+      return;
+    }
+
+    setTopPath((currentPath) => currentPath.slice(0, -1));
+    setRewinds((currentRewinds) => currentRewinds + 1);
+  };
+
+  const handleRemoveBottomPathItem = () => {
+    if (bottomPath.length === 0) {
+      return;
+    }
+
+    setBottomPath((currentPath) => currentPath.slice(0, -1));
+    setRewinds((currentRewinds) => currentRewinds + 1);
   };
 
   const currentSelection =
@@ -68,6 +91,8 @@ function GamePage() {
           topPath={topPath}
           bottomPath={bottomPath}
           onSelectSide={setSelectedSide}
+          onRemoveTopPathItem={handleRemoveTopPathItem}
+          onRemoveBottomPathItem={handleRemoveBottomPathItem}
         />
         <GameRightPanel
           currentSelection={currentSelection}

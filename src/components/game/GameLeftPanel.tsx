@@ -9,6 +9,8 @@ type Props = {
   topPath: string[];
   bottomPath: string[];
   onSelectSide: (side: SelectedSide) => void;
+  onRemoveTopPathItem: () => void;
+  onRemoveBottomPathItem: () => void;
 };
 
 const DownArrow = () => <span className="game-left-panel__arrow">↓</span>;
@@ -38,6 +40,8 @@ function GameLeftPanel({
   topPath,
   bottomPath,
   onSelectSide,
+  onRemoveTopPathItem,
+  onRemoveBottomPathItem,
 }: Props) {
   const baseFont = 22;
   const minFont = 12;
@@ -53,12 +57,25 @@ function GameLeftPanel({
           const isLast = idx === pathArr.length - 1;
           return (
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
-              <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
-                style={{ fontSize }}
-                onClick={isLast ? () => onSelectSide("top") : undefined}
-              >
-                {step}
+              <div className="game-left-panel__step-row">
+                {isLast && isActivePath ? (
+                  <button
+                    type="button"
+                    className="game-left-panel__remove-button"
+                    onClick={onRemoveTopPathItem}
+                    aria-label={`Remove ${step} from top path`}
+                  >
+                    ×
+                  </button>
+                ) : null}
+                <div
+                  className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLast && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
+                  style={{ fontSize }}
+                  onClick={isLast ? () => onSelectSide("top") : undefined}
+                >
+                  {step}
+                </div>
+                {isLast && isActivePath ? <div className="game-left-panel__remove-spacer" aria-hidden="true" /> : null}
               </div>
               <DownArrow />
             </div>
@@ -83,12 +100,25 @@ function GameLeftPanel({
           return (
             <div key={`${step}-${idx}`} className="game-left-panel__step-group">
               <UpArrow />
-              <div
-                className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
-                style={{ fontSize }}
-                onClick={isLastSelected ? () => onSelectSide("bottom") : undefined}
-              >
-                {step}
+              <div className="game-left-panel__step-row">
+                {isLastSelected && isActivePath ? (
+                  <button
+                    type="button"
+                    className="game-left-panel__remove-button"
+                    onClick={onRemoveBottomPathItem}
+                    aria-label={`Remove ${step} from bottom path`}
+                  >
+                    ×
+                  </button>
+                ) : null}
+                <div
+                  className={`game-left-panel__actor-box game-left-panel__actor-box--placed${isLastSelected && isActivePath ? " game-left-panel__actor-box--path-current-primary" : ""}`}
+                  style={{ fontSize }}
+                  onClick={isLastSelected ? () => onSelectSide("bottom") : undefined}
+                >
+                  {step}
+                </div>
+                {isLastSelected && isActivePath ? <div className="game-left-panel__remove-spacer" aria-hidden="true" /> : null}
               </div>
             </div>
           );
