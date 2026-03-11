@@ -1,5 +1,6 @@
 import "./GameLeftPanel.css";
 import type { GameNode } from "../../types";
+import { MAX_PATH_LENGTH } from "../../gameplay";
 
 type SelectedSide = "top" | "bottom";
 type Side = SelectedSide;
@@ -39,6 +40,9 @@ type Props = {
   topPath: GameNode[];
   bottomPath: GameNode[];
   lockedSide: SelectedSide | null;
+  completedPath?: GameNode[];
+  currentHops: number;
+  optimalHops: number | null;
   onSelectSide: (side: SelectedSide) => void;
   onRemoveTopPathItem: () => void;
   onRemoveBottomPathItem: () => void;
@@ -47,13 +51,15 @@ type Props = {
 const GRID_COLUMNS = 4;
 const GRID_ROWS = 5;
 const TOTAL_SLOTS = GRID_COLUMNS * GRID_ROWS;
-const MAX_PATH_LENGTH = TOTAL_SLOTS - 1;
-function buildSnakeOrder() {
+
+function buildSnakeOrder(rows: number, columns: number) {
   const snakeOrder: BoardPoint[] = [];
 
-  for (let row = 0; row < GRID_ROWS; row += 1) {
-    const columns = row % 2 === 0 ? [0, 1, 2, 3] : [3, 2, 1, 0];
-    columns.forEach((col) => {
+  for (let row = 0; row < rows; row += 1) {
+    const rowColumns = row % 2 === 0
+      ? Array.from({ length: columns }, (_, index) => index)
+      : Array.from({ length: columns }, (_, index) => columns - 1 - index);
+    rowColumns.forEach((col) => {
       snakeOrder.push({ row, col });
     });
   }
@@ -61,7 +67,7 @@ function buildSnakeOrder() {
   return snakeOrder;
 }
 
-const TOP_ORDER = buildSnakeOrder();
+const TOP_ORDER = buildSnakeOrder(GRID_ROWS, GRID_COLUMNS);
 
 function buildBottomSnakeOrder() {
   const snakeOrder: BoardPoint[] = [];
@@ -166,8 +172,7 @@ function buildBoardTokens({
   const tokens: BoardToken[] = slotPath.map((step, index) => {
     const coord = order[index];
     const isCurrent = isActivePath && index === slotPath.length - 1;
-    const nextCoord =
-      index < slotPath.length - 1 ? order[index + 1] : ellipsisCoord;
+    const nextCoord = index < slotPath.length - 1 ? order[index + 1] : ellipsisCoord;
 
     return {
       key: `${side}-${step.type}-${step.label}-${index}`,
@@ -275,6 +280,53 @@ function renderBoardEllipsis(ellipsis: BoardEllipsis) {
   );
 }
 
+function renderCompletedBoard(completedPath: GameNode[]) {
+  const totalNodes = completedPath.length;
+  const columns = Math.min(4, Math.max(2, totalNodes >= 4 ? 4 : totalNodes));
+  const rows = Math.max(1, Math.ceil(totalNodes / columns));
+  const snakeOrder = buildSnakeOrder(rows, columns);
+
+  return (
+    <div className="game-left-panel__completed-shell">
+      <div
+        className="game-left-panel__completed-board"
+        style={{
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+        }}
+      >
+        {completedPath.map((node, index) => {
+          const coord = snakeOrder[index];
+          const nextCoord = snakeOrder[index + 1];
+          const outgoingArrow = nextCoord ? getDirectionalArrow(coord, nextCoord) : undefined;
+          const isEndpoint = index === 0 || index === completedPath.length - 1;
+
+          return (
+            <div
+              key={`${node.type}-${node.label}-${index}`}
+              className="game-left-panel__board-cell"
+              style={{ gridColumn: coord.col + 1, gridRow: coord.row + 1 }}
+            >
+              <div className="game-left-panel__board-slot">
+                {outgoingArrow ? (
+                  <span className={`game-left-panel__arrow game-left-panel__board-arrow ${getArrowPositionClass(outgoingArrow)}`}>
+                    {outgoingArrow}
+                  </span>
+                ) : null}
+                <div
+                  className={`game-left-panel__actor-box game-left-panel__board-box game-left-panel__completed-node${isEndpoint ? " game-left-panel__completed-node--endpoint" : ""}`}
+                >
+                  {node.label}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function GameLeftPanel({
   actorA,
   actorB,
@@ -282,6 +334,9 @@ function GameLeftPanel({
   topPath,
   bottomPath,
   lockedSide,
+  completedPath,
+  currentHops,
+  optimalHops,
   onSelectSide,
   onRemoveTopPathItem,
   onRemoveBottomPathItem,
@@ -342,38 +397,54 @@ function GameLeftPanel({
 
   return (
     <section className="game-left-panel">
-      <div
-        className={`game-left-panel__actor-box game-left-panel__actor-box--top${selectedSide === "top" ? " game-left-panel__actor-box--selected-side-top" : ""}`}
-        onClick={() => onSelectSide("top")}
-      >
-        {actorA.label}
+      <div className="game-left-panel__status-row">
+        <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
+        <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
+          Optimal hops: {optimalHops ?? "--"}
+        </span>
       </div>
 
-      <div className="game-left-panel__path-area">
-        <div className="game-left-panel__board">
-          {boardCells.map(({ coord, topToken, bottomToken, topEllipsis, bottomEllipsis }) => (
-            <div
-              key={`cell-${coord.row}-${coord.col}`}
-              className="game-left-panel__board-cell"
-              style={{ gridColumn: coord.col + 1, gridRow: coord.row + 1 }}
-            >
-              {topToken ? renderBoardToken(topToken) : topEllipsis ? renderBoardEllipsis(topEllipsis) : null}
-              {bottomToken
-                ? renderBoardToken(bottomToken)
-                : bottomEllipsis
-                  ? renderBoardEllipsis(bottomEllipsis)
-                  : null}
+      {completedPath ? (
+        <>
+          <div className="game-left-panel__completion-heading">Completed path</div>
+          {renderCompletedBoard(completedPath)}
+        </>
+      ) : (
+        <>
+          <div
+            className={`game-left-panel__actor-box game-left-panel__actor-box--top${selectedSide === "top" ? " game-left-panel__actor-box--selected-side-top" : ""}`}
+            onClick={() => onSelectSide("top")}
+          >
+            {actorA.label}
+          </div>
+
+          <div className="game-left-panel__path-area">
+            <div className="game-left-panel__board">
+              {boardCells.map(({ coord, topToken, bottomToken, topEllipsis, bottomEllipsis }) => (
+                <div
+                  key={`cell-${coord.row}-${coord.col}`}
+                  className="game-left-panel__board-cell"
+                  style={{ gridColumn: coord.col + 1, gridRow: coord.row + 1 }}
+                >
+                  {topToken ? renderBoardToken(topToken) : topEllipsis ? renderBoardEllipsis(topEllipsis) : null}
+                  {bottomToken
+                    ? renderBoardToken(bottomToken)
+                    : bottomEllipsis
+                      ? renderBoardEllipsis(bottomEllipsis)
+                      : null}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      <div
-        className={`game-left-panel__actor-box game-left-panel__actor-box--bottom${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side-bottom" : ""}`}
-        onClick={() => onSelectSide("bottom")}
-      >
-        {actorB.label}
-      </div>
+          <div
+            className={`game-left-panel__actor-box game-left-panel__actor-box--bottom${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side-bottom" : ""}`}
+            onClick={() => onSelectSide("bottom")}
+          >
+            {actorB.label}
+          </div>
+        </>
+      )}
     </section>
   );
 }
