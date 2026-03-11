@@ -70,15 +70,29 @@ Current storage model:
 
 - manifest cached in `localStorage`
 - snapshot cached in `localStorage`
+- optional bundled manifest and snapshot files in `public/data/`
 - derived indexes built in memory on load
 
 Current refresh strategy:
 
 - if a cached snapshot exists and is still within the recommended refresh interval, the app reuses it without fetching
 - once the cached export ages beyond the recommended interval, the frontend refreshes from the backend manifest and snapshot endpoints
+- if backend refresh fails, the frontend attempts to load bundled snapshot files from `public/data/`
+- if snapshot data is unavailable and the selected data mode allows it, the app falls back to direct API mode
 - the backend handoff currently recommends a weekly cadence of `168` hours
 
 This means normal play can run with no backend calls between refresh windows, as long as a valid snapshot already exists in the browser.
+
+Manual snapshot export command:
+
+- `npm run data:refresh`
+
+That script downloads the current backend manifest and snapshot and writes them to:
+
+- `public/data/frontend-manifest.json`
+- `public/data/frontend-snapshot.json`
+
+For full recovery and refresh instructions, see `DATA_REFRESH_USAGE.md`.
 
 ## Gameplay Logic
 
@@ -99,15 +113,14 @@ Current behavior:
 
 Current live flow in `src/pages/GamePage.tsx`:
 
-1. Resolve the route endpoints.
-2. Resolve those endpoints from snapshot indexes.
-3. Precompute the optimal path locally with BFS.
-4. When the active node is an actor, load movies from local adjacency.
-5. When the active node is a movie, load actors from local adjacency and exclude already-used actors.
-6. Use locally generated path hints to build the visible suggestion pool.
-7. Allow shuffling to reroll the weighted suggestion set.
-8. Validate the completed path locally.
-9. Display completion stats and optimal comparison.
+1. Read the selected data mode from Settings.
+2. In `Auto`, prefer snapshot-backed play and fall back to API mode if snapshot data is unavailable.
+3. Resolve the route endpoints from either snapshot indexes or legacy API helpers.
+4. Precompute the optimal path locally with BFS or by calling the backend path endpoint.
+5. Load suggestions from local adjacency or from the backend depending on the effective mode.
+6. Use weighted suggestion selection and path hints to build the visible suggestion pool.
+7. Validate the completed path locally or through the backend validation endpoint.
+8. Display completion stats and optimal comparison.
 
 ## Adventure Mode
 

@@ -10,12 +10,16 @@ The version in `package.json` is the release source of truth. This project now s
 
 - Snapshot storage, manifest sync, and local graph indexing utilities for frontend-owned data management.
 - Snapshot provider for loading cached graph data across the app.
+- Temporary data source mode selection with `Auto`, `Snapshot`, and `API` runtime options.
+- Manual snapshot export script via `npm run data:refresh`.
+- Data refresh and recovery guide in `DATA_REFRESH_USAGE.md`.
 
 ### Changed
 
 - Adventure Mode now reads levels from cached snapshot data and computes optimal paths locally.
 - Game Mode now uses local adjacency, local shortest-path generation, and local move validation instead of per-move gameplay API calls.
 - Snapshot refresh policy now prefers cached data until the recommended refresh window expires.
+- When snapshot data is unavailable, the app now falls back to live API mode and surfaces that status in the UI.
 
 ## [1.0.0] - 2026-03-11
 

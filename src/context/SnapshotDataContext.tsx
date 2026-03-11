@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { getCachedSnapshotBundle, getRecommendedRefreshMs, loadFrontendSnapshot } from "../data/frontendSnapshot";
-import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotIndexes } from "../types";
+import { clearCachedSnapshot, getCachedSnapshotBundle, getRecommendedRefreshMs, loadFrontendSnapshot } from "../data/frontendSnapshot";
+import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotBundle, SnapshotIndexes } from "../types";
 
 type SnapshotDataContextValue = {
 	snapshot: FrontendSnapshot | null;
@@ -9,10 +9,11 @@ type SnapshotDataContextValue = {
 	health: HealthCheckResponse | null;
 	isLoading: boolean;
 	errorMessage: string | null;
-	loadedFrom: "cache" | "network" | "cache-fallback" | null;
+	loadedFrom: SnapshotBundle["loadedFrom"] | null;
 	lastRefreshAt: string | null;
 	recommendedRefreshMs: number;
 	refreshSnapshot: (forceRefresh?: boolean) => Promise<void>;
+	clearSnapshotCache: () => void;
 };
 
 const SnapshotDataContext = createContext<SnapshotDataContextValue | null>(null);
@@ -47,6 +48,16 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 		}
 	};
 
+	const clearSnapshotCacheState = () => {
+		clearCachedSnapshot();
+		setSnapshot(null);
+		setManifest(null);
+		setIndexes(null);
+		setHealth(null);
+		setLoadedFrom(null);
+		setLastRefreshAt(null);
+	};
+
 	useEffect(() => {
 		void refreshSnapshot();
 	}, []);
@@ -64,6 +75,7 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 				lastRefreshAt,
 				recommendedRefreshMs: getRecommendedRefreshMs(manifest),
 				refreshSnapshot,
+				clearSnapshotCache: clearSnapshotCacheState,
 			}}
 		>
 			{children}

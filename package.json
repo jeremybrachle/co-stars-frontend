@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --pretty false",
     "test": "npm run lint && npm run typecheck",
     "preview": "vite preview",
+    "data:refresh": "node scripts/refresh-frontend-snapshot.mjs",
     "release:patch": "npm version patch",
     "release:minor": "npm version minor",
     "release:major": "npm version major"

@@ -4,6 +4,16 @@ import HomeButton from "../components/HomeButton";
 import GameLogo from "../components/GameLogo";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
 import {
+  fetchActorByName,
+  fetchActorMovies,
+  fetchActors,
+  fetchMovieActors,
+  fetchMovies,
+  generatePath,
+  getApiBaseUrl,
+  validatePath,
+} from "../api/costars";
+import {
   buildSuggestionSet,
   combineMeetingPath,
   isDirectConnectionSuggestion,
@@ -12,6 +22,7 @@ import {
   nodeFromSummary,
   OPTIMAL_PATH_INCLUSION_RATE,
 } from "../gameplay";
+import { useDataSourceMode } from "../context/DataSourceModeContext";
 import { useSnapshotData } from "../context/SnapshotDataContext";
 import { getSnapshotBaseUrl } from "../data/frontendSnapshot";
 import {
@@ -22,7 +33,7 @@ import {
   getMoviesForActor,
   validateLocalPath,
 } from "../data/localGraph";
-import type { GameNode, NodeSummary, NodeType, SnapshotIndexes } from "../types";
+import type { Actor, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
 type RouteGameNode = {
@@ -119,6 +130,60 @@ function resolveRouteNode(
   return movieSummary ? createGameNodeFromSummary(movieSummary, indexes) : candidate;
 }
 
+function createNodeFromActor(actor: Actor): GameNode {
+  return createNode(actor.name, "actor", {
+    id: actor.id,
+    popularity: actor.popularity,
+  });
+}
+
+function createNodeFromMovie(movie: Movie): GameNode {
+  return createNode(movie.title, "movie", {
+    id: movie.id,
+    releaseDate: movie.releaseDate,
+  });
+}
+
+function findActorInCatalog(value: RouteGameNode | string | undefined, actors: Actor[], fallbackLabel: string) {
+  const candidate = normalizeRouteNode(value, "actor", fallbackLabel);
+  if (candidate.id !== undefined) {
+    const actorById = actors.find((actor) => actor.id === candidate.id);
+    if (actorById) {
+      return actorById;
+    }
+  }
+
+  return actors.find((actor) => actor.name.toLowerCase() === candidate.label.toLowerCase()) ?? null;
+}
+
+function findMovieInCatalog(value: RouteGameNode | string | undefined, movies: Movie[], fallbackLabel: string) {
+  const candidate = normalizeRouteNode(value, "movie", fallbackLabel);
+  if (candidate.id !== undefined) {
+    const movieById = movies.find((movie) => movie.id === candidate.id);
+    if (movieById) {
+      return movieById;
+    }
+  }
+
+  return movies.find((movie) => movie.title.toLowerCase() === candidate.label.toLowerCase()) ?? null;
+}
+
+async function resolveApiRouteNode(
+  value: RouteGameNode | string | undefined,
+  fallbackType: NodeType,
+  fallbackLabel: string,
+  actors: Actor[],
+  movies: Movie[],
+) {
+  if (fallbackType === "actor") {
+    const actor = findActorInCatalog(value, actors, fallbackLabel) ?? await fetchActorByName(normalizeRouteNode(value, "actor", fallbackLabel).label);
+    return createNodeFromActor(actor);
+  }
+
+  const movie = findMovieInCatalog(value, movies, fallbackLabel);
+  return movie ? createNodeFromMovie(movie) : normalizeRouteNode(value, "movie", fallbackLabel);
+}
+
 function buildExcludedActorNames(
   startA: GameNode,
   startB: GameNode,
@@ -149,6 +214,13 @@ function toNodeSummary(node: GameNode): NodeSummary | null {
   };
 }
 
+function toPathEndpoint(node: GameNode) {
+  return {
+    type: node.type,
+    value: node.label,
+  };
+}
+
 function reverseFullPath(path: GameNode[]) {
   return [...path].reverse();
 }
@@ -167,9 +239,11 @@ function GamePage() {
     isLoading: isSnapshotLoading,
     errorMessage: snapshotError,
   } = useSnapshotData();
+  const { mode } = useDataSourceMode();
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
+  const [moviesCatalog, setMoviesCatalog] = useState<Movie[]>([]);
 
   const [selectedSide, setSelectedSide] = useState<SelectedSide>("top");
   const [topPath, setTopPath] = useState<GameNode[]>([]);
@@ -192,6 +266,12 @@ function GamePage() {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [completion, setCompletion] = useState<CompletionState | null>(null);
 
+  const canUseSnapshot = !!snapshot && !!indexes;
+  const effectiveDataSource: EffectiveDataSource = mode === "api" ? "api" : canUseSnapshot ? "snapshot" : "api";
+  const fallbackMessage = mode !== "api" && effectiveDataSource === "api" && !isSnapshotLoading
+    ? `Local snapshot data is unavailable, so Game Mode is using live API data from ${getApiBaseUrl()}.`
+    : null;
+
   useEffect(() => {
     let isMounted = true;
 
@@ -211,36 +291,64 @@ function GamePage() {
       setShuffleSeed(0);
 
       try {
-        if (!snapshot || !indexes) {
-          return;
-        }
-
-        const resolvedActorA = resolveRouteNode(
-          routeState?.startA ?? routeState?.movieA ?? routeState?.actorA,
-          routeState?.movieA ? "movie" : "actor",
-          "George Clooney",
-          indexes,
-        );
-        const resolvedActorB = resolveRouteNode(
-          routeState?.startB ?? routeState?.movieB ?? routeState?.actorB,
-          routeState?.movieB ? "movie" : "actor",
-          "Tobey Maguire",
-          indexes,
-        );
-
+        let resolvedActorA: GameNode;
+        let resolvedActorB: GameNode;
         let resolvedOptimalHops = routeState?.optimalHops ?? null;
         let resolvedOptimalPath = routeState?.optimalPath?.map(nodeFromSummary) ?? [];
 
-        if (resolvedOptimalPath.length === 0 || resolvedOptimalHops === null) {
-          const startSummary = toNodeSummary(resolvedActorA);
-          const targetSummary = toNodeSummary(resolvedActorB);
+        if (effectiveDataSource === "snapshot") {
+      if (!snapshot || !indexes) {
+        return;
+      }
 
-          if (startSummary && targetSummary) {
-            const generatedPath = generateLocalPath(startSummary, targetSummary, indexes);
-            resolvedOptimalHops = generatedPath.reason ? null : generatedPath.steps;
-            resolvedOptimalPath = generatedPath.reason ? [] : generatedPath.nodes.map(nodeFromSummary);
-          }
+      resolvedActorA = resolveRouteNode(
+        routeState?.startA ?? routeState?.movieA ?? routeState?.actorA,
+        routeState?.movieA ? "movie" : "actor",
+        "George Clooney",
+        indexes,
+      );
+      resolvedActorB = resolveRouteNode(
+        routeState?.startB ?? routeState?.movieB ?? routeState?.actorB,
+        routeState?.movieB ? "movie" : "actor",
+        "Tobey Maguire",
+        indexes,
+      );
+
+      if (resolvedOptimalPath.length === 0 || resolvedOptimalHops === null) {
+        const startSummary = toNodeSummary(resolvedActorA);
+        const targetSummary = toNodeSummary(resolvedActorB);
+
+        if (startSummary && targetSummary) {
+          const generatedPath = generateLocalPath(startSummary, targetSummary, indexes);
+          resolvedOptimalHops = generatedPath.reason ? null : generatedPath.steps;
+          resolvedOptimalPath = generatedPath.reason ? [] : generatedPath.nodes.map(nodeFromSummary);
         }
+      }
+    } else {
+      const [actors, movies] = await Promise.all([fetchActors(), fetchMovies()]);
+      resolvedActorA = await resolveApiRouteNode(
+        routeState?.startA ?? routeState?.movieA ?? routeState?.actorA,
+        routeState?.movieA ? "movie" : "actor",
+        "George Clooney",
+        actors,
+        movies,
+      );
+      resolvedActorB = await resolveApiRouteNode(
+        routeState?.startB ?? routeState?.movieB ?? routeState?.actorB,
+        routeState?.movieB ? "movie" : "actor",
+        "Tobey Maguire",
+        actors,
+        movies,
+      );
+
+      setMoviesCatalog(movies);
+
+      if (resolvedOptimalPath.length === 0 || resolvedOptimalHops === null) {
+        const generatedPath = await generatePath(toPathEndpoint(resolvedActorA), toPathEndpoint(resolvedActorB));
+        resolvedOptimalHops = generatedPath.reason ? null : generatedPath.steps;
+        resolvedOptimalPath = generatedPath.reason ? [] : generatedPath.nodes.map(nodeFromSummary);
+      }
+    }
 
         if (!isMounted) {
           return;
@@ -266,7 +374,7 @@ function GamePage() {
     return () => {
       isMounted = false;
     };
-  }, [indexes, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, snapshot]);
+  }, [effectiveDataSource, indexes, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, snapshot]);
 
   const totalSelections = topPath.length + bottomPath.length;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
@@ -292,59 +400,111 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
-  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isSnapshotLoading || !!completion;
+  const isInteractionDisabled = isPathLimitReached || isSetupLoading || (effectiveDataSource === "snapshot" && isSnapshotLoading) || !!completion;
 
   useEffect(() => {
-    if (!actorA || !actorB || !currentSelection || !targetNode || completion || !indexes) {
+    if (!actorA || !actorB || !currentSelection || !targetNode || completion) {
       return;
     }
 
     setIsSuggestionsLoading(true);
     setSuggestionError(null);
 
+    const loadSuggestions = async () => {
     try {
-      const targetSummary = toNodeSummary(targetNode);
+      let weightedSuggestions: GameNode[] = [];
 
-      if (!targetSummary) {
-        setSuggestionError(`Missing target id for ${targetNode.label}.`);
-        setSuggestions([]);
-        return;
-      }
+      if (effectiveDataSource === "snapshot") {
+        if (!indexes) {
+          return;
+        }
 
-      let localSuggestions: GameNode[] = [];
+        const targetSummary = toNodeSummary(targetNode);
 
-      if (currentSelection.type === "actor") {
-        if (currentSelection.id === undefined) {
-          setSuggestionError(`Missing actor id for ${currentSelection.label}.`);
+        if (!targetSummary) {
+          setSuggestionError(`Missing target id for ${targetNode.label}.`);
           setSuggestions([]);
           return;
         }
 
-        localSuggestions = getMoviesForActor(currentSelection.id, targetSummary, indexes);
+        let localSuggestions: GameNode[] = [];
+
+        if (currentSelection.type === "actor") {
+          if (currentSelection.id === undefined) {
+            setSuggestionError(`Missing actor id for ${currentSelection.label}.`);
+            setSuggestions([]);
+            return;
+          }
+
+          localSuggestions = getMoviesForActor(currentSelection.id, targetSummary, indexes);
+        } else {
+          if (currentSelection.id === undefined) {
+            setSuggestionError(`Missing movie id for ${currentSelection.label}.`);
+            setSuggestions([]);
+            return;
+          }
+
+          const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
+          localSuggestions = getActorsForMovie(currentSelection.id, excludedNames, targetSummary, indexes);
+        }
+
+        weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode);
+        if (weightedSuggestions.length === 0) {
+          setSuggestionError("No local suggestions were returned for this node.");
+        }
       } else {
-        if (currentSelection.id === undefined) {
-          setSuggestionError(`Missing movie id for ${currentSelection.label}.`);
-          setSuggestions([]);
-          return;
+        if (currentSelection.type === "actor") {
+          if (currentSelection.id === undefined) {
+            setSuggestionError(`Missing actor id for ${currentSelection.label}.`);
+            setSuggestions([]);
+            return;
+          }
+
+          const movieSuggestions = await fetchActorMovies(currentSelection.id, targetNode.type, targetNode.id);
+          weightedSuggestions = buildSuggestionSet(
+            movieSuggestions.map((movie) => createNode(movie.title, "movie", {
+              id: movie.id,
+              releaseDate: movie.releaseDate,
+              pathHint: movie.pathHint,
+            })),
+            targetNode,
+          );
+        } else {
+          if (currentSelection.id === undefined) {
+            setSuggestionError(`Missing movie id for ${currentSelection.label}.`);
+            setSuggestions([]);
+            return;
+          }
+
+          const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
+          const actorSuggestions = await fetchMovieActors(currentSelection.id, excludedNames, targetNode.type, targetNode.id);
+          weightedSuggestions = buildSuggestionSet(
+            actorSuggestions.map((actor) => createNode(actor.name, "actor", {
+              id: actor.id,
+              popularity: actor.popularity,
+              pathHint: actor.pathHint,
+              popularityRank: actor.popularityRank,
+            })),
+            targetNode,
+          );
         }
 
-        const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
-        localSuggestions = getActorsForMovie(currentSelection.id, excludedNames, targetSummary, indexes);
+        if (weightedSuggestions.length === 0) {
+          setSuggestionError("No API suggestions were returned for this node.");
+        }
       }
 
-      const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode);
       setSuggestions(weightedSuggestions);
-
-      if (weightedSuggestions.length === 0) {
-        setSuggestionError("No local suggestions were returned for this node.");
-      }
     } catch (error) {
       setSuggestions([]);
-      setSuggestionError(error instanceof Error ? error.message : "Failed to load local suggestions.");
+      setSuggestionError(error instanceof Error ? error.message : `Failed to load ${effectiveDataSource} suggestions.`);
     } finally {
       setIsSuggestionsLoading(false);
     }
-  }, [actorA, actorB, bottomPath, completion, currentSelection, indexes, shuffleSeed, targetNode, topPath]);
+  };
+
+  void loadSuggestions();
+  }, [actorA, actorB, bottomPath, completion, currentSelection, effectiveDataSource, indexes, shuffleSeed, targetNode, topPath]);
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const provisionalCompletion: CompletionState = {
@@ -358,11 +518,16 @@ function GamePage() {
     setCompletion(provisionalCompletion);
 
     try {
-      if (!indexes) {
-        throw new Error("Local snapshot indexes are not ready.");
-      }
+      const validation = effectiveDataSource === "snapshot"
+			? (() => {
+				if (!indexes) {
+					throw new Error("Local snapshot indexes are not ready.");
+				}
 
-      const validation = validateLocalPath(fullPath, indexes);
+				return validateLocalPath(fullPath, indexes);
+			})()
+			: await validatePath(fullPath.map((node) => node.label));
+
       setCompletion({
         ...provisionalCompletion,
         isValidated: validation.valid,
@@ -500,6 +665,7 @@ function GamePage() {
     setSuggestionError(null);
 
     try {
+      if (effectiveDataSource === "snapshot") {
       if (type === "actor") {
         if (!indexes) {
           setSuggestionError("Snapshot indexes are not ready yet.");
@@ -528,6 +694,22 @@ function GamePage() {
       }
 
       await handleSuggestion(createGameNodeFromSummary(movie, indexes));
+      return;
+    }
+
+    if (type === "actor") {
+      const actor = await fetchActorByName(value);
+      await handleSuggestion(createNodeFromActor(actor));
+      return;
+    }
+
+    const movie = moviesCatalog.find((entry) => entry.title.toLowerCase() === value.toLowerCase());
+    if (!movie) {
+      setSuggestionError(`No movie named "${value}" was found in the API movie catalog.`);
+      return;
+    }
+
+    await handleSuggestion(createNodeFromMovie(movie));
     } catch (error) {
       setSuggestionError(error instanceof Error ? error.message : "The write-in value could not be resolved.");
     }
@@ -574,7 +756,9 @@ function GamePage() {
             Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
           </div>
 
-          {setupError || snapshotError ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
+          {fallbackMessage ? <div className="gamePageStatus">{fallbackMessage}</div> : null}
+          <div className="gamePageStatus">{effectiveDataSource === "snapshot" ? `Using local snapshot data from ${getSnapshotBaseUrl()}.` : `Using live API data from ${getApiBaseUrl()}.`}</div>
+          {setupError || (effectiveDataSource === "snapshot" ? snapshotError : null) ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
 
           <GameRightPanel
             actorA={actorA ?? createNode("Loading…", "actor")}
@@ -614,16 +798,22 @@ function GamePage() {
             </button>
             <h2 className="gameRulesTitle">How To Play</h2>
             <p className="gameRulesText">
-              The frontend now plays from a locally cached graph snapshot sourced from {getSnapshotBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
+              {effectiveDataSource === "snapshot"
+				? `The frontend is currently playing from a locally cached graph snapshot sourced from ${getSnapshotBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`
+				: `The frontend is currently using live API calls against ${getApiBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`}
             </p>
             <p className="gameRulesText">
-              Suggestion lists are generated from cached actor, movie, and adjacency data stored in the browser. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool locally.
+              {effectiveDataSource === "snapshot"
+				? "Suggestion lists are generated from cached actor, movie, and adjacency data stored in the browser. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool locally."
+				: "Suggestion lists are generated by the backend API for the current node. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool after each request."}
             </p>
             <p className="gameRulesText">
               A best-path option has a {Math.round(OPTIMAL_PATH_INCLUSION_RATE * 100)}% chance to appear in each reroll when no direct connection is available. If a suggestion can immediately reveal the target on the next alternating node, it is always highlighted as Connection found.
             </p>
             <p className="gameRulesText">
-              Optimal hops are now computed locally from the snapshot before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
+              {effectiveDataSource === "snapshot"
+				? "Optimal hops are computed locally from the snapshot before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."
+				: "Optimal hops are fetched from the backend before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."}
             </p>
           </div>
         </div>
@@ -675,7 +865,7 @@ function GamePage() {
             </div>
 
             <div className="gameCompletionValidation">
-              {completion.isValidated === true ? "Validated by backend." : completion.isValidated === false ? "Backend validation reported an issue." : "Validation was not available."}
+              {completion.isValidated === true ? "Path validated successfully." : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
               {completion.validationMessage ? ` ${completion.validationMessage}` : ""}
             </div>
           </div>

@@ -12,6 +12,8 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const HEALTH_PATH = "/api/health";
 const MANIFEST_PATH = "/api/export/frontend-manifest";
+const BUNDLED_MANIFEST_PATH = "/data/frontend-manifest.json";
+const BUNDLED_SNAPSHOT_PATH = "/data/frontend-snapshot.json";
 
 const SNAPSHOT_KEY = "co-stars-frontend-snapshot";
 const MANIFEST_KEY = "co-stars-frontend-manifest";
@@ -169,11 +171,33 @@ function readCachedSnapshotBundle(): SnapshotBundle | null {
 		localStorage.removeItem(SNAPSHOT_KEY);
 		return null;
 	}
-	}
+}
 
 function writeCachedSnapshotBundle(manifest: FrontendManifest, snapshot: FrontendSnapshot) {
 	localStorage.setItem(MANIFEST_KEY, JSON.stringify(manifest));
 	localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+}
+
+async function loadBundledSnapshotBundle(): Promise<SnapshotBundle> {
+	const [manifestResponse, snapshotResponse] = await Promise.all([
+		fetch(BUNDLED_MANIFEST_PATH),
+		fetch(BUNDLED_SNAPSHOT_PATH),
+	]);
+
+	if (!manifestResponse.ok || !snapshotResponse.ok) {
+		throw new Error("Bundled snapshot files are not available.");
+	}
+
+	const manifest = mapManifest((await manifestResponse.json()) as ApiFrontendManifest);
+	const snapshot = mapSnapshot((await snapshotResponse.json()) as ApiFrontendSnapshot);
+	writeCachedSnapshotBundle(manifest, snapshot);
+
+	return {
+		manifest,
+		snapshot,
+		indexes: buildSnapshotIndexes(snapshot),
+		loadedFrom: "bundled",
+	};
 }
 
 function shouldReuseCachedSnapshot(cachedManifest: FrontendManifest, nextManifest: FrontendManifest) {
@@ -240,6 +264,12 @@ export async function loadFrontendSnapshot(options?: { forceRefresh?: boolean })
 			loadedFrom: "network",
 		};
 	} catch (error) {
+		try {
+			return await loadBundledSnapshotBundle();
+		} catch {
+			// Ignore bundled load failure and continue to cache fallback.
+		}
+
 		if (cached) {
 			return {
 				...cached,
@@ -265,4 +295,9 @@ export function getSnapshotBaseUrl() {
 export function getRecommendedRefreshMs(manifest: FrontendManifest | null) {
 	const hours = manifest?.recommendedRefreshIntervalHours ?? 168;
 	return hours * 60 * 60 * 1000;
+}
+
+export function clearCachedSnapshot() {
+	localStorage.removeItem(MANIFEST_KEY);
+	localStorage.removeItem(SNAPSHOT_KEY);
 }

@@ -131,5 +131,9 @@ export type SnapshotBundle = {
 	snapshot: FrontendSnapshot;
 	indexes: SnapshotIndexes;
 	health?: HealthCheckResponse;
-	loadedFrom: "cache" | "network" | "cache-fallback";
+	loadedFrom: "cache" | "network" | "bundled" | "cache-fallback";
 };
+
+export type DataSourceMode = "auto" | "snapshot" | "api";
+
+export type EffectiveDataSource = "snapshot" | "api";
