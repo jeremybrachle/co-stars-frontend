@@ -1,12 +1,15 @@
 import AppRouter from "./router/AppRouter"
 import Footer from "./components/Footer"
+import { SnapshotDataProvider } from "./context/SnapshotDataContext"
 
 function App() {
   return (
-    <div>
-      <AppRouter />
-      <Footer />
-    </div>
+    <SnapshotDataProvider>
+      <div>
+        <AppRouter />
+        <Footer />
+      </div>
+    </SnapshotDataProvider>
   )
 }
 

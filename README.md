@@ -12,17 +12,17 @@ Co-Stars is a movie-connection game where you build a path between two endpoints
 
 Current gameplay rules:
 
-- Adventure Mode loads live levels from the backend.
-- Suggestion lists are built from real API data.
-- The shuffle button rerolls the suggestion pool using popularity and shortest-path hints.
+- Adventure Mode and Game Mode now read from a locally cached graph snapshot.
+- Suggestion lists are built from stored actor, movie, and relationship data in the frontend.
+- The shuffle button rerolls the suggestion pool using popularity and shortest-path hints computed locally.
 - Some suggestions are highlighted when they reveal an immediate or highly optimal connection.
 - On a win, the game shows your completed path, hop count, turns, shuffles, rewinds, and the optimal comparison.
 
 ## Technical Overview
 
-This is a React + TypeScript + Vite frontend. It uses a local backend graph API for levels, actor/movie lookups, shortest-path generation, and path validation.
+This is a React + TypeScript + Vite frontend. It now treats the backend as a periodic data source instead of the gameplay engine.
 
-During local development, Vite proxies `/api/*` requests to `http://localhost:8000` to avoid browser CORS issues.
+The app caches a frontend graph snapshot in browser storage and uses it for normal play. The backend is only needed to refresh that snapshot when the cached copy becomes stale.
 
 ## Run Locally
 
@@ -34,5 +34,11 @@ npm run dev
 ```
 
 For live gameplay data, run the separate backend project on `http://localhost:8000` as well.
+
+Current refresh approach:
+
+- cache the snapshot in `localStorage`
+- reuse it for normal play
+- only refresh from the backend when the cached export ages past the recommended refresh window
 
 For a more detailed technical overview, see [TECHNICAL_README.md](TECHNICAL_README.md).

@@ -2,68 +2,44 @@ import { useEffect, useMemo, useState } from "react";
 import HomeButton from "../components/HomeButton";
 import styles from "./AdventurePage.module.css";
 import { useNavigate } from "react-router-dom";
-import { fetchLevels, generatePath } from "../api/costars";
 import type { Level } from "../types";
+import { useSnapshotData } from "../context/SnapshotDataContext";
+import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
 
 const LEVELS_PER_PAGE = 4;
 
 function AdventurePage() {
   const [page, setPage] = useState(0);
   const [levels, setLevels] = useState<Level[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { snapshot, indexes, isLoading, errorMessage } = useSnapshotData();
 
   useEffect(() => {
-    let isMounted = true;
+    if (!snapshot || !indexes) {
+      return;
+    }
 
-    const loadLevels = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
+    const hydratedLevels = snapshot.levels.map((level) => {
+      const actorA = findNodeByLabel(level.actorA, "actor", indexes);
+      const actorB = findNodeByLabel(level.actorB, "actor", indexes);
 
-      try {
-        const backendLevels = await fetchLevels();
-        const hydratedLevels = await Promise.all(
-          backendLevels.map(async (level) => {
-            try {
-              const optimalPath = await generatePath(
-                { type: "actor", value: level.actorA },
-                { type: "actor", value: level.actorB },
-              );
-
-              return {
-                ...level,
-                optimalHops: optimalPath.steps,
-                optimalPath: optimalPath.nodes,
-              } satisfies Level;
-            } catch {
-              return {
-                ...level,
-                optimalHops: null,
-              } satisfies Level;
-            }
-          }),
-        );
-
-        if (isMounted) {
-          setLevels(hydratedLevels);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setErrorMessage(error instanceof Error ? error.message : "Failed to load levels.");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      if (!actorA || !actorB) {
+        return {
+          ...level,
+          optimalHops: null,
+        } satisfies Level;
       }
-    };
 
-    void loadLevels();
+      const optimalPath = generateLocalPath(actorA, actorB, indexes);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+      return {
+        ...level,
+        optimalHops: optimalPath.reason ? null : optimalPath.steps,
+        optimalPath: optimalPath.reason ? undefined : optimalPath.nodes,
+      } satisfies Level;
+    });
+
+    setLevels(hydratedLevels);
+  }, [indexes, snapshot]);
 
   const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
   const startIdx = page * LEVELS_PER_PAGE;

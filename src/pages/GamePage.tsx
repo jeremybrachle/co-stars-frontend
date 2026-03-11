@@ -4,16 +4,6 @@ import HomeButton from "../components/HomeButton";
 import GameLogo from "../components/GameLogo";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
 import {
-  fetchActorByName,
-  fetchActorMovies,
-  fetchActors,
-  fetchMovieActors,
-  fetchMovies,
-  generatePath,
-  getApiBaseUrl,
-  validatePath,
-} from "../api/costars";
-import {
   buildSuggestionSet,
   combineMeetingPath,
   isDirectConnectionSuggestion,
@@ -22,7 +12,17 @@ import {
   nodeFromSummary,
   OPTIMAL_PATH_INCLUSION_RATE,
 } from "../gameplay";
-import type { Actor, GameNode, Movie, NodeSummary, NodeType } from "../types";
+import { useSnapshotData } from "../context/SnapshotDataContext";
+import { getSnapshotBaseUrl } from "../data/frontendSnapshot";
+import {
+  createGameNodeFromSummary,
+  findNodeByLabel,
+  generateLocalPath,
+  getActorsForMovie,
+  getMoviesForActor,
+  validateLocalPath,
+} from "../data/localGraph";
+import type { GameNode, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
 type RouteGameNode = {
@@ -65,20 +65,6 @@ function createNode(label: string, type: NodeType, partial?: Partial<GameNode>):
   };
 }
 
-function actorToGameNode(actor: Actor): GameNode {
-  return createNode(actor.name, "actor", {
-    id: actor.id,
-    popularity: actor.popularity,
-  });
-}
-
-function movieToGameNode(movie: Movie): GameNode {
-  return createNode(movie.title, "movie", {
-    id: movie.id,
-    releaseDate: movie.releaseDate,
-  });
-}
-
 function normalizeRouteNode(value: RouteGameNode | string | undefined, fallbackType: NodeType, fallbackLabel: string) {
   if (typeof value === "string") {
     return createNode(value, fallbackType);
@@ -96,37 +82,41 @@ function normalizeRouteNode(value: RouteGameNode | string | undefined, fallbackT
   return createNode(fallbackLabel, fallbackType);
 }
 
-function matchesLabel(a: string, b: string) {
-  return a.trim().localeCompare(b.trim(), undefined, { sensitivity: "accent" }) === 0;
-}
-
-async function resolveRouteNode(
+function resolveRouteNode(
   value: RouteGameNode | string | undefined,
   fallbackType: NodeType,
   fallbackLabel: string,
-  actors: Actor[],
-  movies: Movie[],
+  indexes: SnapshotIndexes,
 ) {
   const candidate = normalizeRouteNode(value, fallbackType, fallbackLabel);
 
   if (candidate.type === "actor") {
-    const actor = candidate.id !== undefined
-      ? actors.find((entry) => entry.id === candidate.id)
-      : actors.find((entry) => matchesLabel(entry.name, candidate.label));
-
-    if (actor) {
-      return actorToGameNode(actor);
+    if (candidate.id !== undefined) {
+      const actor = indexes.actorsById.get(candidate.id);
+      if (actor) {
+        return createNode(actor.name, "actor", {
+          id: actor.id,
+          popularity: actor.popularity,
+        });
+      }
     }
 
-    const fetchedActor = await fetchActorByName(candidate.label);
-    return actorToGameNode(fetchedActor);
+    const actorSummary = findNodeByLabel(candidate.label, "actor", indexes);
+    return actorSummary ? createGameNodeFromSummary(actorSummary, indexes) : candidate;
   }
 
-  const movie = candidate.id !== undefined
-    ? movies.find((entry) => entry.id === candidate.id)
-    : movies.find((entry) => matchesLabel(entry.title, candidate.label));
+  if (candidate.id !== undefined) {
+    const movie = indexes.moviesById.get(candidate.id);
+    if (movie) {
+      return createNode(movie.title, "movie", {
+        id: movie.id,
+        releaseDate: movie.releaseDate,
+      });
+    }
+  }
 
-  return movie ? movieToGameNode(movie) : candidate;
+  const movieSummary = findNodeByLabel(candidate.label, "movie", indexes);
+  return movieSummary ? createGameNodeFromSummary(movieSummary, indexes) : candidate;
 }
 
 function buildExcludedActorNames(
@@ -147,10 +137,15 @@ function buildExcludedActorNames(
   return Array.from(names);
 }
 
-function toEndpoint(node: GameNode) {
+function toNodeSummary(node: GameNode): NodeSummary | null {
+  if (node.id === undefined) {
+    return null;
+  }
+
   return {
+    id: node.id,
     type: node.type,
-    value: node.label,
+    label: node.label,
   };
 }
 
@@ -166,11 +161,15 @@ function GamePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const routeState = (location.state as GamePageRouteState | null) ?? null;
+  const {
+    snapshot,
+    indexes,
+    isLoading: isSnapshotLoading,
+    errorMessage: snapshotError,
+  } = useSnapshotData();
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
-  const [actorsCatalog, setActorsCatalog] = useState<Actor[]>([]);
-  const [moviesCatalog, setMoviesCatalog] = useState<Movie[]>([]);
 
   const [selectedSide, setSelectedSide] = useState<SelectedSide>("top");
   const [topPath, setTopPath] = useState<GameNode[]>([]);
@@ -212,33 +211,34 @@ function GamePage() {
       setShuffleSeed(0);
 
       try {
-        const [actors, movies] = await Promise.all([fetchActors(), fetchMovies()]);
+        if (!snapshot || !indexes) {
+          return;
+        }
 
-        const resolvedActorA = await resolveRouteNode(
+        const resolvedActorA = resolveRouteNode(
           routeState?.startA ?? routeState?.movieA ?? routeState?.actorA,
           routeState?.movieA ? "movie" : "actor",
           "George Clooney",
-          actors,
-          movies,
+          indexes,
         );
-        const resolvedActorB = await resolveRouteNode(
+        const resolvedActorB = resolveRouteNode(
           routeState?.startB ?? routeState?.movieB ?? routeState?.actorB,
           routeState?.movieB ? "movie" : "actor",
           "Tobey Maguire",
-          actors,
-          movies,
+          indexes,
         );
 
         let resolvedOptimalHops = routeState?.optimalHops ?? null;
         let resolvedOptimalPath = routeState?.optimalPath?.map(nodeFromSummary) ?? [];
 
         if (resolvedOptimalPath.length === 0 || resolvedOptimalHops === null) {
-          try {
-            const generatedPath = await generatePath(toEndpoint(resolvedActorA), toEndpoint(resolvedActorB));
-            resolvedOptimalHops = generatedPath.steps;
-            resolvedOptimalPath = generatedPath.nodes.map(nodeFromSummary);
-          } catch {
-            resolvedOptimalHops = resolvedOptimalHops ?? null;
+          const startSummary = toNodeSummary(resolvedActorA);
+          const targetSummary = toNodeSummary(resolvedActorB);
+
+          if (startSummary && targetSummary) {
+            const generatedPath = generateLocalPath(startSummary, targetSummary, indexes);
+            resolvedOptimalHops = generatedPath.reason ? null : generatedPath.steps;
+            resolvedOptimalPath = generatedPath.reason ? [] : generatedPath.nodes.map(nodeFromSummary);
           }
         }
 
@@ -246,8 +246,6 @@ function GamePage() {
           return;
         }
 
-        setActorsCatalog(actors);
-        setMoviesCatalog(movies);
         setActorA(resolvedActorA);
         setActorB(resolvedActorB);
         setOptimalHops(resolvedOptimalHops);
@@ -268,7 +266,7 @@ function GamePage() {
     return () => {
       isMounted = false;
     };
-  }, [routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB]);
+  }, [indexes, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, snapshot]);
 
   const totalSelections = topPath.length + bottomPath.length;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
@@ -294,76 +292,59 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
-  const isInteractionDisabled = isPathLimitReached || isSetupLoading || !!completion;
+  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isSnapshotLoading || !!completion;
 
   useEffect(() => {
-    if (!actorA || !actorB || !currentSelection || !targetNode || completion) {
+    if (!actorA || !actorB || !currentSelection || !targetNode || completion || !indexes) {
       return;
     }
 
-    let isMounted = true;
+    setIsSuggestionsLoading(true);
+    setSuggestionError(null);
 
-    const loadSuggestions = async () => {
-      setIsSuggestionsLoading(true);
-      setSuggestionError(null);
+    try {
+      const targetSummary = toNodeSummary(targetNode);
 
-      try {
-        let liveSuggestions: GameNode[] = [];
+      if (!targetSummary) {
+        setSuggestionError(`Missing target id for ${targetNode.label}.`);
+        setSuggestions([]);
+        return;
+      }
 
-        if (currentSelection.type === "actor") {
-          if (currentSelection.id === undefined) {
-            throw new Error(`Missing actor id for ${currentSelection.label}.`);
-          }
+      let localSuggestions: GameNode[] = [];
 
-          const movies = await fetchActorMovies(currentSelection.id, targetNode.type, targetNode.id);
-          liveSuggestions = movies.map((movie) => createNode(movie.title, "movie", {
-            id: movie.id,
-            releaseDate: movie.releaseDate,
-            pathHint: movie.pathHint,
-          }));
-        } else {
-          if (currentSelection.id === undefined) {
-            throw new Error(`Missing movie id for ${currentSelection.label}.`);
-          }
-
-          const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
-          const actors = await fetchMovieActors(currentSelection.id, excludedNames, targetNode.type, targetNode.id);
-          liveSuggestions = actors.map((actor) => createNode(actor.name, "actor", {
-            id: actor.id,
-            popularity: actor.popularity,
-            popularityRank: actor.popularityRank,
-            pathHint: actor.pathHint,
-          }));
-        }
-
-        if (!isMounted) {
+      if (currentSelection.type === "actor") {
+        if (currentSelection.id === undefined) {
+          setSuggestionError(`Missing actor id for ${currentSelection.label}.`);
+          setSuggestions([]);
           return;
         }
 
-        const weightedSuggestions = buildSuggestionSet(liveSuggestions, targetNode);
-        setSuggestions(weightedSuggestions);
-
-        if (weightedSuggestions.length === 0) {
-          setSuggestionError("No live suggestions were returned for this node.");
-        }
-      } catch (error) {
-        if (isMounted) {
+        localSuggestions = getMoviesForActor(currentSelection.id, targetSummary, indexes);
+      } else {
+        if (currentSelection.id === undefined) {
+          setSuggestionError(`Missing movie id for ${currentSelection.label}.`);
           setSuggestions([]);
-          setSuggestionError(error instanceof Error ? error.message : "Failed to load suggestions.");
+          return;
         }
-      } finally {
-        if (isMounted) {
-          setIsSuggestionsLoading(false);
-        }
+
+        const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
+        localSuggestions = getActorsForMovie(currentSelection.id, excludedNames, targetSummary, indexes);
       }
-    };
 
-    void loadSuggestions();
+      const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode);
+      setSuggestions(weightedSuggestions);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [actorA, actorB, bottomPath, completion, currentSelection, shuffleSeed, targetNode, topPath]);
+      if (weightedSuggestions.length === 0) {
+        setSuggestionError("No local suggestions were returned for this node.");
+      }
+    } catch (error) {
+      setSuggestions([]);
+      setSuggestionError(error instanceof Error ? error.message : "Failed to load local suggestions.");
+    } finally {
+      setIsSuggestionsLoading(false);
+    }
+  }, [actorA, actorB, bottomPath, completion, currentSelection, indexes, shuffleSeed, targetNode, topPath]);
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const provisionalCompletion: CompletionState = {
@@ -377,7 +358,11 @@ function GamePage() {
     setCompletion(provisionalCompletion);
 
     try {
-      const validation = await validatePath(fullPath.map((node) => node.label));
+      if (!indexes) {
+        throw new Error("Local snapshot indexes are not ready.");
+      }
+
+      const validation = validateLocalPath(fullPath, indexes);
       setCompletion({
         ...provisionalCompletion,
         isValidated: validation.valid,
@@ -516,18 +501,33 @@ function GamePage() {
 
     try {
       if (type === "actor") {
-        const actor = actorsCatalog.find((entry) => matchesLabel(entry.name, value)) ?? await fetchActorByName(value);
-        await handleSuggestion(actorToGameNode(actor));
+        if (!indexes) {
+          setSuggestionError("Snapshot indexes are not ready yet.");
+          return;
+        }
+
+        const actor = findNodeByLabel(value, "actor", indexes);
+        if (!actor) {
+          setSuggestionError(`No actor named "${value}" was found in the local snapshot.`);
+          return;
+        }
+
+        await handleSuggestion(createGameNodeFromSummary(actor, indexes));
         return;
       }
 
-      const movie = moviesCatalog.find((entry) => matchesLabel(entry.title, value));
+      if (!indexes) {
+        setSuggestionError("Snapshot indexes are not ready yet.");
+        return;
+      }
+
+      const movie = findNodeByLabel(value, "movie", indexes);
       if (!movie) {
-        setSuggestionError(`No movie named "${value}" was found in the loaded catalog.`);
+        setSuggestionError(`No movie named "${value}" was found in the local snapshot.`);
         return;
       }
 
-      await handleSuggestion(movieToGameNode(movie));
+      await handleSuggestion(createGameNodeFromSummary(movie, indexes));
     } catch (error) {
       setSuggestionError(error instanceof Error ? error.message : "The write-in value could not be resolved.");
     }
@@ -574,7 +574,7 @@ function GamePage() {
             Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
           </div>
 
-          {setupError ? <div className="gamePageStatus gamePageStatus--error">{setupError}</div> : null}
+          {setupError || snapshotError ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
 
           <GameRightPanel
             actorA={actorA ?? createNode("Loading…", "actor")}
@@ -614,16 +614,16 @@ function GamePage() {
             </button>
             <h2 className="gameRulesTitle">How To Play</h2>
             <p className="gameRulesText">
-              The frontend now plays against the live graph API at {getApiBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
+              The frontend now plays from a locally cached graph snapshot sourced from {getSnapshotBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
             </p>
             <p className="gameRulesText">
-              Suggestions are sampled from the full backend response, not a fixed mock list. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool.
+              Suggestion lists are generated from cached actor, movie, and adjacency data stored in the browser. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool locally.
             </p>
             <p className="gameRulesText">
               A best-path option has a {Math.round(OPTIMAL_PATH_INCLUSION_RATE * 100)}% chance to appear in each reroll when no direct connection is available. If a suggestion can immediately reveal the target on the next alternating node, it is always highlighted as Connection found.
             </p>
             <p className="gameRulesText">
-              Optimal hops are precomputed with the backend shortest-path endpoint before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
+              Optimal hops are now computed locally from the snapshot before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
             </p>
           </div>
         </div>
