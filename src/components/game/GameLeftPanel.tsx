@@ -1,4 +1,5 @@
 import "./GameLeftPanel.css";
+import type { GameNode } from "../../types";
 
 type SelectedSide = "top" | "bottom";
 type Side = SelectedSide;
@@ -32,11 +33,11 @@ type BoardEllipsis = {
 };
 
 type Props = {
-  actorA: string;
-  actorB: string;
+  actorA: GameNode;
+  actorB: GameNode;
   selectedSide: SelectedSide;
-  topPath: string[];
-  bottomPath: string[];
+  topPath: GameNode[];
+  bottomPath: GameNode[];
   lockedSide: SelectedSide | null;
   onSelectSide: (side: SelectedSide) => void;
   onRemoveTopPathItem: () => void;
@@ -148,7 +149,7 @@ function buildBoardTokens({
   onSelectSide,
   onRemove,
 }: {
-  path: string[];
+  path: GameNode[];
   side: Side;
   isActivePath: boolean;
   isBoardLocked: boolean;
@@ -169,8 +170,8 @@ function buildBoardTokens({
       index < slotPath.length - 1 ? order[index + 1] : ellipsisCoord;
 
     return {
-      key: `${side}-${step}-${index}`,
-      text: step,
+      key: `${side}-${step.type}-${step.label}-${index}`,
+      text: step.label,
       fontSize,
       side,
       coord,
@@ -345,7 +346,7 @@ function GameLeftPanel({
         className={`game-left-panel__actor-box game-left-panel__actor-box--top${selectedSide === "top" ? " game-left-panel__actor-box--selected-side-top" : ""}`}
         onClick={() => onSelectSide("top")}
       >
-        {actorA}
+        {actorA.label}
       </div>
 
       <div className="game-left-panel__path-area">
@@ -371,7 +372,7 @@ function GameLeftPanel({
         className={`game-left-panel__actor-box game-left-panel__actor-box--bottom${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side-bottom" : ""}`}
         onClick={() => onSelectSide("bottom")}
       >
-        {actorB}
+        {actorB.label}
       </div>
     </section>
   );

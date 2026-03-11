@@ -1,22 +1,39 @@
 import { useEffect, useState } from "react";
+import type { GameNode, NodeType } from "../../types";
 import "./GameRightPanel.css";
 
 type Props = {
-  actorA: string;
-  actorB: string;
+  actorA: GameNode;
+  actorB: GameNode;
   selectedSide: "top" | "bottom";
-  currentSelection: string;
-  suggestions: string[];
+  currentSelection: GameNode;
+  suggestions: GameNode[];
   turns: number;
   rewinds: number;
   shuffles: number;
   isDisabled: boolean;
   onBack: () => void;
-  onSuggestion: (choice: string) => void;
+  onSuggestion: (choice: GameNode) => void;
   onSelectSide: (side: "top" | "bottom") => void;
   onReverse: () => void;
   onShuffle: () => void;
 };
+
+function getSuggestionContextLabel(selection: GameNode) {
+  if (selection.type === "actor") {
+    return {
+      prefix: "Movies for ",
+      placeholder: "Enter a movie title",
+      writeInType: "movie" as NodeType,
+    };
+  }
+
+  return {
+    prefix: "Co-Stars in ",
+    placeholder: "Enter an actor name",
+    writeInType: "actor" as NodeType,
+  };
+}
 
 function GameRightPanel({
   actorA,
@@ -36,6 +53,7 @@ function GameRightPanel({
 }: Props) {
   const [isWriteInOpen, setIsWriteInOpen] = useState(false);
   const [writeInValue, setWriteInValue] = useState("");
+  const selectionContext = getSuggestionContextLabel(currentSelection);
 
   useEffect(() => {
     if (isDisabled) {
@@ -59,7 +77,10 @@ function GameRightPanel({
       return;
     }
 
-    onSuggestion(trimmedValue);
+    onSuggestion({
+      label: trimmedValue,
+      type: selectionContext.writeInType,
+    });
     setWriteInValue("");
     setIsWriteInOpen(false);
   };
@@ -70,7 +91,7 @@ function GameRightPanel({
         type="button"
         className={`game-right-panel__side-rail game-right-panel__side-rail--top${selectedSide === "top" ? " game-right-panel__side-rail--active game-right-panel__side-rail--active-top" : ""}`}
         onClick={() => onSelectSide("top")}
-        aria-label={`Select ${actorA}`}
+        aria-label={`Select ${actorA.label}`}
       >
         <span className="game-right-panel__side-rail-path" aria-hidden="true" />
       </button>
@@ -89,19 +110,19 @@ function GameRightPanel({
         </div>
 
         <div className="game-right-panel__label">
-          <span className="game-right-panel__label-prefix">Movies for </span>
-          <span className="game-right-panel__label-selection">{currentSelection}</span>
+          <span className="game-right-panel__label-prefix">{selectionContext.prefix}</span>
+          <span className="game-right-panel__label-selection">{currentSelection.label}</span>
         </div>
 
         <div className="game-right-panel__grid">
           {suggestions.slice(0, 6).map((suggestion, idx) => (
             <button
-              key={`${suggestion}-${idx}`}
+              key={`${suggestion.type}-${suggestion.label}-${idx}`}
               className="game-right-panel__suggestion-button"
               disabled={isDisabled}
               onClick={() => onSuggestion(suggestion)}
             >
-              {suggestion}
+              {suggestion.label}
             </button>
           ))}
         </div>
@@ -112,7 +133,7 @@ function GameRightPanel({
               type="text"
               value={writeInValue}
               onChange={(event) => setWriteInValue(event.target.value)}
-              placeholder="Type a movie title"
+              placeholder={selectionContext.placeholder}
               className="game-right-panel__write-in-input"
               disabled={isDisabled}
               autoFocus
@@ -166,7 +187,7 @@ function GameRightPanel({
         type="button"
         className={`game-right-panel__side-rail game-right-panel__side-rail--bottom${selectedSide === "bottom" ? " game-right-panel__side-rail--active game-right-panel__side-rail--active-bottom" : ""}`}
         onClick={() => onSelectSide("bottom")}
-        aria-label={`Select ${actorB}`}
+        aria-label={`Select ${actorB.label}`}
       >
         <span className="game-right-panel__side-rail-path" aria-hidden="true" />
       </button>

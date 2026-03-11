@@ -3,43 +3,110 @@ import { useState } from "react";
 import HomeButton from "../components/HomeButton";
 import GameLogo from "../components/GameLogo";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
+import type { GameNode, NodeType } from "../types";
 import "./GamePage.css";
 
 const MAX_PATH_LENGTH = 19;
 
+type RouteGameNode = {
+  label?: string;
+  name?: string;
+  title?: string;
+  type?: NodeType;
+};
+
+type GamePageRouteState = {
+  startA?: RouteGameNode | string;
+  startB?: RouteGameNode | string;
+  actorA?: string;
+  actorB?: string;
+  movieA?: string;
+  movieB?: string;
+};
+
+const TEST_MOVIE_SUGGESTIONS: GameNode[] = [
+  { label: "Ocean's Eleven", type: "movie" },
+  { label: "Burn After Reading", type: "movie" },
+  { label: "The Perfect Storm", type: "movie" },
+  { label: "Gravity", type: "movie" },
+  { label: "Michael Clayton", type: "movie" },
+  { label: "Batman & Robin", type: "movie" },
+];
+
+const TEST_ACTOR_SUGGESTIONS: GameNode[] = [
+  { label: "Matt Damon", type: "actor" },
+  { label: "Julia Roberts", type: "actor" },
+  { label: "Brad Pitt", type: "actor" },
+  { label: "Sandra Bullock", type: "actor" },
+  { label: "Cate Blanchett", type: "actor" },
+  { label: "Don Cheadle", type: "actor" },
+];
+
+function createNode(label: string, type: NodeType): GameNode {
+  return { label, type };
+}
+
+function normalizeRouteNode(value: RouteGameNode | string | undefined, fallbackType: NodeType, fallbackLabel: string) {
+  if (typeof value === "string") {
+    return createNode(value, fallbackType);
+  }
+
+  if (value) {
+    const label = value.label ?? value.name ?? value.title ?? fallbackLabel;
+    return createNode(label, value.type ?? fallbackType);
+  }
+
+  return createNode(fallbackLabel, fallbackType);
+}
+
+function getSuggestionsForType(selectionType: NodeType) {
+  return selectionType === "actor" ? TEST_MOVIE_SUGGESTIONS : TEST_ACTOR_SUGGESTIONS;
+}
+
 function GamePage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const routeState = (location.state as GamePageRouteState | null) ?? null;
 
-  const initialActorA = location.state?.actorA || "George Clooney";
-  const initialActorB = location.state?.actorB || "Tobey Maguire";
+  const initialActorA = normalizeRouteNode(
+    routeState?.startA ?? routeState?.movieA ?? routeState?.actorA,
+    routeState?.movieA ? "movie" : "actor",
+    "George Clooney",
+  );
+  const initialActorB = normalizeRouteNode(
+    routeState?.startB ?? routeState?.movieB ?? routeState?.actorB,
+    routeState?.movieB ? "movie" : "actor",
+    "Tobey Maguire",
+  );
 
   const [actorA, setActorA] = useState(initialActorA);
   const [actorB, setActorB] = useState(initialActorB);
 
   const [selectedSide, setSelectedSide] = useState<"top" | "bottom">("top");
 
-  const [topPath, setTopPath] = useState<string[]>([]);
-  const [bottomPath, setBottomPath] = useState<string[]>([]);
+  const [topPath, setTopPath] = useState<GameNode[]>([]);
+  const [bottomPath, setBottomPath] = useState<GameNode[]>([]);
   const [lockedSide, setLockedSide] = useState<"top" | "bottom" | null>(null);
 
   const [turns, setTurns] = useState(0);
   const [rewinds, setRewinds] = useState(0);
   const [shuffles, setShuffles] = useState(0);
 
-  const suggestions = [
-    "Ocean's Eleven",
-    "Burn After Reading",
-    "The Perfect Storm",
-    "Gravity",
-    "Michael Clayton",
-    "Batman & Robin",
-  ];
-
   const totalSelections = topPath.length + bottomPath.length;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
 
-  const handleSuggestion = (choice: string) => {
+  const currentSelection =
+    selectedSide === "top"
+      ? topPath.length > 0
+        ? topPath[topPath.length - 1]
+        : actorA
+      : bottomPath.length > 0
+        ? bottomPath[bottomPath.length - 1]
+        : actorB;
+
+  const suggestions = getSuggestionsForType(currentSelection.type);
+
+  const handleSuggestion = (choice: GameNode) => {
     if (isPathLimitReached) {
       return;
     }
@@ -113,15 +180,6 @@ function GamePage() {
     setRewinds(0);
     setShuffles(0);
   };
-
-  const currentSelection =
-    selectedSide === "top"
-      ? topPath.length > 0
-        ? topPath[topPath.length - 1]
-        : actorA
-      : bottomPath.length > 0
-      ? bottomPath[bottomPath.length - 1]
-      : actorB;
 
   return (
     <div className="gamePage">
