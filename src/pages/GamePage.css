@@ -177,3 +177,87 @@
   opacity: 1;
 }
 
+.gameInfoButton {
+  position: fixed;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  z-index: 20;
+}
+
+.gameInfoButton:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(255, 255, 255, 0.36);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.gameRulesOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36px;
+  background: rgba(2, 6, 23, 0.5);
+  backdrop-filter: blur(6px);
+  z-index: 30;
+}
+
+.gameRulesDialog {
+  position: relative;
+  width: min(100%, 980px);
+  min-height: 260px;
+  padding: 30px 34px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.88);
+  color: white;
+  box-sizing: border-box;
+}
+
+.gameRulesCloseButton {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gameRulesTitle {
+  margin: 0 0 18px;
+  font-size: 1.5rem;
+}
+
+.gameRulesText {
+  margin: 0 0 14px;
+  max-width: 72ch;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.92);
+}
+

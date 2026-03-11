@@ -91,6 +91,7 @@ function GamePage() {
   const [turns, setTurns] = useState(0);
   const [rewinds, setRewinds] = useState(0);
   const [shuffles, setShuffles] = useState(0);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
 
   const totalSelections = topPath.length + bottomPath.length;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
@@ -235,6 +236,30 @@ function GamePage() {
           />
         </div>
       </div>
+
+      <button type="button" className="gameInfoButton" onClick={() => setIsRulesOpen(true)} aria-label="Open game rules">
+        i
+      </button>
+
+      {isRulesOpen ? (
+        <div className="gameRulesOverlay" onClick={() => setIsRulesOpen(false)}>
+          <div className="gameRulesDialog" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="gameRulesCloseButton" onClick={() => setIsRulesOpen(false)} aria-label="Close rules">
+              ×
+            </button>
+            <h2 className="gameRulesTitle">How To Play</h2>
+            <p className="gameRulesText">
+              Connect the two starting nodes by alternating between actors and movies until both paths meet on a matching node.
+            </p>
+            <p className="gameRulesText">
+              If your current selection is an actor, choose a movie they appear in. If your current selection is a movie, choose a costar from that movie.
+            </p>
+            <p className="gameRulesText">
+              Use the toolbar controls to step back, reverse the starting sides, or shuffle future suggestions once that feature is implemented.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
     </div>
   );
