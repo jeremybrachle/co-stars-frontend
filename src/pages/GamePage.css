@@ -67,7 +67,60 @@
   font-size: clamp(2rem, 3vw, 2.8rem);
   line-height: 1;
   text-align: center;
-  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+  text-shadow: none;
+}
+
+.gameLogoButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  transition: none;
+}
+
+.gameLogoButton:hover .gameLogo,
+.gameLogoButton:focus-visible .gameLogo {
+  text-shadow: none;
+}
+
+.gameLogoButton:hover,
+.gameLogoButton:focus-visible {
+  background: transparent;
+  transform: none;
+  box-shadow: none;
+}
+
+.gameLogoResetHint {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  transform: translateX(-50%) translateY(-2px);
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.gameLogoButton:hover .gameLogoResetHint,
+.gameLogoButton:focus-visible .gameLogoResetHint {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 /* Main container */
@@ -124,31 +177,3 @@
   opacity: 1;
 }
 
-.gameResetButton {
-  position: fixed;
-  left: 50%;
-  bottom: 62px;
-  transform: translateX(-50%);
-  width: 42px;
-  height: 62px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.56);
-  color: white;
-  font-size: 1.5rem;
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
-  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-  z-index: 10;
-}
-
-.gameResetButton:hover {
-  background: rgba(30, 41, 59, 0.86);
-  border-color: rgba(255, 255, 255, 0.32);
-  transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.24);
-}

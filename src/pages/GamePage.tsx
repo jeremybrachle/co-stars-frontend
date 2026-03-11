@@ -190,7 +190,10 @@ function GamePage() {
           </button>
         </div>
         <div className="topBarCenter">
-          <GameLogo className="gameLogo" />
+          <button type="button" className="gameLogoButton" onClick={handleResetBoard} aria-label="Reset board" title="Reset board">
+            <GameLogo className="gameLogo" />
+            <span className="gameLogoResetHint" aria-hidden="true">Reset board</span>
+          </button>
         </div>
         <div className="topBarSide topBarSideRight homeWrapper">
           <HomeButton />
@@ -233,9 +236,6 @@ function GamePage() {
         </div>
       </div>
 
-      <button type="button" className="gameResetButton" onClick={handleResetBoard} aria-label="Reset board">
-        ↺
-      </button>
     </div>
   );
 }
