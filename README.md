@@ -1,73 +1,38 @@
-# React + TypeScript + Vite
+# 🎭 Co-Stars
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Co-Stars is a movie-connection game where you build a path between two endpoints by alternating between actors and movies. Pick a movie for an actor, then pick a co-star from that movie, and keep going until the two sides connect.
 
-Currently, two official plugins are available:
+## How To Play
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Start with the two nodes shown on the board.
+2. If your current node is an actor, choose one of their movies.
+3. If your current node is a movie, choose one of its actors.
+4. Keep alternating actor → movie → actor until the path connects.
+5. Try to finish in as few hops as possible compared with the precomputed optimal path.
 
-## React Compiler
+Current gameplay rules:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Adventure Mode loads live levels from the backend.
+- Suggestion lists are built from real API data.
+- The shuffle button rerolls the suggestion pool using popularity and shortest-path hints.
+- Some suggestions are highlighted when they reveal an immediate or highly optimal connection.
+- On a win, the game shows your completed path, hop count, turns, shuffles, rewinds, and the optimal comparison.
 
-## Expanding the ESLint configuration
+## Technical Overview
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+This is a React + TypeScript + Vite frontend. It uses a local backend graph API for levels, actor/movie lookups, shortest-path generation, and path validation.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+During local development, Vite proxies `/api/*` requests to `http://localhost:8000` to avoid browser CORS issues.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Run Locally
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Frontend only:
+
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+For live gameplay data, run the separate backend project on `http://localhost:8000` as well.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+For a more detailed technical overview, see [TECHNICAL_README.md](TECHNICAL_README.md).

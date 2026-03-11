@@ -1,262 +1,686 @@
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
 import HomeButton from "../components/HomeButton";
+import GameLogo from "../components/GameLogo";
+import { GameLeftPanel, GameRightPanel } from "../components/game";
+import {
+  fetchActorByName,
+  fetchActorMovies,
+  fetchActors,
+  fetchMovieActors,
+  fetchMovies,
+  generatePath,
+  getApiBaseUrl,
+  validatePath,
+} from "../api/costars";
+import {
+  buildSuggestionSet,
+  combineMeetingPath,
+  isDirectConnectionSuggestion,
+  isSameNode,
+  MAX_PATH_LENGTH,
+  nodeFromSummary,
+  OPTIMAL_PATH_INCLUSION_RATE,
+} from "../gameplay";
+import type { Actor, GameNode, Movie, NodeSummary, NodeType } from "../types";
 import "./GamePage.css";
 
-// Unicode icons
-const DownArrow = () => <span style={{ fontSize: "1.5em", display: "block", textAlign: "center" }}>↓</span>;
-const UpArrow = () => <span style={{ fontSize: "1.5em", display: "block", textAlign: "center" }}>↑</span>;
+type RouteGameNode = {
+  id?: number;
+  label?: string;
+  name?: string;
+  title?: string;
+  type?: NodeType;
+  popularity?: number | null;
+  releaseDate?: string | null;
+};
 
-const VerticalEllipsisBox = ({ onClick, highlight }: { onClick?: () => void; highlight?: boolean }) => (
-  <div
-    className={`actorBox ellipsisBox${highlight ? " current" : ""}`}
-    style={{
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      width: 36,
-      height: 36,
-      margin: "10px auto",
-      cursor: onClick ? "pointer" : "default",
-      borderColor: highlight ? "#facc15" : undefined,
-    }}
-    onClick={onClick}
-  >
-    <span style={{ fontSize: "1.2em" }}>⋮</span>
-  </div>
-);
+type GamePageRouteState = {
+  startA?: RouteGameNode | string;
+  startB?: RouteGameNode | string;
+  actorA?: string;
+  actorB?: string;
+  movieA?: string;
+  movieB?: string;
+  optimalHops?: number | null;
+  optimalPath?: NodeSummary[];
+};
+
+type SelectedSide = "top" | "bottom";
+
+type CompletionState = {
+  fullPath: GameNode[];
+  usedHops: number;
+  winningSide: SelectedSide;
+  source: string;
+  isValidated: boolean | null;
+  validationMessage?: string;
+};
+
+function createNode(label: string, type: NodeType, partial?: Partial<GameNode>): GameNode {
+  return {
+    label,
+    type,
+    ...partial,
+  };
+}
+
+function actorToGameNode(actor: Actor): GameNode {
+  return createNode(actor.name, "actor", {
+    id: actor.id,
+    popularity: actor.popularity,
+  });
+}
+
+function movieToGameNode(movie: Movie): GameNode {
+  return createNode(movie.title, "movie", {
+    id: movie.id,
+    releaseDate: movie.releaseDate,
+  });
+}
+
+function normalizeRouteNode(value: RouteGameNode | string | undefined, fallbackType: NodeType, fallbackLabel: string) {
+  if (typeof value === "string") {
+    return createNode(value, fallbackType);
+  }
+
+  if (value) {
+    const label = value.label ?? value.name ?? value.title ?? fallbackLabel;
+    return createNode(label, value.type ?? fallbackType, {
+      id: value.id,
+      popularity: value.popularity,
+      releaseDate: value.releaseDate,
+    });
+  }
+
+  return createNode(fallbackLabel, fallbackType);
+}
+
+function matchesLabel(a: string, b: string) {
+  return a.trim().localeCompare(b.trim(), undefined, { sensitivity: "accent" }) === 0;
+}
+
+async function resolveRouteNode(
+  value: RouteGameNode | string | undefined,
+  fallbackType: NodeType,
+  fallbackLabel: string,
+  actors: Actor[],
+  movies: Movie[],
+) {
+  const candidate = normalizeRouteNode(value, fallbackType, fallbackLabel);
+
+  if (candidate.type === "actor") {
+    const actor = candidate.id !== undefined
+      ? actors.find((entry) => entry.id === candidate.id)
+      : actors.find((entry) => matchesLabel(entry.name, candidate.label));
+
+    if (actor) {
+      return actorToGameNode(actor);
+    }
+
+    const fetchedActor = await fetchActorByName(candidate.label);
+    return actorToGameNode(fetchedActor);
+  }
+
+  const movie = candidate.id !== undefined
+    ? movies.find((entry) => entry.id === candidate.id)
+    : movies.find((entry) => matchesLabel(entry.title, candidate.label));
+
+  return movie ? movieToGameNode(movie) : candidate;
+}
+
+function buildExcludedActorNames(
+  startA: GameNode,
+  startB: GameNode,
+  topPath: GameNode[],
+  bottomPath: GameNode[],
+  target: GameNode,
+) {
+  const names = new Set<string>();
+
+  [startA, startB, ...topPath, ...bottomPath].forEach((node) => {
+    if (node.type === "actor" && !isSameNode(node, target)) {
+      names.add(node.label);
+    }
+  });
+
+  return Array.from(names);
+}
+
+function toEndpoint(node: GameNode) {
+  return {
+    type: node.type,
+    value: node.label,
+  };
+}
+
+function reverseFullPath(path: GameNode[]) {
+  return [...path].reverse();
+}
+
+function formatPathPreview(path: GameNode[]) {
+  return path.map((node) => node.label).join(" → ");
+}
 
 function GamePage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const routeState = (location.state as GamePageRouteState | null) ?? null;
 
-  const actorA = location.state?.actorA || "George Clooney";
-  const actorB = location.state?.actorB || "Tobey Maguire";
+  const [actorA, setActorA] = useState<GameNode | null>(null);
+  const [actorB, setActorB] = useState<GameNode | null>(null);
+  const [actorsCatalog, setActorsCatalog] = useState<Actor[]>([]);
+  const [moviesCatalog, setMoviesCatalog] = useState<Movie[]>([]);
 
-  const [selectedSide, setSelectedSide] = useState<"top" | "bottom">("top");
-
-  const [topPath, setTopPath] = useState<string[]>([]);
-  const [bottomPath, setBottomPath] = useState<string[]>([]);
+  const [selectedSide, setSelectedSide] = useState<SelectedSide>("top");
+  const [topPath, setTopPath] = useState<GameNode[]>([]);
+  const [bottomPath, setBottomPath] = useState<GameNode[]>([]);
+  const [lockedSide, setLockedSide] = useState<SelectedSide | null>(null);
 
   const [turns, setTurns] = useState(0);
   const [rewinds, setRewinds] = useState(0);
   const [shuffles, setShuffles] = useState(0);
+  const [shuffleSeed, setShuffleSeed] = useState(0);
+  const [isRulesOpen, setIsRulesOpen] = useState(false);
 
-  const suggestions = [
-    "Ocean's Eleven",
-    "Burn After Reading",
-    "The Perfect Storm",
-    "Gravity",
-    "Michael Clayton",
-    "Batman & Robin",
-  ];
+  const [optimalHops, setOptimalHops] = useState<number | null>(routeState?.optimalHops ?? null);
+  const [optimalPath, setOptimalPath] = useState<GameNode[]>(routeState?.optimalPath?.map(nodeFromSummary) ?? []);
 
-  const handleSuggestion = (choice: string) => {
-    if (selectedSide === "top") setTopPath([...topPath, choice]);
-    else setBottomPath([...bottomPath, choice]);
+  const [suggestions, setSuggestions] = useState<GameNode[]>([]);
+  const [isSetupLoading, setIsSetupLoading] = useState(true);
+  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
+  const [setupError, setSetupError] = useState<string | null>(null);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [completion, setCompletion] = useState<CompletionState | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadGameSetup = async () => {
+      setIsSetupLoading(true);
+      setSetupError(null);
+      setSuggestionError(null);
+      setCompletion(null);
+      setSuggestions([]);
+      setTopPath([]);
+      setBottomPath([]);
+      setSelectedSide("top");
+      setLockedSide(null);
+      setTurns(0);
+      setRewinds(0);
+      setShuffles(0);
+      setShuffleSeed(0);
+
+      try {
+        const [actors, movies] = await Promise.all([fetchActors(), fetchMovies()]);
+
+        const resolvedActorA = await resolveRouteNode(
+          routeState?.startA ?? routeState?.movieA ?? routeState?.actorA,
+          routeState?.movieA ? "movie" : "actor",
+          "George Clooney",
+          actors,
+          movies,
+        );
+        const resolvedActorB = await resolveRouteNode(
+          routeState?.startB ?? routeState?.movieB ?? routeState?.actorB,
+          routeState?.movieB ? "movie" : "actor",
+          "Tobey Maguire",
+          actors,
+          movies,
+        );
+
+        let resolvedOptimalHops = routeState?.optimalHops ?? null;
+        let resolvedOptimalPath = routeState?.optimalPath?.map(nodeFromSummary) ?? [];
+
+        if (resolvedOptimalPath.length === 0 || resolvedOptimalHops === null) {
+          try {
+            const generatedPath = await generatePath(toEndpoint(resolvedActorA), toEndpoint(resolvedActorB));
+            resolvedOptimalHops = generatedPath.steps;
+            resolvedOptimalPath = generatedPath.nodes.map(nodeFromSummary);
+          } catch {
+            resolvedOptimalHops = resolvedOptimalHops ?? null;
+          }
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        setActorsCatalog(actors);
+        setMoviesCatalog(movies);
+        setActorA(resolvedActorA);
+        setActorB(resolvedActorB);
+        setOptimalHops(resolvedOptimalHops);
+        setOptimalPath(resolvedOptimalPath);
+      } catch (error) {
+        if (isMounted) {
+          setSetupError(error instanceof Error ? error.message : "Failed to initialize the game.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsSetupLoading(false);
+        }
+      }
+    };
+
+    void loadGameSetup();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB]);
+
+  const totalSelections = topPath.length + bottomPath.length;
+  const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
+  const currentHops = totalSelections;
+
+  const currentSelection = useMemo(() => {
+    if (!actorA || !actorB) {
+      return null;
+    }
+
+    if (selectedSide === "top") {
+      return topPath.length > 0 ? topPath[topPath.length - 1] : actorA;
+    }
+
+    return bottomPath.length > 0 ? bottomPath[bottomPath.length - 1] : actorB;
+  }, [actorA, actorB, bottomPath, selectedSide, topPath]);
+
+  const targetNode = useMemo(() => {
+    if (!actorA || !actorB) {
+      return null;
+    }
+
+    return selectedSide === "top" ? actorB : actorA;
+  }, [actorA, actorB, selectedSide]);
+
+  const isInteractionDisabled = isPathLimitReached || isSetupLoading || !!completion;
+
+  useEffect(() => {
+    if (!actorA || !actorB || !currentSelection || !targetNode || completion) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadSuggestions = async () => {
+      setIsSuggestionsLoading(true);
+      setSuggestionError(null);
+
+      try {
+        let liveSuggestions: GameNode[] = [];
+
+        if (currentSelection.type === "actor") {
+          if (currentSelection.id === undefined) {
+            throw new Error(`Missing actor id for ${currentSelection.label}.`);
+          }
+
+          const movies = await fetchActorMovies(currentSelection.id, targetNode.type, targetNode.id);
+          liveSuggestions = movies.map((movie) => createNode(movie.title, "movie", {
+            id: movie.id,
+            releaseDate: movie.releaseDate,
+            pathHint: movie.pathHint,
+          }));
+        } else {
+          if (currentSelection.id === undefined) {
+            throw new Error(`Missing movie id for ${currentSelection.label}.`);
+          }
+
+          const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
+          const actors = await fetchMovieActors(currentSelection.id, excludedNames, targetNode.type, targetNode.id);
+          liveSuggestions = actors.map((actor) => createNode(actor.name, "actor", {
+            id: actor.id,
+            popularity: actor.popularity,
+            popularityRank: actor.popularityRank,
+            pathHint: actor.pathHint,
+          }));
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        const weightedSuggestions = buildSuggestionSet(liveSuggestions, targetNode);
+        setSuggestions(weightedSuggestions);
+
+        if (weightedSuggestions.length === 0) {
+          setSuggestionError("No live suggestions were returned for this node.");
+        }
+      } catch (error) {
+        if (isMounted) {
+          setSuggestions([]);
+          setSuggestionError(error instanceof Error ? error.message : "Failed to load suggestions.");
+        }
+      } finally {
+        if (isMounted) {
+          setIsSuggestionsLoading(false);
+        }
+      }
+    };
+
+    void loadSuggestions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [actorA, actorB, bottomPath, completion, currentSelection, shuffleSeed, targetNode, topPath]);
+
+  const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
+    const provisionalCompletion: CompletionState = {
+      fullPath,
+      usedHops: fullPath.length - 1,
+      winningSide,
+      source,
+      isValidated: null,
+    };
+
+    setCompletion(provisionalCompletion);
+
+    try {
+      const validation = await validatePath(fullPath.map((node) => node.label));
+      setCompletion({
+        ...provisionalCompletion,
+        isValidated: validation.valid,
+        validationMessage: validation.message,
+      });
+    } catch (error) {
+      setCompletion({
+        ...provisionalCompletion,
+        isValidated: null,
+        validationMessage: error instanceof Error ? error.message : "Path validation could not be completed.",
+      });
+    }
   };
 
-  const currentSelection =
-    selectedSide === "top"
-      ? topPath.length > 0
-        ? topPath[topPath.length - 1]
-        : actorA
-      : bottomPath.length > 0
-      ? bottomPath[bottomPath.length - 1]
-      : actorB;
+  const handleSuggestion = async (choice: GameNode) => {
+    if (!actorA || !actorB || !targetNode || isInteractionDisabled) {
+      return;
+    }
 
-  const baseFont = 22;
-  const minFont = 12;
+    const activePath = selectedSide === "top" ? topPath : bottomPath;
+    const shouldAutoComplete = isDirectConnectionSuggestion(choice, targetNode);
+    const autoCompletionTail = shouldAutoComplete
+      ? (choice.pathHint?.path.slice(1).map(nodeFromSummary) ?? [])
+      : [];
 
-  const renderTopPath = (pathArr: string[], onSelect: (idx: number) => void) => {
-    const fontSize = Math.max(minFont, baseFont - pathArr.length * 2);
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-        <DownArrow />
-        {pathArr.map((step, idx) => {
-          const isLast = idx === pathArr.length - 1;
-          return (
-            <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div
-                className={`actorBox completed${isLast ? " current" : ""}`}
-                style={{ cursor: isLast ? "pointer" : "default", fontSize }}
-                onClick={isLast ? () => onSelect(idx) : undefined}
-              >
-                {step}
-              </div>
-              <DownArrow />
-            </div>
-          );
-        })}
-        <VerticalEllipsisBox onClick={() => onSelect(pathArr.length)} highlight={selectedSide === "top"} />
-      </div>
-    );
+    const updatedPath = [...activePath, choice, ...autoCompletionTail];
+    const nextTopPath = selectedSide === "top" ? updatedPath : topPath;
+    const nextBottomPath = selectedSide === "bottom" ? updatedPath : bottomPath;
+
+    if (selectedSide === "top") {
+      setTopPath(updatedPath);
+    } else {
+      setBottomPath(updatedPath);
+    }
+
+    setTurns((currentTurns) => currentTurns + 1);
+
+    if (nextTopPath.length + nextBottomPath.length >= MAX_PATH_LENGTH) {
+      setLockedSide(selectedSide);
+    }
+
+    const meetingPath = combineMeetingPath(actorA, nextTopPath, actorB, nextBottomPath);
+    if (meetingPath) {
+      await finalizeCompletion(meetingPath, selectedSide, "Both sides met on the same node.");
+      return;
+    }
+
+    const updatedLastNode = updatedPath[updatedPath.length - 1];
+    if (updatedLastNode && isSameNode(updatedLastNode, targetNode)) {
+      const winningPath = selectedSide === "top"
+        ? [actorA, ...updatedPath]
+        : reverseFullPath([actorB, ...updatedPath]);
+      const source = shouldAutoComplete
+        ? "A look-ahead suggestion connected directly into the target path."
+        : "The target node was selected directly.";
+      await finalizeCompletion(winningPath, selectedSide, source);
+    }
   };
 
-  const renderBottomPath = (pathArr: string[], onSelect: (idx: number) => void) => {
-    const fontSize = Math.max(minFont, baseFont - pathArr.length * 2);
-    const reversed = pathArr.slice().reverse();
+  const handleRemoveTopPathItem = () => {
+    if (topPath.length === 0 || completion) {
+      return;
+    }
 
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 8, flex: 1, minHeight: 0 }}>
-        {/* <UpArrow /> */}
-        <VerticalEllipsisBox onClick={() => onSelect(pathArr.length)} highlight={selectedSide === "bottom"} />
-        {reversed.map((step, revIdx) => {
-          const idx = pathArr.length - 1 - revIdx;
-          const isFirst = revIdx === reversed.length - 1;
-          return (
-            <div key={idx} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              {/* Render upward arrow connecting to bottom actor only for first box */}
-            {isFirst && <UpArrow />}
-            {/* Render upward arrow for all subsequent boxes */}
-            {!isFirst && <UpArrow />}
-              <div
-                className={`actorBox completed${idx === pathArr.length - 1 ? " current" : ""}`}
-                style={{ cursor: idx === pathArr.length - 1 ? "pointer" : "default", fontSize }}
-                onClick={idx === pathArr.length - 1 ? () => onSelect(idx) : undefined}
-              >
-                {step}
-              </div>
-            </div>
-          );
-        })}
-        {/* Up arrow under actorB */}
-        <UpArrow />
-      </div>
-    );
+    setTopPath((currentPath) => currentPath.slice(0, -1));
+    setLockedSide(null);
+    setRewinds((currentRewinds) => currentRewinds + 1);
   };
+
+  const handleRemoveBottomPathItem = () => {
+    if (bottomPath.length === 0 || completion) {
+      return;
+    }
+
+    setBottomPath((currentPath) => currentPath.slice(0, -1));
+    setLockedSide(null);
+    setRewinds((currentRewinds) => currentRewinds + 1);
+  };
+
+  const handleBackCurrentPathItem = () => {
+    if (selectedSide === "top") {
+      handleRemoveTopPathItem();
+      return;
+    }
+
+    handleRemoveBottomPathItem();
+  };
+
+  const handleReverseSides = () => {
+    if (!actorA || !actorB || completion) {
+      return;
+    }
+
+    setActorA(actorB);
+    setActorB(actorA);
+    setTopPath(bottomPath);
+    setBottomPath(topPath);
+    setOptimalPath((currentPath) => [...currentPath].reverse());
+    setLockedSide((currentLockedSide) => {
+      if (currentLockedSide === "top") {
+        return "bottom";
+      }
+
+      if (currentLockedSide === "bottom") {
+        return "top";
+      }
+
+      return null;
+    });
+  };
+
+  const handleResetBoard = () => {
+    setSelectedSide("top");
+    setTopPath([]);
+    setBottomPath([]);
+    setLockedSide(null);
+    setTurns(0);
+    setRewinds(0);
+    setShuffles(0);
+    setShuffleSeed((currentSeed) => currentSeed + 1);
+    setSuggestionError(null);
+    setCompletion(null);
+  };
+
+  const handleShuffle = () => {
+    if (completion) {
+      return;
+    }
+
+    setShuffles((count) => count + 1);
+    setShuffleSeed((currentSeed) => currentSeed + 1);
+  };
+
+  const handleWriteIn = async (value: string, type: NodeType) => {
+    setSuggestionError(null);
+
+    try {
+      if (type === "actor") {
+        const actor = actorsCatalog.find((entry) => matchesLabel(entry.name, value)) ?? await fetchActorByName(value);
+        await handleSuggestion(actorToGameNode(actor));
+        return;
+      }
+
+      const movie = moviesCatalog.find((entry) => matchesLabel(entry.title, value));
+      if (!movie) {
+        setSuggestionError(`No movie named "${value}" was found in the loaded catalog.`);
+        return;
+      }
+
+      await handleSuggestion(movieToGameNode(movie));
+    } catch (error) {
+      setSuggestionError(error instanceof Error ? error.message : "The write-in value could not be resolved.");
+    }
+  };
+
+  const completionPreviewPath = completion?.fullPath ?? optimalPath;
 
   return (
     <div className="gamePage">
       <div className="topBar">
-        <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate("/adventure")}>
-          ← Back
-        </button>
-        <div className="homeWrapper">
+        <div className="topBarSide topBarSideLeft">
+          <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate("/adventure")}>
+            ← Back
+          </button>
+        </div>
+        <div className="topBarCenter">
+          <button type="button" className="gameLogoButton" onClick={handleResetBoard} aria-label="Reset board" title="Reset board">
+            <GameLogo className="gameLogo" />
+            <span className="gameLogoResetHint" aria-hidden="true">Reset board</span>
+          </button>
+        </div>
+        <div className="topBarSide topBarSideRight homeWrapper">
           <HomeButton />
         </div>
       </div>
 
       <div className="gameContainer">
-        {/* Left Panel */}
-        <div className="leftPanel" style={{ height: "75vh", minHeight: 500, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-          <div className={`actorBox ${selectedSide === "top" ? "active current" : ""}`} onClick={() => setSelectedSide("top")}>{actorA}</div>
+        <GameLeftPanel
+          actorA={actorA ?? createNode("Loading…", "actor")}
+          actorB={actorB ?? createNode("Loading…", "actor")}
+          selectedSide={selectedSide}
+          topPath={topPath}
+          bottomPath={bottomPath}
+          lockedSide={lockedSide}
+          completedPath={completion?.fullPath}
+          currentHops={currentHops}
+          optimalHops={optimalHops}
+          onSelectSide={setSelectedSide}
+          onRemoveTopPathItem={handleRemoveTopPathItem}
+          onRemoveBottomPathItem={handleRemoveBottomPathItem}
+        />
+        <div className="gameSidebar">
+          <div className={`gameSidebarWarning${isPathLimitReached ? " gameSidebarWarning--visible" : ""}`}>
+            Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
+          </div>
 
-          <div
-            className="pathAreaCombined"
-            style={{
-              flex: 1,
-              margin: "20px 0",
-              borderRadius: 10,
-              border: "2px dashed rgba(255,255,255,0.25)",
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              gap: 0,
-              minHeight: 0,
-              overflow: "hidden",
+          {setupError ? <div className="gamePageStatus gamePageStatus--error">{setupError}</div> : null}
+
+          <GameRightPanel
+            actorA={actorA ?? createNode("Loading…", "actor")}
+            actorB={actorB ?? createNode("Loading…", "actor")}
+            selectedSide={selectedSide}
+            currentSelection={currentSelection ?? createNode("Loading…", "actor")}
+            suggestions={suggestions}
+            turns={turns}
+            rewinds={rewinds}
+            shuffles={shuffles}
+            optimalHops={optimalHops}
+            currentHops={currentHops}
+            isDisabled={isInteractionDisabled}
+            isLoading={isSuggestionsLoading}
+            errorMessage={suggestionError}
+            onBack={handleBackCurrentPathItem}
+            onSuggestion={(choice) => {
+              void handleSuggestion(choice);
             }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flex: 1 }}>
-              {renderTopPath(topPath, () => setSelectedSide("top"))}
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flex: 1 }}>
-              {renderBottomPath(bottomPath, () => setSelectedSide("bottom"))}
-            </div>
-          </div>
-
-          <div className={`actorBox ${selectedSide === "bottom" ? "active current" : ""}`} onClick={() => setSelectedSide("bottom")}>
-            {actorB}
-          </div>
-        </div>
-
-        {/* Right Panel */}
-        <div className="rightPanel" style={{ display: "flex", flexDirection: "column", alignItems: "center", height: "75vh", minHeight: 500, justifyContent: "flex-start", position: "relative" }}>
-          {/* Main label */}
-          <div style={{ marginTop: 20, marginBottom: 12, fontWeight: 700, fontSize: "1.6em", color: "white", textShadow: "0 1px 8px #2228" }}>
-            {`Movies for ${currentSelection}`}
-          </div>
-
-          {/* Suggestions grid */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 8px", justifyItems: "center", alignItems: "center" }}>
-              {suggestions.slice(0, 6).map((s, i) => (
-                <button
-                  key={i}
-                  className="suggestionButton"
-                  style={{
-                    width: 160,
-                    height: 60,
-                    margin: 0,
-                    fontWeight: 500,
-                    fontSize: "1.05em",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                  }}
-                  onClick={() => handleSuggestion(s)}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            {/* Plus Button */}
-            <button
-              className="suggestionButton"
-              style={{ width: 340, height: 50, marginTop: 6, fontSize: "1.15em", fontWeight: 500 }}
-            >
-              +
-            </button>
-
-            {/* Shuffle Button */}
-            <button
-              style={{
-                width: 340,
-                height: 50,
-                marginTop: 6,
-                fontSize: "1.15em",
-                fontWeight: 500,
-                backgroundColor: "#ff5252",
-                border: "none",
-                borderRadius: 8,
-                color: "white",
-                cursor: "pointer",
-              }}
-              onClick={() => setShuffles(shuffles + 1)}
-            >
-              Shuffle
-            </button>
-          </div>
-
-          {/* Fixed Score Panel at bottom */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: 10,
-              left: "50%",
-              transform: "translateX(-50%)",
-              padding: "8px 16px",
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderRadius: 8,
-              background: "rgba(0,0,0,0.25)",
-              color: "white",
-              fontWeight: 500,
-              display: "flex",
-              gap: 12,
-            }}
-          >
-            <span>Turns: {turns}</span>
-            <span>|</span>
-            <span>Shuffles: {shuffles}</span>
-            <span>|</span>
-            <span>Rewinds: {rewinds}</span>
-          </div>
+            onWriteIn={handleWriteIn}
+            onSelectSide={setSelectedSide}
+            onReverse={handleReverseSides}
+            onShuffle={handleShuffle}
+          />
         </div>
       </div>
+
+      <button type="button" className="gameInfoButton" onClick={() => setIsRulesOpen(true)} aria-label="Open game rules">
+        i
+      </button>
+
+      {isRulesOpen ? (
+        <div className="gameRulesOverlay" onClick={() => setIsRulesOpen(false)}>
+          <div className="gameRulesDialog" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="gameRulesCloseButton" onClick={() => setIsRulesOpen(false)} aria-label="Close rules">
+              ×
+            </button>
+            <h2 className="gameRulesTitle">How To Play</h2>
+            <p className="gameRulesText">
+              The frontend now plays against the live graph API at {getApiBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
+            </p>
+            <p className="gameRulesText">
+              Suggestions are sampled from the full backend response, not a fixed mock list. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool.
+            </p>
+            <p className="gameRulesText">
+              A best-path option has a {Math.round(OPTIMAL_PATH_INCLUSION_RATE * 100)}% chance to appear in each reroll when no direct connection is available. If a suggestion can immediately reveal the target on the next alternating node, it is always highlighted as Connection found.
+            </p>
+            <p className="gameRulesText">
+              Optimal hops are precomputed with the backend shortest-path endpoint before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {completion ? (
+        <div className="gameCompletionOverlay" onClick={() => setCompletion(null)}>
+          <div className="gameCompletionDialog" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="gameRulesCloseButton" onClick={() => setCompletion(null)} aria-label="Close completion dialog">
+              ×
+            </button>
+            <h2 className="gameRulesTitle">Level Complete</h2>
+            <p className="gameRulesText gameCompletionLead">{completion.source}</p>
+
+            <div className="gameCompletionStats">
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Completed hops</span>
+                <span className="gameCompletionStatValue">{completion.usedHops}</span>
+              </div>
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Optimal hops</span>
+                <span className="gameCompletionStatValue">{optimalHops ?? "--"}</span>
+              </div>
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Turns used</span>
+                <span className="gameCompletionStatValue">{turns}</span>
+              </div>
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Shuffles</span>
+                <span className="gameCompletionStatValue">{shuffles}</span>
+              </div>
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Rewinds</span>
+                <span className="gameCompletionStatValue">{rewinds}</span>
+              </div>
+            </div>
+
+            <div className="gameCompletionPreview">
+              <div className="gameCompletionPreviewTitle">Completed path preview</div>
+              <div className="gameCompletionTrack">
+                {completionPreviewPath.map((node, index) => (
+                  <div key={`${node.type}-${node.label}-${index}`} className="gameCompletionTrackSegment">
+                    <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
+                    {index < completionPreviewPath.length - 1 ? <span className="gameCompletionArrow">→</span> : null}
+                  </div>
+                ))}
+              </div>
+              <div className="gameCompletionPreviewText">{formatPathPreview(completion.fullPath)}</div>
+            </div>
+
+            <div className="gameCompletionValidation">
+              {completion.isValidated === true ? "Validated by backend." : completion.isValidated === false ? "Backend validation reported an issue." : "Validation was not available."}
+              {completion.validationMessage ? ` ${completion.validationMessage}` : ""}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

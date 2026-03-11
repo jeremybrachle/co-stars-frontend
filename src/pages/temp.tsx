@@ -38,8 +38,8 @@ function GamePage() {
   const [topPath, setTopPath] = useState<string[]>([]);
   const [bottomPath, setBottomPath] = useState<string[]>([]);
 
-  const [turns, setTurns] = useState(0);
-  const [rewinds, setRewinds] = useState(0);
+  const [turns] = useState(0);
+  const [rewinds] = useState(0);
   const [shuffles, setShuffles] = useState(0);
 
   const suggestions = [
