@@ -12,6 +12,14 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [2.0.2] - 2026-03-12
 
+Disable user input
+
+### Removed
+
+- Text input field entry on game page
+
+## [2.0.1] - 2026-03-12
+
 Display version number on front end
 
 ### Added

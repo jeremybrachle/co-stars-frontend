@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import type { GameNode, NodeType } from "../../types";
 import "./GameRightPanel.css";
 
+const WRITE_IN_TEMPORARILY_DISABLED = true;
+
 type Props = {
   actorA: GameNode;
   actorB: GameNode;
@@ -67,7 +69,7 @@ function GameRightPanel({
   const selectionContext = getSuggestionContextLabel(currentSelection);
 
   useEffect(() => {
-    if (isDisabled || isLoading) {
+    if (WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading) {
       setIsWriteInOpen(false);
       setWriteInValue("");
     }
@@ -165,13 +167,13 @@ function GameRightPanel({
               onChange={(event) => setWriteInValue(event.target.value)}
               placeholder={selectionContext.placeholder}
               className="game-right-panel__write-in-input"
-              disabled={isDisabled || isLoading || isSubmittingWriteIn}
+              disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn}
               autoFocus
             />
             <div className="game-right-panel__write-in-actions">
               <button
                 className="game-right-panel__suggestion-button game-right-panel__write-in-toggle"
-                disabled={isDisabled || isLoading || isSubmittingWriteIn}
+                disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn}
                 onClick={handleCloseWriteIn}
                 aria-label="Close write in"
               >
@@ -180,21 +182,30 @@ function GameRightPanel({
               <button
                 className="game-right-panel__go-button"
                 onClick={handleSubmitWriteIn}
-                disabled={isDisabled || isLoading || isSubmittingWriteIn || writeInValue.trim().length === 0}
+                disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn || writeInValue.trim().length === 0}
               >
                 {isSubmittingWriteIn ? "Finding…" : "Go"}
               </button>
             </div>
           </div>
         ) : (
-          <button
-            className="game-right-panel__suggestion-button game-right-panel__wide-button"
-            disabled={isDisabled || isLoading}
-            onClick={() => setIsWriteInOpen(true)}
-            aria-label="Open write in"
+          <div
+            className={`game-right-panel__write-in-trigger${WRITE_IN_TEMPORARILY_DISABLED ? " game-right-panel__write-in-trigger--disabled" : ""}`}
+            data-tooltip={WRITE_IN_TEMPORARILY_DISABLED ? "User input is currently disabled" : undefined}
           >
-            +
-          </button>
+            <button
+              className="game-right-panel__suggestion-button game-right-panel__wide-button"
+              disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading}
+              onClick={() => {
+                if (!WRITE_IN_TEMPORARILY_DISABLED) {
+                  setIsWriteInOpen(true);
+                }
+              }}
+              aria-label={WRITE_IN_TEMPORARILY_DISABLED ? "Write in temporarily disabled" : "Open write in"}
+            >
+              +
+            </button>
+          </div>
         )}
       </div>
 
