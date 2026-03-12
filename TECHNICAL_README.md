@@ -203,21 +203,20 @@ These use `npm version`, which updates `package.json`, updates the lockfile vers
 
 ## Milestone Notes
 
-At this milestone, the frontend has moved from mock suggestion data to a fully API-driven gameplay loop.
+At this milestone, the frontend has moved beyond the original API-driven loop into a snapshot-first architecture with an offline demo fallback.
 
 That includes:
 
-- live level loading
-- live actor/movie suggestion fetching
-- shortest-path precomputation
-- weighted shuffle behavior
-- direct-connection highlighting
-- post-win path validation
-- completed-path stats and comparison UI
+- bundled or cached frontend snapshot loading
+- local actor/movie graph traversal and validation
+- runtime switching between `Auto`, `Snapshot`, `API`, and `Demo`
+- manual snapshot refresh tooling
+- standalone-friendly offline demo gameplay when no backend data is available
+- named unit tests and summary-style test reporting
 
 ## Versioning And Releases
 
-Release tracking now starts at `1.0.0`.
+Current tracked release is `2.0.0`.
 
 Current release management approach:
 
@@ -236,10 +235,10 @@ Recommended release flow:
 
 GitHub Release mapping:
 
-- `package.json` version: `1.0.0`
-- changelog section: `## [1.0.0] - YYYY-MM-DD`
-- git tag: `v1.0.0`
-- GitHub Release title: `Co-Stars v1.0.0`
+- `package.json` version: `2.0.0`
+- changelog section: `## [2.0.0] - YYYY-MM-DD`
+- git tag: `v2.0.0`
+- GitHub Release title: `Co-Stars v2.0.0`
 
 The release workflow in `.github/workflows/release.yml` creates a GitHub Release automatically when a `v*.*.*` tag is pushed.
 

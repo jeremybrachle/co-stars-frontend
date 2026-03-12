@@ -6,20 +6,24 @@ The version in `package.json` is the release source of truth. This project now s
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-03-11
+
+Snapshot-first frontend milestone with built-in offline demo mode.
+
 ### Added
 
-- Snapshot storage, manifest sync, and local graph indexing utilities for frontend-owned data management.
-- Snapshot provider for loading cached graph data across the app.
-- Temporary data source mode selection with `Auto`, `Snapshot`, and `API` runtime options.
-- Manual snapshot export script via `npm run data:refresh`.
-- Data refresh and recovery guide in `DATA_REFRESH_USAGE.md`.
+- Frontend snapshot manifest loading, local cache management, and graph indexes for frontend-owned gameplay data.
+- Snapshot provider and runtime data-source selection with `Auto`, `Snapshot`, `API`, and `Demo` modes.
+- Built-in offline demo dataset so the app remains playable without a backend connection or preloaded snapshot files.
+- Manual snapshot export script via `npm run data:refresh` and a companion recovery guide in `DATA_REFRESH_USAGE.md`.
+- Data-side unit tests and summary-style test output for lint, typecheck, and unit test runs.
 
 ### Changed
 
-- Adventure Mode now reads levels from cached snapshot data and computes optimal paths locally.
-- Game Mode now uses local adjacency, local shortest-path generation, and local move validation instead of per-move gameplay API calls.
-- Snapshot refresh policy now prefers cached data until the recommended refresh window expires.
-- When snapshot data is unavailable, the app now falls back to live API mode and surfaces that status in the UI.
+- Adventure Mode now hydrates levels from snapshot or demo data and computes optimal paths locally.
+- Game Mode now uses local adjacency, local shortest-path generation, and local move validation instead of relying on per-move gameplay API calls.
+- Auto mode now falls back through snapshot, live API, and finally demo mode, with source status reflected in the UI.
+- Release tracking now moves from the initial stable API milestone into the standalone-friendly `2.0.0` demo-capable architecture.
 
 ## [1.0.0] - 2026-03-11
 
