@@ -16,7 +16,7 @@ export function readStoredMode(): DataSourceMode {
 	}
 
 	const stored = window.localStorage.getItem(DATA_SOURCE_MODE_KEY);
-	return stored === "snapshot" || stored === "api" || stored === "auto" ? stored : "auto";
+	return stored === "snapshot" || stored === "api" || stored === "auto" || stored === "demo" ? stored : "auto";
 }
 
 export function useDataSourceMode() {

@@ -6,8 +6,8 @@ import type {
 	Level,
 	Movie,
 	SnapshotBundle,
-	SnapshotIndexes,
 } from "../types";
+import { buildSnapshotIndexes } from "./snapshotIndexes";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const HEALTH_PATH = "/api/health";
@@ -52,10 +52,6 @@ type ApiFrontendSnapshot = {
 	};
 	levels: Array<{ actor_a: string; actor_b: string; stars: number }>;
 };
-
-function normalizeLookupKey(value: string) {
-	return value.trim().toLocaleLowerCase();
-}
 
 async function fetchJson<T>(path: string): Promise<T> {
 	let response: Response;
@@ -131,26 +127,6 @@ function mapSnapshot(snapshot: ApiFrontendSnapshot): FrontendSnapshot {
 			movieToActors: snapshot.adjacency.movie_to_actors,
 		},
 		levels: snapshot.levels.map(mapLevel),
-	};
-}
-
-export function buildSnapshotIndexes(snapshot: FrontendSnapshot): SnapshotIndexes {
-	const actorsById = new Map<number, Actor>(snapshot.actors.map((actor) => [actor.id, actor]));
-	const moviesById = new Map<number, Movie>(snapshot.movies.map((movie) => [movie.id, movie]));
-	const actorNameToId = new Map<string, number>(
-		snapshot.actors.map((actor) => [normalizeLookupKey(actor.name), actor.id]),
-	);
-	const movieTitleToId = new Map<string, number>(
-		snapshot.movies.map((movie) => [normalizeLookupKey(movie.title), movie.id]),
-	);
-
-	return {
-		actorsById,
-		moviesById,
-		actorNameToId,
-		movieTitleToId,
-		actorToMovies: snapshot.adjacency.actorToMovies,
-		movieToActors: snapshot.adjacency.movieToActors,
 	};
 }
 

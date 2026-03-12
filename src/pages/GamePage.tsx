@@ -24,6 +24,7 @@ import {
 } from "../gameplay";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
+import { getDemoSnapshotBundle, getDemoSourceLabel } from "../data/demoSnapshot";
 import { getSnapshotBaseUrl } from "../data/frontendSnapshot";
 import {
   createGameNodeFromSummary,
@@ -76,9 +77,10 @@ function createNode(label: string, type: NodeType, partial?: Partial<GameNode>):
   };
 }
 
-const NETWORK_UNAVAILABLE_MESSAGE = "Network connection couldn't be established. Placeholder data is shown until API or snapshot data becomes available.";
+const NETWORK_UNAVAILABLE_MESSAGE = "Network connection couldn't be established. Offline demo mode is being used instead.";
 const PLACEHOLDER_START_A = createNode("Network unavailable", "actor");
 const PLACEHOLDER_START_B = createNode("Reconnect later", "actor");
+const DEMO_BUNDLE = getDemoSnapshotBundle();
 
 function createPlaceholderSuggestions(selectionType: NodeType): GameNode[] {
   const nextType = selectionType === "actor" ? "movie" : "actor";
@@ -257,7 +259,7 @@ function GamePage() {
     errorMessage: snapshotError,
     refreshSnapshot,
   } = useSnapshotData();
-  const { mode } = useDataSourceMode();
+  const { mode, setMode } = useDataSourceMode();
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
@@ -288,15 +290,24 @@ function GamePage() {
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
 
   const canUseSnapshot = !!snapshot && !!indexes;
-  const preferredDataSource: EffectiveDataSource = mode === "api" ? "api" : canUseSnapshot ? "snapshot" : "api";
+  const preferredDataSource: EffectiveDataSource = mode === "demo" ? "demo" : mode === "api" ? "api" : canUseSnapshot ? "snapshot" : "api";
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
 
   const resolveSnapshotResources = useCallback(
-    async (forceRefresh = false) => {
+    async (forceRefresh = false, allowDemoFallback = false) => {
+		if (allowDemoFallback) {
+			return {
+				snapshot: DEMO_BUNDLE.snapshot,
+				indexes: DEMO_BUNDLE.indexes,
+				source: "demo" as const,
+			};
+		}
+
       if (!forceRefresh && snapshot && indexes) {
         return {
           snapshot,
           indexes,
+			source: "snapshot" as const,
         };
       }
 
@@ -308,6 +319,7 @@ function GamePage() {
       return {
         snapshot: refreshed.snapshot,
         indexes: refreshed.indexes,
+		source: "snapshot" as const,
       };
     },
     [indexes, refreshSnapshot, snapshot],
@@ -316,8 +328,8 @@ function GamePage() {
   useEffect(() => {
     let isMounted = true;
 
-    const buildSnapshotSetup = async (forceRefresh: boolean) => {
-      const resources = await resolveSnapshotResources(forceRefresh);
+    const buildLocalSetup = async (localSource: "snapshot" | "demo", forceRefresh: boolean) => {
+		const resources = await resolveSnapshotResources(forceRefresh, localSource === "demo");
       if (!resources) {
         return null;
       }
@@ -354,6 +366,7 @@ function GamePage() {
         actorB: resolvedActorB,
         optimalHops: resolvedOptimalHops,
         optimalPath: resolvedOptimalPath,
+		source: resources.source,
       };
     };
 
@@ -404,6 +417,28 @@ function GamePage() {
       setSetupError(NETWORK_UNAVAILABLE_MESSAGE);
     };
 
+  const applyDemoSetup = async (message: string, shouldPersistDemoMode: boolean) => {
+    const demoSetup = await buildLocalSetup("demo", false);
+    if (!demoSetup || !isMounted) {
+      applyPlaceholderState();
+      return;
+    }
+
+    setActorA(demoSetup.actorA);
+    setActorB(demoSetup.actorB);
+    setMoviesCatalog([]);
+    setOptimalHops(demoSetup.optimalHops);
+    setOptimalPath(demoSetup.optimalPath);
+    setResolvedDataSource("demo");
+    setStatusMessage(message);
+    setSetupError(null);
+    setIsNetworkUnavailable(false);
+
+    if (shouldPersistDemoMode && mode === "auto") {
+      setMode("demo");
+    }
+  };
+
     const loadGameSetup = async () => {
       setIsSetupLoading(true);
       setSetupError(null);
@@ -422,6 +457,11 @@ function GamePage() {
       setIsNetworkUnavailable(false);
 
       try {
+			if (mode === "demo") {
+				await applyDemoSetup(`Offline demo mode is active using ${getDemoSourceLabel()}.`, false);
+				return;
+			}
+
         if (mode === "api") {
           try {
             const apiSetup = await buildApiSetup();
@@ -438,7 +478,7 @@ function GamePage() {
             setResolvedDataSource("api");
             return;
           } catch {
-            const snapshotSetup = (await buildSnapshotSetup(false)) ?? (await buildSnapshotSetup(true));
+            const snapshotSetup = (await buildLocalSetup("snapshot", false)) ?? (await buildLocalSetup("snapshot", true));
             if (!isMounted) {
               return;
             }
@@ -453,10 +493,13 @@ function GamePage() {
               setStatusMessage(`Live API was unavailable, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
               return;
             }
+
+				await applyDemoSetup(`Live API and snapshot data were unavailable, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`, false);
+				return;
           }
         }
 
-        const snapshotSetup = (await buildSnapshotSetup(false)) ?? (await buildSnapshotSetup(true));
+        const snapshotSetup = (await buildLocalSetup("snapshot", false)) ?? (await buildLocalSetup("snapshot", true));
         if (snapshotSetup) {
           if (!isMounted) {
             return;
@@ -485,12 +528,10 @@ function GamePage() {
         setOptimalHops(apiSetup.optimalHops);
         setOptimalPath(apiSetup.optimalPath);
         setResolvedDataSource("api");
-        if (mode !== "api") {
-          setStatusMessage(`Snapshot data was unavailable, so Game Mode is using live API data from ${getApiBaseUrl()}.`);
-        }
+		setStatusMessage(`Snapshot data was unavailable, so Game Mode is using live API data from ${getApiBaseUrl()}.`);
       } catch {
         if (isMounted) {
-          applyPlaceholderState();
+			await applyDemoSetup(`No API connection or cached snapshot was available, so Game Mode defaulted to offline demo mode using ${getDemoSourceLabel()}.`, true);
         }
       } finally {
         if (isMounted) {
@@ -504,7 +545,7 @@ function GamePage() {
     return () => {
       isMounted = false;
     };
-  }, [canUseSnapshot, mode, resolveSnapshotResources, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB]);
+  }, [canUseSnapshot, mode, resolveSnapshotResources, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, setMode]);
 
   const totalSelections = topPath.length + bottomPath.length;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
@@ -530,7 +571,7 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
-  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || (activeDataSource === "snapshot" && isSnapshotLoading) || !!completion;
+  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && mode !== "demo") || !!completion;
 
   useEffect(() => {
     if (!actorA || !actorB || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
@@ -549,8 +590,8 @@ function GamePage() {
           return;
         }
 
-        if (activeDataSource === "snapshot") {
-          const resources = await resolveSnapshotResources(false);
+        if (activeDataSource === "snapshot" || activeDataSource === "demo") {
+			const resources = await resolveSnapshotResources(false, activeDataSource === "demo");
           if (!resources) {
             setSuggestions(createPlaceholderSuggestions(currentSelection.type));
             setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
@@ -630,7 +671,7 @@ function GamePage() {
             setSuggestionError("No API suggestions were returned for this node.");
           }
         } catch {
-          const resources = (await resolveSnapshotResources(false)) ?? (await resolveSnapshotResources(true));
+          const resources = (await resolveSnapshotResources(false)) ?? (await resolveSnapshotResources(true)) ?? (await resolveSnapshotResources(false, true));
           if (!resources) {
             setSuggestions(createPlaceholderSuggestions(currentSelection.type));
             setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
@@ -647,8 +688,10 @@ function GamePage() {
           }
 
           const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode);
-          setResolvedDataSource("snapshot");
-          setStatusMessage(`Live API suggestions failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
+          setResolvedDataSource(resources.source);
+			setStatusMessage(resources.source === "demo"
+				? `Live API suggestions failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
+				: `Live API suggestions failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
           setSuggestions(weightedSuggestions.length > 0 ? weightedSuggestions : createPlaceholderSuggestions(currentSelection.type));
           if (weightedSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned after falling back to snapshot data.");
@@ -676,8 +719,8 @@ function GamePage() {
     try {
       let validation;
 
-      if (activeDataSource === "snapshot") {
-        const resources = await resolveSnapshotResources(false);
+      if (activeDataSource === "snapshot" || activeDataSource === "demo") {
+  		const resources = await resolveSnapshotResources(false, activeDataSource === "demo");
         if (!resources) {
           throw new Error(NETWORK_UNAVAILABLE_MESSAGE);
         }
@@ -687,14 +730,16 @@ function GamePage() {
         try {
           validation = await validatePath(fullPath.map((node) => node.label));
         } catch {
-          const resources = (await resolveSnapshotResources(false)) ?? (await resolveSnapshotResources(true));
+          const resources = (await resolveSnapshotResources(false)) ?? (await resolveSnapshotResources(true)) ?? (await resolveSnapshotResources(false, true));
           if (!resources) {
             throw new Error(NETWORK_UNAVAILABLE_MESSAGE);
           }
 
           validation = validateLocalPath(fullPath, resources.indexes);
-          setResolvedDataSource("snapshot");
-          setStatusMessage(`Live API validation failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
+          setResolvedDataSource(resources.source);
+			setStatusMessage(resources.source === "demo"
+				? `Live API validation failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
+				: `Live API validation failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
         }
       }
 
@@ -835,8 +880,8 @@ function GamePage() {
     setSuggestionError(null);
 
     try {
-      if (activeDataSource === "snapshot") {
-        const resources = await resolveSnapshotResources(false);
+      if (activeDataSource === "snapshot" || activeDataSource === "demo") {
+  		const resources = await resolveSnapshotResources(false, activeDataSource === "demo");
         if (!resources) {
           setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
           setIsNetworkUnavailable(true);
@@ -880,7 +925,7 @@ function GamePage() {
 
         await handleSuggestion(createNodeFromMovie(movie));
       } catch {
-        const resources = (await resolveSnapshotResources(false)) ?? (await resolveSnapshotResources(true));
+        const resources = (await resolveSnapshotResources(false)) ?? (await resolveSnapshotResources(true)) ?? (await resolveSnapshotResources(false, true));
         if (!resources) {
           setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
           setIsNetworkUnavailable(true);
@@ -895,8 +940,10 @@ function GamePage() {
             return;
           }
 
-          setResolvedDataSource("snapshot");
-          setStatusMessage(`Live API write-ins failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
+          setResolvedDataSource(resources.source);
+			setStatusMessage(resources.source === "demo"
+				? `Live API write-ins failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
+				: `Live API write-ins failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
           await handleSuggestion(createGameNodeFromSummary(actor, resources.indexes));
           return;
         }
@@ -907,8 +954,10 @@ function GamePage() {
           return;
         }
 
-        setResolvedDataSource("snapshot");
-        setStatusMessage(`Live API write-ins failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
+        setResolvedDataSource(resources.source);
+		setStatusMessage(resources.source === "demo"
+			? `Live API write-ins failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
+			: `Live API write-ins failed, so Game Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
         await handleSuggestion(createGameNodeFromSummary(movie, resources.indexes));
       }
     } catch (error) {
@@ -960,6 +1009,7 @@ function GamePage() {
           {statusMessage ? <div className="gamePageStatus">{statusMessage}</div> : null}
           {activeDataSource === "snapshot" ? <div className="gamePageStatus">Using local snapshot data from {getSnapshotBaseUrl()}.</div> : null}
           {activeDataSource === "api" ? <div className="gamePageStatus">Using live API data from {getApiBaseUrl()}.</div> : null}
+          {activeDataSource === "demo" ? <div className="gamePageStatus">Using offline demo data from {getDemoSourceLabel()}.</div> : null}
           {setupError || (activeDataSource === "snapshot" ? snapshotError : null) ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
 
           <GameRightPanel
@@ -1001,21 +1051,23 @@ function GamePage() {
             <h2 className="gameRulesTitle">How To Play</h2>
             <p className="gameRulesText">
                 {activeDataSource === "snapshot"
-				? `The frontend is currently playing from a locally cached graph snapshot sourced from ${getSnapshotBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`
-				: `The frontend is currently using live API calls against ${getApiBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`}
+        ? `The frontend is currently playing from a locally cached graph snapshot sourced from ${getSnapshotBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`
+        : activeDataSource === "demo"
+          ? `The frontend is currently playing from ${getDemoSourceLabel()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`
+          : `The frontend is currently using live API calls against ${getApiBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`}
             </p>
             <p className="gameRulesText">
-                {activeDataSource === "snapshot"
-				? "Suggestion lists are generated from cached actor, movie, and adjacency data stored in the browser. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool locally."
-				: "Suggestion lists are generated by the backend API for the current node. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool after each request."}
+                {activeDataSource === "snapshot" || activeDataSource === "demo"
+        ? "Suggestion lists are generated from locally available actor, movie, and adjacency data. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool locally."
+        : "Suggestion lists are generated by the backend API for the current node. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool after each request."}
             </p>
             <p className="gameRulesText">
               A best-path option has a {Math.round(OPTIMAL_PATH_INCLUSION_RATE * 100)}% chance to appear in each reroll when no direct connection is available. If a suggestion can immediately reveal the target on the next alternating node, it is always highlighted as Connection found.
             </p>
             <p className="gameRulesText">
-                {activeDataSource === "snapshot"
-				? "Optimal hops are computed locally from the snapshot before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."
-				: "Optimal hops are fetched from the backend before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."}
+                {activeDataSource === "snapshot" || activeDataSource === "demo"
+        ? "Optimal hops are computed locally before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."
+        : "Optimal hops are fetched from the backend before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."}
             </p>
           </div>
         </div>

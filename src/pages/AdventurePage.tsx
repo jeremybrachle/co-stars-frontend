@@ -6,17 +6,12 @@ import type { EffectiveDataSource, Level, SnapshotIndexes } from "../types";
 import { fetchLevels, generatePath, getApiBaseUrl } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
+import { getDemoSnapshotBundle, getDemoSourceLabel } from "../data/demoSnapshot";
 import { getSnapshotBaseUrl } from "../data/frontendSnapshot";
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
 
 const LEVELS_PER_PAGE = 4;
-const PLACEHOLDER_LEVELS: Level[] = [
-  { actorA: "Network unavailable", actorB: "Snapshot missing", stars: 0, optimalHops: null },
-  { actorA: "Try restoring", actorB: "frontend data", stars: 0, optimalHops: null },
-  { actorA: "Run", actorB: "npm run data:refresh", stars: 0, optimalHops: null },
-  { actorA: "Then reopen", actorB: "Adventure Mode", stars: 0, optimalHops: null },
-];
-const NETWORK_PLACEHOLDER_MESSAGE = "Network connection couldn't be established. Showing disabled placeholder levels until API or snapshot data becomes available.";
+const DEMO_BUNDLE = getDemoSnapshotBundle();
 
 function hydrateSnapshotLevels(levels: Level[], snapshotIndexes: SnapshotIndexes) {
   return levels.map((level) => {
@@ -45,14 +40,28 @@ function AdventurePage() {
   const [levels, setLevels] = useState<Level[]>([]);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [isPlaceholderMode, setIsPlaceholderMode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const { mode } = useDataSourceMode();
+  const { mode, setMode } = useDataSourceMode();
   const { snapshot, indexes, isLoading, errorMessage, refreshSnapshot } = useSnapshotData();
   const canUseSnapshot = !!snapshot && !!indexes;
 
   useEffect(() => {
     let isMounted = true;
+
+    const applyDemoLevels = (message: string, shouldPersistDemoMode: boolean) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setLevels(hydrateSnapshotLevels(DEMO_BUNDLE.snapshot.levels, DEMO_BUNDLE.indexes));
+      setResolvedDataSource("demo");
+      setStatusMessage(message);
+      setLoadError(null);
+
+      if (shouldPersistDemoMode && mode === "auto") {
+        setMode("demo");
+      }
+    };
 
     const trySnapshotLevels = async (forceRefresh: boolean) => {
       let activeSnapshot = snapshot;
@@ -92,7 +101,11 @@ function AdventurePage() {
     const loadLevels = async () => {
       setLoadError(null);
       setStatusMessage(null);
-      setIsPlaceholderMode(false);
+
+      if (mode === "demo") {
+        applyDemoLevels(`Offline demo mode is active using ${getDemoSourceLabel()}.`, false);
+        return;
+      }
 
       try {
         if (mode === "api") {
@@ -117,6 +130,9 @@ function AdventurePage() {
               setStatusMessage(`Live API was unavailable, so Adventure Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
               return;
             }
+
+            applyDemoLevels(`Live API and snapshot data were unavailable, so Adventure Mode switched to offline demo mode using ${getDemoSourceLabel()}.`, false);
+            return;
           }
         }
 
@@ -141,18 +157,9 @@ function AdventurePage() {
 
         setLevels(apiLevels);
         setResolvedDataSource("api");
-        if (mode !== "api") {
-          setStatusMessage(`Snapshot data was unavailable, so Adventure Mode is using live API data from ${getApiBaseUrl()}.`);
-        }
+        setStatusMessage(`Snapshot data was unavailable, so Adventure Mode is using live API data from ${getApiBaseUrl()}.`);
       } catch {
-        if (!isMounted) {
-          return;
-        }
-
-        setLevels(PLACEHOLDER_LEVELS);
-        setResolvedDataSource(null);
-        setIsPlaceholderMode(true);
-        setLoadError(NETWORK_PLACEHOLDER_MESSAGE);
+        applyDemoLevels(`No API connection or cached snapshot was available, so Adventure Mode defaulted to offline demo mode using ${getDemoSourceLabel()}.`, true);
       }
     };
 
@@ -161,7 +168,7 @@ function AdventurePage() {
     return () => {
       isMounted = false;
     };
-  }, [canUseSnapshot, indexes, mode, refreshSnapshot, snapshot]);
+  }, [canUseSnapshot, indexes, mode, refreshSnapshot, setMode, snapshot]);
 
   const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
   const startIdx = page * LEVELS_PER_PAGE;
@@ -186,6 +193,7 @@ function AdventurePage() {
           {statusMessage ? <div className={styles.stateMessage}>{statusMessage}</div> : null}
           {resolvedDataSource === "snapshot" ? <div className={styles.sourceMessage}>Using local snapshot data from {getSnapshotBaseUrl()}.</div> : null}
           {resolvedDataSource === "api" ? <div className={styles.sourceMessage}>Using live API data from {getApiBaseUrl()}.</div> : null}
+          {resolvedDataSource === "demo" ? <div className={styles.sourceMessage}>Using offline demo data from {getDemoSourceLabel()}.</div> : null}
           {loadError ?? (errorMessage && resolvedDataSource === "snapshot" ? errorMessage : null) ? <div className={styles.errorMessage}>{loadError ?? errorMessage}</div> : null}
           {pageLevels.map((level, idx) => {
             const globalIdx = startIdx + idx;
@@ -201,7 +209,7 @@ function AdventurePage() {
                 </div>
                 <button
                   className={styles.levelButton}
-                  disabled={isLoading || isPlaceholderMode}
+                  disabled={isLoading}
                   onClick={() =>
                     navigate("/game", {
                       state: {
@@ -226,7 +234,7 @@ function AdventurePage() {
             className={styles.paginationArrow}
             onClick={handlePrev}
             aria-label="Previous page"
-            disabled={isLoading || levels.length === 0 || isPlaceholderMode}
+            disabled={isLoading || levels.length === 0}
           >
             ←
           </button>
@@ -237,7 +245,7 @@ function AdventurePage() {
             className={styles.paginationArrow}
             onClick={handleNext}
             aria-label="Next page"
-            disabled={isLoading || levels.length === 0 || isPlaceholderMode}
+            disabled={isLoading || levels.length === 0}
           >
             →
           </button>

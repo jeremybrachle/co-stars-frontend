@@ -39,6 +39,13 @@ function SettingsPage() {
               <span className="settingsHint">Use direct backend calls for levels, suggestions, and path validation.</span>
             </span>
           </label>
+          <label className="settingsOption">
+            <input type="radio" name="data-source" checked={mode === "demo"} onChange={() => setMode("demo")} />
+            <span>
+              <strong>Demo</strong>
+              <span className="settingsHint">Use the built-in offline demo dataset with short preconfigured routes, even if cached snapshot data or a live API is available.</span>
+            </span>
+          </label>
         </section>
 
         <section className="settingsSection">
