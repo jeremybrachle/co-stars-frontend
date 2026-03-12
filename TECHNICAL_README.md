@@ -221,17 +221,20 @@ Current tracked release is `2.0.0`.
 Current release management approach:
 
 - `package.json` holds the canonical application version
+- the version shown in the Home and Settings UI is injected from `package.json` at build time
 - `CHANGELOG.md` records notable released changes
 - `Unreleased` is the staging area for the next version notes
+- `CHANGELOG.md` is maintained manually and must be updated separately when a new version is released
 - `npm version patch|minor|major` is the intended version bump mechanism
 
 Recommended release flow:
 
 1. Move finished work into the `Unreleased` section of `CHANGELOG.md` while it is in development.
 2. When cutting a release, choose the correct semver bump.
-3. Run one of the release scripts.
-4. Rename the `Unreleased` notes into the new version section.
-5. Push the commit and tag.
+3. Update `package.json` directly or run one of the release scripts.
+4. Rename the `Unreleased` notes into the new version section in `CHANGELOG.md`.
+5. Make sure the new changelog heading matches the version now stored in `package.json`.
+6. Push the commit and tag if you want a matching git tag for bookkeeping.
 
 GitHub Release mapping:
 

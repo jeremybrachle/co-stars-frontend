@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { APP_VERSION } from "../appVersion"
 import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
 
@@ -58,6 +59,12 @@ function SettingsPage() {
             <button type="button" className="settingsDangerButton" onClick={clearSnapshotCache}>Clear cached snapshot</button>
           </div>
           <p className="settingsHint">For a file-based refresh that survives browser storage resets, run <code>npm run data:refresh</code> and see DATA_REFRESH_USAGE.md.</p>
+        </section>
+
+        <section className="settingsSection">
+          <h2>App Version</h2>
+          <p className="settingsHint">Current release: {APP_VERSION}</p>
+          <p className="settingsHint">This value is injected from <code>package.json</code> at build time and should match the latest released changelog entry.</p>
         </section>
 
         <Link to="/" className="settingsBackLink">Back to Home</Link>

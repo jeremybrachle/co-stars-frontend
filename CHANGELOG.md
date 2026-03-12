@@ -2,9 +2,21 @@
 
 All notable changes to this project should be documented in this file.
 
-The version in `package.json` is the release source of truth. This project now starts its tracked release history at `1.0.0`.
+The version in `package.json` is the release source of truth and is the value displayed in the frontend UI.
+
+This changelog is updated manually. When you cut a new version, update `package.json` and then add or rename the matching changelog section yourself.
+
+This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
+
+## [2.0.2] - 2026-03-12
+
+Display version number on front end
+
+### Added
+
+- Version number that gets dsiaplyed in the home and settings pages. This maps to the package.json API version
 
 ## [2.0.0] - 2026-03-11
 
