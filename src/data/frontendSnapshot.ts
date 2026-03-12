@@ -2,7 +2,6 @@ import type {
 	Actor,
 	FrontendManifest,
 	FrontendSnapshot,
-	HealthCheckResponse,
 	Level,
 	Movie,
 	SnapshotBundle,
@@ -10,18 +9,11 @@ import type {
 import { buildSnapshotIndexes } from "./snapshotIndexes";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-const HEALTH_PATH = "/api/health";
-const MANIFEST_PATH = "/api/export/frontend-manifest";
-const BUNDLED_MANIFEST_PATH = "/data/frontend-manifest.json";
-const BUNDLED_SNAPSHOT_PATH = "/data/frontend-snapshot.json";
+const REMOTE_MANIFEST_URL = import.meta.env.VITE_SNAPSHOT_MANIFEST_URL ?? "";
+const API_MANIFEST_PATH = "/api/export/frontend-manifest";
 
 const SNAPSHOT_KEY = "co-stars-frontend-snapshot";
 const MANIFEST_KEY = "co-stars-frontend-manifest";
-
-type ApiHealthCheckResponse = {
-	status: string;
-	version: string;
-};
 
 type ApiFrontendManifest = {
 	version: string;
@@ -53,20 +45,44 @@ type ApiFrontendSnapshot = {
 	levels: Array<{ actor_a: string; actor_b: string; stars: number }>;
 };
 
-async function fetchJson<T>(path: string): Promise<T> {
+function isHostedSnapshotConfigured() {
+	return REMOTE_MANIFEST_URL.trim().length > 0;
+}
+
+function getRuntimeOrigin() {
+	if (typeof window !== "undefined") {
+		return window.location.origin;
+	}
+
+	return "http://localhost";
+}
+
+function resolveRemoteUrl(pathOrUrl: string, baseUrl?: string) {
+	return new URL(pathOrUrl, baseUrl ?? getRuntimeOrigin()).toString();
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
 	let response: Response;
 
 	try {
-		response = await fetch(`${API_BASE_URL}${path}`);
+		response = await fetch(url);
 	} catch {
-		throw new Error(`Network connection couldn't be established for ${path}`);
+		throw new Error(`Network connection couldn't be established for ${url}`);
 	}
 
 	if (!response.ok) {
-		throw new Error(`Snapshot request failed (${response.status}) for ${path}`);
+		throw new Error(`Snapshot request failed (${response.status}) for ${url}`);
 	}
 
 	return response.json() as Promise<T>;
+}
+
+async function fetchRemoteJson<T>(pathOrUrl: string, baseUrl?: string) {
+	return fetchJson<T>(resolveRemoteUrl(pathOrUrl, baseUrl));
+}
+
+async function fetchApiJson<T>(path: string) {
+	return fetchJson<T>(`${API_BASE_URL}${path}`);
 }
 
 function mapActor(actor: ApiFrontendSnapshot["actors"][number]): Actor {
@@ -160,107 +176,44 @@ function writeCachedSnapshotBundle(manifest: FrontendManifest, snapshot: Fronten
 	localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
 }
 
-async function loadBundledSnapshotBundle(): Promise<SnapshotBundle> {
-	const [manifestResponse, snapshotResponse] = await Promise.all([
-		fetch(BUNDLED_MANIFEST_PATH),
-		fetch(BUNDLED_SNAPSHOT_PATH),
-	]);
+export function getCachedSnapshotBundle() {
+	return readCachedSnapshotBundle();
+}
 
-	if (!manifestResponse.ok || !snapshotResponse.ok) {
-		throw new Error("Bundled snapshot files are not available.");
+export async function fetchSnapshotFromS3(): Promise<SnapshotBundle> {
+	if (!isHostedSnapshotConfigured()) {
+		throw new Error("Hosted snapshot manifest URL is not configured.");
 	}
 
-	const manifest = mapManifest((await manifestResponse.json()) as ApiFrontendManifest);
-	const snapshot = mapSnapshot((await snapshotResponse.json()) as ApiFrontendSnapshot);
+	const manifest = mapManifest(await fetchRemoteJson<ApiFrontendManifest>(REMOTE_MANIFEST_URL));
+	const snapshot = mapSnapshot(
+		await fetchRemoteJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint, REMOTE_MANIFEST_URL),
+	);
 	writeCachedSnapshotBundle(manifest, snapshot);
 
 	return {
 		manifest,
 		snapshot,
 		indexes: buildSnapshotIndexes(snapshot),
-		loadedFrom: "bundled",
+		loadedFrom: "s3-snapshot",
 	};
 }
 
-function shouldReuseCachedSnapshot(cachedManifest: FrontendManifest, nextManifest: FrontendManifest) {
-	return (
-		cachedManifest.version === nextManifest.version
-		&& cachedManifest.sourceUpdatedAt === nextManifest.sourceUpdatedAt
+export async function fetchSnapshotFromApi(): Promise<SnapshotBundle> {
+	const manifest = mapManifest(await fetchApiJson<ApiFrontendManifest>(API_MANIFEST_PATH));
+	const snapshot = mapSnapshot(
+		manifest.snapshotEndpoint.startsWith("http://") || manifest.snapshotEndpoint.startsWith("https://")
+			? await fetchJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint)
+			: await fetchApiJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint),
 	);
-}
+	writeCachedSnapshotBundle(manifest, snapshot);
 
-function isCacheWithinRecommendedRefreshWindow(cached: SnapshotBundle) {
-	const exportedAtMs = new Date(cached.snapshot.meta.exportedAt).getTime();
-
-	if (Number.isNaN(exportedAtMs)) {
-		return false;
-	}
-
-	return Date.now() - exportedAtMs < getRecommendedRefreshMs(cached.manifest);
-}
-
-export function getCachedSnapshotBundle() {
-	return readCachedSnapshotBundle();
-}
-
-export async function fetchBackendHealth() {
-	const health = await fetchJson<ApiHealthCheckResponse>(HEALTH_PATH);
 	return {
-		status: health.status,
-		version: health.version,
-	} satisfies HealthCheckResponse;
-}
-
-export async function loadFrontendSnapshot(options?: { forceRefresh?: boolean }): Promise<SnapshotBundle> {
-	const cached = readCachedSnapshotBundle();
-
-	if (!options?.forceRefresh && cached && isCacheWithinRecommendedRefreshWindow(cached)) {
-		return cached;
-	}
-
-	try {
-		const [health, manifestResponse] = await Promise.all([
-			fetchBackendHealth(),
-			fetchJson<ApiFrontendManifest>(MANIFEST_PATH),
-		]);
-		const manifest = mapManifest(manifestResponse);
-
-		if (!options?.forceRefresh && cached && shouldReuseCachedSnapshot(cached.manifest, manifest)) {
-			return {
-				...cached,
-				manifest,
-				health,
-				loadedFrom: "cache",
-			};
-		}
-
-		const snapshotResponse = await fetchJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint);
-		const snapshot = mapSnapshot(snapshotResponse);
-		writeCachedSnapshotBundle(manifest, snapshot);
-
-		return {
-			manifest,
-			snapshot,
-			indexes: buildSnapshotIndexes(snapshot),
-			health,
-			loadedFrom: "network",
-		};
-	} catch (error) {
-		try {
-			return await loadBundledSnapshotBundle();
-		} catch {
-			// Ignore bundled load failure and continue to cache fallback.
-		}
-
-		if (cached) {
-			return {
-				...cached,
-				loadedFrom: "cache-fallback",
-			};
-		}
-
-		throw error;
-	}
+		manifest,
+		snapshot,
+		indexes: buildSnapshotIndexes(snapshot),
+		loadedFrom: "api-snapshot",
+	};
 }
 
 export function getSnapshotStorageKeys() {
@@ -270,8 +223,12 @@ export function getSnapshotStorageKeys() {
 	};
 }
 
-export function getSnapshotBaseUrl() {
-	return API_BASE_URL || "/api via Vite dev proxy";
+export function getHostedSnapshotManifestUrl() {
+	return isHostedSnapshotConfigured() ? REMOTE_MANIFEST_URL : null;
+}
+
+export function getApiSnapshotManifestUrl() {
+	return `${API_BASE_URL}${API_MANIFEST_PATH}`;
 }
 
 export function getRecommendedRefreshMs(manifest: FrontendManifest | null) {

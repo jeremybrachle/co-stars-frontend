@@ -24,6 +24,8 @@ jobs:
     name: Build And Deploy
     runs-on: ubuntu-latest
     environment: ${{ inputs.deploy_target }}
+    env:
+      VITE_SNAPSHOT_MANIFEST_URL: ${{ vars.VITE_SNAPSHOT_MANIFEST_URL }}
 
     steps:
       - name: Check out repository
