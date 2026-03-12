@@ -12,17 +12,19 @@ Co-Stars is a movie-connection game where you build a path between two endpoints
 
 Current gameplay rules:
 
-- Adventure Mode loads live levels from the backend.
-- Suggestion lists are built from real API data.
-- The shuffle button rerolls the suggestion pool using popularity and shortest-path hints.
+- Adventure Mode and Game Mode default to `Auto` mode, which prefers a locally cached graph snapshot and falls back to live API calls if that data is missing.
+- Suggestion lists are built from stored actor, movie, and relationship data in the frontend.
+- The shuffle button rerolls the suggestion pool using popularity and shortest-path hints computed locally.
 - Some suggestions are highlighted when they reveal an immediate or highly optimal connection.
 - On a win, the game shows your completed path, hop count, turns, shuffles, rewinds, and the optimal comparison.
 
 ## Technical Overview
 
-This is a React + TypeScript + Vite frontend. It uses a local backend graph API for levels, actor/movie lookups, shortest-path generation, and path validation.
+This is a React + TypeScript + Vite frontend. It now treats the backend as a periodic data source instead of the gameplay engine.
 
-During local development, Vite proxies `/api/*` requests to `http://localhost:8000` to avoid browser CORS issues.
+The app caches a frontend graph snapshot in browser storage and uses it for normal play. The backend is only needed to refresh that snapshot when the cached copy becomes stale.
+
+You can switch between `Auto`, `Snapshot`, and `API` modes from the Settings page.
 
 ## Run Locally
 
@@ -35,4 +37,14 @@ npm run dev
 
 For live gameplay data, run the separate backend project on `http://localhost:8000` as well.
 
-For a more detailed technical overview, see [TECHNICAL_README.md](TECHNICAL_README.md).
+Current refresh approach:
+
+- cache the snapshot in `localStorage`
+- load bundled snapshot files from `public/data/` when available
+- reuse it for normal play
+- fall back to live API mode if snapshot data is unavailable
+- only refresh from the backend when the cached export ages past the recommended refresh window
+
+To manually pull a fresh bundled snapshot into this frontend project, run `npm run data:refresh`.
+
+For a more detailed technical overview, see [TECHNICAL_README.md](TECHNICAL_README.md). For command-line refresh and recovery steps, see [DATA_REFRESH_USAGE.md](DATA_REFRESH_USAGE.md).

@@ -1,12 +1,18 @@
 import AppRouter from "./router/AppRouter"
 import Footer from "./components/Footer"
+import { DataSourceModeProvider } from "./context/DataSourceModeContext"
+import { SnapshotDataProvider } from "./context/SnapshotDataContext"
 
 function App() {
   return (
-    <div>
-      <AppRouter />
-      <Footer />
-    </div>
+    <DataSourceModeProvider>
+      <SnapshotDataProvider>
+        <div>
+          <AppRouter />
+          <Footer />
+        </div>
+      </SnapshotDataProvider>
+    </DataSourceModeProvider>
   )
 }
 

@@ -74,3 +74,66 @@ export type SuggestionHighlight = {
 	label: string;
 	description: string;
 };
+
+export type HealthCheckResponse = {
+	status: string;
+	version: string;
+};
+
+export type FrontendManifest = {
+	version: string;
+	sourceUpdatedAt: string;
+	actorCount: number;
+	movieCount: number;
+	relationshipCount: number;
+	levelCount: number;
+	recommendedRefreshIntervalHours: number;
+	snapshotEndpoint: string;
+};
+
+export type FrontendSnapshotMeta = {
+	version: string;
+	exportedAt: string;
+	actorCount: number;
+	movieCount: number;
+	relationshipCount: number;
+	levelCount: number;
+};
+
+export type MovieActorLink = {
+	movieId: number;
+	actorId: number;
+};
+
+export type FrontendSnapshot = {
+	meta: FrontendSnapshotMeta;
+	actors: Actor[];
+	movies: Movie[];
+	movieActors: MovieActorLink[];
+	adjacency: {
+		actorToMovies: Record<string, number[]>;
+		movieToActors: Record<string, number[]>;
+	};
+	levels: Level[];
+};
+
+export type SnapshotIndexes = {
+	actorsById: Map<number, Actor>;
+	moviesById: Map<number, Movie>;
+	actorNameToId: Map<string, number>;
+	movieTitleToId: Map<string, number>;
+	actorToMovies: Record<string, number[]>;
+	movieToActors: Record<string, number[]>;
+};
+
+export type SnapshotBundle = {
+	manifest: FrontendManifest;
+	snapshot: FrontendSnapshot;
+	indexes: SnapshotIndexes;
+	health?: HealthCheckResponse;
+	loadedFrom: "cache" | "network" | "bundled" | "cache-fallback" | "demo";
+};
+
+export type DataSourceMode = "auto" | "snapshot" | "api" | "demo";
+
+export type EffectiveDataSource = "snapshot" | "api" | "demo";

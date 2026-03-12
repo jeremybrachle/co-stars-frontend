@@ -2,59 +2,164 @@ import { useEffect, useMemo, useState } from "react";
 import HomeButton from "../components/HomeButton";
 import styles from "./AdventurePage.module.css";
 import { useNavigate } from "react-router-dom";
-import { fetchLevels, generatePath } from "../api/costars";
-import type { Level } from "../types";
+import type { EffectiveDataSource, Level, SnapshotIndexes } from "../types";
+import { fetchLevels, generatePath, getApiBaseUrl } from "../api/costars";
+import { useDataSourceMode } from "../context/dataSourceMode";
+import { useSnapshotData } from "../context/snapshotData";
+import { getDemoSnapshotBundle, getDemoSourceLabel } from "../data/demoSnapshot";
+import { getSnapshotBaseUrl } from "../data/frontendSnapshot";
+import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
 
 const LEVELS_PER_PAGE = 4;
+const DEMO_BUNDLE = getDemoSnapshotBundle();
+
+function hydrateSnapshotLevels(levels: Level[], snapshotIndexes: SnapshotIndexes) {
+  return levels.map((level) => {
+    const actorA = findNodeByLabel(level.actorA, "actor", snapshotIndexes);
+    const actorB = findNodeByLabel(level.actorB, "actor", snapshotIndexes);
+
+    if (!actorA || !actorB) {
+      return {
+        ...level,
+        optimalHops: null,
+      } satisfies Level;
+    }
+
+    const optimalPath = generateLocalPath(actorA, actorB, snapshotIndexes);
+
+    return {
+      ...level,
+      optimalHops: optimalPath.reason ? null : optimalPath.steps,
+      optimalPath: optimalPath.reason ? undefined : optimalPath.nodes,
+    } satisfies Level;
+  });
+}
 
 function AdventurePage() {
   const [page, setPage] = useState(0);
   const [levels, setLevels] = useState<Level[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { mode, setMode } = useDataSourceMode();
+  const { snapshot, indexes, isLoading, errorMessage, refreshSnapshot } = useSnapshotData();
+  const canUseSnapshot = !!snapshot && !!indexes;
 
   useEffect(() => {
     let isMounted = true;
 
+    const applyDemoLevels = (message: string, shouldPersistDemoMode: boolean) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setLevels(hydrateSnapshotLevels(DEMO_BUNDLE.snapshot.levels, DEMO_BUNDLE.indexes));
+      setResolvedDataSource("demo");
+      setStatusMessage(message);
+      setLoadError(null);
+
+      if (shouldPersistDemoMode && mode === "auto") {
+        setMode("demo");
+      }
+    };
+
+    const trySnapshotLevels = async (forceRefresh: boolean) => {
+      let activeSnapshot = snapshot;
+      let activeIndexes = indexes;
+
+      if (forceRefresh || !activeSnapshot || !activeIndexes) {
+        const refreshed = await refreshSnapshot(true);
+        activeSnapshot = refreshed?.snapshot ?? null;
+        activeIndexes = refreshed?.indexes ?? null;
+      }
+
+      if (!activeSnapshot || !activeIndexes) {
+        return null;
+      }
+
+      return hydrateSnapshotLevels(activeSnapshot.levels, activeIndexes);
+    };
+
+    const loadApiLevelsWithPaths = async () => {
+      const apiLevels = await fetchLevels();
+      return Promise.all(
+        apiLevels.map(async (level) => {
+          const optimalPath = await generatePath(
+            { type: "actor", value: level.actorA },
+            { type: "actor", value: level.actorB },
+          );
+
+          return {
+            ...level,
+            optimalHops: optimalPath.reason ? null : optimalPath.steps,
+            optimalPath: optimalPath.reason ? undefined : optimalPath.nodes,
+          } satisfies Level;
+        }),
+      );
+    };
+
     const loadLevels = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
+      setLoadError(null);
+      setStatusMessage(null);
+
+      if (mode === "demo") {
+        applyDemoLevels(`Offline demo mode is active using ${getDemoSourceLabel()}.`, false);
+        return;
+      }
 
       try {
-        const backendLevels = await fetchLevels();
-        const hydratedLevels = await Promise.all(
-          backendLevels.map(async (level) => {
-            try {
-              const optimalPath = await generatePath(
-                { type: "actor", value: level.actorA },
-                { type: "actor", value: level.actorB },
-              );
-
-              return {
-                ...level,
-                optimalHops: optimalPath.steps,
-                optimalPath: optimalPath.nodes,
-              } satisfies Level;
-            } catch {
-              return {
-                ...level,
-                optimalHops: null,
-              } satisfies Level;
+        if (mode === "api") {
+          try {
+            const apiLevels = await loadApiLevelsWithPaths();
+            if (!isMounted) {
+              return;
             }
-          }),
-        );
 
-        if (isMounted) {
-          setLevels(hydratedLevels);
+            setLevels(apiLevels);
+            setResolvedDataSource("api");
+            return;
+          } catch {
+            const snapshotLevels = (await trySnapshotLevels(false)) ?? (await trySnapshotLevels(true));
+            if (!isMounted) {
+              return;
+            }
+
+            if (snapshotLevels) {
+              setLevels(snapshotLevels);
+              setResolvedDataSource("snapshot");
+              setStatusMessage(`Live API was unavailable, so Adventure Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
+              return;
+            }
+
+            applyDemoLevels(`Live API and snapshot data were unavailable, so Adventure Mode switched to offline demo mode using ${getDemoSourceLabel()}.`, false);
+            return;
+          }
         }
-      } catch (error) {
-        if (isMounted) {
-          setErrorMessage(error instanceof Error ? error.message : "Failed to load levels.");
+
+        const snapshotLevels = (await trySnapshotLevels(false)) ?? (await trySnapshotLevels(true));
+        if (snapshotLevels) {
+          if (!isMounted) {
+            return;
+          }
+
+          setLevels(snapshotLevels);
+          setResolvedDataSource("snapshot");
+          if (!canUseSnapshot) {
+            setStatusMessage(`Snapshot data was refreshed from ${getSnapshotBaseUrl()}.`);
+          }
+          return;
         }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
+
+        const apiLevels = await loadApiLevelsWithPaths();
+        if (!isMounted) {
+          return;
         }
+
+        setLevels(apiLevels);
+        setResolvedDataSource("api");
+        setStatusMessage(`Snapshot data was unavailable, so Adventure Mode is using live API data from ${getApiBaseUrl()}.`);
+      } catch {
+        applyDemoLevels(`No API connection or cached snapshot was available, so Adventure Mode defaulted to offline demo mode using ${getDemoSourceLabel()}.`, true);
       }
     };
 
@@ -63,7 +168,7 @@ function AdventurePage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [canUseSnapshot, indexes, mode, refreshSnapshot, setMode, snapshot]);
 
   const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
   const startIdx = page * LEVELS_PER_PAGE;
@@ -84,8 +189,12 @@ function AdventurePage() {
         <h1 className={styles.adventureTitle}>🎭 Adventure Mode</h1>
         <div className={styles.adventureSubtitle}>Choose a level</div>
         <div className={styles.levelsListWrapper}>
-          {isLoading ? <div className={styles.stateMessage}>Loading levels from the local API…</div> : null}
-          {errorMessage ? <div className={styles.errorMessage}>{errorMessage}</div> : null}
+          {isLoading ? <div className={styles.stateMessage}>Loading Adventure Mode data…</div> : null}
+          {statusMessage ? <div className={styles.stateMessage}>{statusMessage}</div> : null}
+          {resolvedDataSource === "snapshot" ? <div className={styles.sourceMessage}>Using local snapshot data from {getSnapshotBaseUrl()}.</div> : null}
+          {resolvedDataSource === "api" ? <div className={styles.sourceMessage}>Using live API data from {getApiBaseUrl()}.</div> : null}
+          {resolvedDataSource === "demo" ? <div className={styles.sourceMessage}>Using offline demo data from {getDemoSourceLabel()}.</div> : null}
+          {loadError ?? (errorMessage && resolvedDataSource === "snapshot" ? errorMessage : null) ? <div className={styles.errorMessage}>{loadError ?? errorMessage}</div> : null}
           {pageLevels.map((level, idx) => {
             const globalIdx = startIdx + idx;
             return (

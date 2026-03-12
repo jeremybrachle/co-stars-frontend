@@ -1,15 +1,18 @@
 {
   "name": "costars-frontend",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false",
-    "test": "npm run lint && npm run typecheck",
+    "test:unit:build": "tsc -p tsconfig.tests.json --pretty false",
+    "test:unit": "node scripts/run-unit-tests.mjs",
+    "test": "node scripts/run-test-summary.mjs",
     "preview": "vite preview",
+    "data:refresh": "node scripts/refresh-frontend-snapshot.mjs",
     "release:patch": "npm version patch",
     "release:minor": "npm version minor",
     "release:major": "npm version major"

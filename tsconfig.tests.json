@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "rootDir": ".",
+    "outDir": ".test-dist",
+    "types": ["node"],
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": false,
+    "sourceMap": false,
+    "declaration": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["tests/**/*.ts", "src/data/localGraph.ts", "src/types.ts"]
+}
