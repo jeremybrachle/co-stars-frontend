@@ -1,22 +1,8 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { clearCachedSnapshot, getCachedSnapshotBundle, getRecommendedRefreshMs, loadFrontendSnapshot } from "../data/frontendSnapshot";
-import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotBundle, SnapshotIndexes } from "../types";
-
-type SnapshotDataContextValue = {
-	snapshot: FrontendSnapshot | null;
-	manifest: FrontendManifest | null;
-	indexes: SnapshotIndexes | null;
-	health: HealthCheckResponse | null;
-	isLoading: boolean;
-	errorMessage: string | null;
-	loadedFrom: SnapshotBundle["loadedFrom"] | null;
-	lastRefreshAt: string | null;
-	recommendedRefreshMs: number;
-	refreshSnapshot: (forceRefresh?: boolean) => Promise<void>;
-	clearSnapshotCache: () => void;
-};
-
-const SnapshotDataContext = createContext<SnapshotDataContextValue | null>(null);
+import { SnapshotDataContext } from "./snapshotData";
+import type { SnapshotDataContextValue } from "./snapshotData";
+import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotIndexes } from "../types";
 
 export function SnapshotDataProvider({ children }: { children: React.ReactNode }) {
 	const cachedBundle = useMemo(() => getCachedSnapshotBundle(), []);
@@ -29,7 +15,7 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(snapshot?.meta.exportedAt ?? null);
 
-	const refreshSnapshot = async (forceRefresh = false) => {
+	const refreshSnapshot = useCallback(async (forceRefresh = false) => {
 		setIsLoading(true);
 		setErrorMessage(null);
 
@@ -41,14 +27,16 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 			setHealth(bundle.health ?? null);
 			setLoadedFrom(bundle.loadedFrom);
 			setLastRefreshAt(bundle.snapshot.meta.exportedAt);
+			return bundle;
 		} catch (error) {
 			setErrorMessage(error instanceof Error ? error.message : "Failed to load the frontend snapshot.");
+			return null;
 		} finally {
 			setIsLoading(false);
 		}
-	};
+	}, []);
 
-	const clearSnapshotCacheState = () => {
+	const clearSnapshotCacheState = useCallback(() => {
 		clearCachedSnapshot();
 		setSnapshot(null);
 		setManifest(null);
@@ -56,11 +44,11 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 		setHealth(null);
 		setLoadedFrom(null);
 		setLastRefreshAt(null);
-	};
+	}, []);
 
 	useEffect(() => {
 		void refreshSnapshot();
-	}, []);
+	}, [refreshSnapshot]);
 
 	return (
 		<SnapshotDataContext.Provider
@@ -81,14 +69,4 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 			{children}
 		</SnapshotDataContext.Provider>
 	);
-}
-
-export function useSnapshotData() {
-	const context = useContext(SnapshotDataContext);
-
-	if (!context) {
-		throw new Error("useSnapshotData must be used within SnapshotDataProvider.");
-	}
-
-	return context;
 }

@@ -58,7 +58,13 @@ function normalizeLookupKey(value: string) {
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
-	const response = await fetch(`${API_BASE_URL}${path}`);
+	let response: Response;
+
+	try {
+		response = await fetch(`${API_BASE_URL}${path}`);
+	} catch {
+		throw new Error(`Network connection couldn't be established for ${path}`);
+	}
 
 	if (!response.ok) {
 		throw new Error(`Snapshot request failed (${response.status}) for ${path}`);

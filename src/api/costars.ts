@@ -55,7 +55,13 @@ type ApiGeneratedPath = {
 };
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-	const response = await fetch(`${API_BASE_URL}${path}`, init);
+	let response: Response;
+
+	try {
+		response = await fetch(`${API_BASE_URL}${path}`, init);
+	} catch {
+		throw new Error(`Network connection couldn't be established for ${path}`);
+	}
 
 	if (!response.ok) {
 		throw new Error(`API request failed (${response.status}) for ${path}`);

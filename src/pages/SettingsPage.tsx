@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
-import { useDataSourceMode } from "../context/DataSourceModeContext"
-import { useSnapshotData } from "../context/SnapshotDataContext"
+import { useDataSourceMode } from "../context/dataSourceMode"
+import { useSnapshotData } from "../context/snapshotData"
 
 function formatRefreshHours(milliseconds: number) {
   return Math.max(1, Math.round(milliseconds / (1000 * 60 * 60)))

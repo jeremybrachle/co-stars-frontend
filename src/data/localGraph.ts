@@ -128,6 +128,10 @@ export function createPathHint(start: NodeSummary, target: NodeSummary, indexes:
 	};
 }
 
+function isNonNull<T>(value: T | null): value is T {
+	return value !== null;
+}
+
 export function getMoviesForActor(actorId: number, target: NodeSummary | null, indexes: SnapshotIndexes): GameNode[] {
 	const movieIds = indexes.actorToMovies[String(actorId)] ?? [];
 
@@ -147,7 +151,7 @@ export function getMoviesForActor(actorId: number, target: NodeSummary | null, i
 				pathHint: target ? createPathHint(summary, target, indexes) : undefined,
 			};
 		})
-		.filter((movie): movie is GameNode => movie !== null);
+		.filter(isNonNull);
 }
 
 export function getActorsForMovie(movieId: number, excludedNames: string[], target: NodeSummary | null, indexes: SnapshotIndexes): GameNode[] {
