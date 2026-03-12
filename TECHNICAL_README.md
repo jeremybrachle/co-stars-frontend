@@ -238,16 +238,16 @@ GitHub Release mapping:
 - `package.json` version: `2.0.0`
 - changelog section: `## [2.0.0] - YYYY-MM-DD`
 - git tag: `v2.0.0`
-- GitHub Release title: `Co-Stars v2.0.0`
 
-The release workflow in `.github/workflows/release.yml` creates a GitHub Release automatically when a `v*.*.*` tag is pushed.
+This repo no longer creates GitHub Releases automatically from tags.
 
-It also verifies that:
+Git tags are not used as deployment triggers. The AWS deployment workflow is manual-only and is started from GitHub Actions.
 
-- the git tag version matches `package.json`
-- a matching section exists in `CHANGELOG.md`
+Deployment configuration lives outside the repo in GitHub Actions repository settings:
 
-If either check fails, the release job stops instead of publishing a mismatched release.
+- repository variables: `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_CLOUDFRONT_DISTRIBUTION_ID`, `AWS_ROLE_ARN`
+- no long-lived AWS keys are required when using GitHub OIDC with `aws-actions/configure-aws-credentials`
+- do not commit deployment AWS values in a project `.env` file
 
 Semver guidance for this project:
 
@@ -269,6 +269,14 @@ Current jobs:
 
 - `test`: installs dependencies, runs linting, and runs TypeScript verification via `npm test`
 - `build`: installs dependencies and runs `npm run build` after the test job passes
+
+AWS deployment workflow lives at `.github/workflows/deploy.yml`.
+
+It currently deploys on:
+
+- manual runs through `workflow_dispatch`
+
+You can start that workflow from GitHub Actions and choose the branch you want to deploy, including `main` or a branch backing an open pull request.
 
 This is the GitHub Actions equivalent of a basic GitLab CI verification pipeline for the current state of the project.
 
