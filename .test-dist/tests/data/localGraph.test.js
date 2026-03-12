@@ -86,9 +86,9 @@ function movie(id, label) {
     const hint = (0, localGraph_1.createPathHint)(actor(4, "Matt Damon"), actor(3, "Julia Roberts"), indexes);
     const generated = (0, localGraph_1.generateLocalPath)(actor(4, "Matt Damon"), actor(3, "Julia Roberts"), indexes);
     strict_1.default.equal(hint.reachable, true);
-    strict_1.default.equal(hint.stepsToTarget, 3);
+    strict_1.default.equal(hint.stepsToTarget, 4);
     strict_1.default.equal(generated.reason, null);
-    strict_1.default.equal(generated.steps, 3);
+    strict_1.default.equal(generated.steps, 4);
     strict_1.default.equal(generated.path, "Matt Damon -> Ocean's Eleven -> George Clooney -> Ocean's Twelve -> Julia Roberts");
 });
 (0, node_test_1.default)("validateLocalPath accepts alternating valid routes and rejects broken ones", () => {

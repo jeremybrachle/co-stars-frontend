@@ -113,9 +113,9 @@ test("createPathHint and generateLocalPath describe reachable routes", () => {
   const generated = generateLocalPath(actor(4, "Matt Damon"), actor(3, "Julia Roberts"), indexes);
 
   assert.equal(hint.reachable, true);
-  assert.equal(hint.stepsToTarget, 3);
+  assert.equal(hint.stepsToTarget, 4);
   assert.equal(generated.reason, null);
-  assert.equal(generated.steps, 3);
+  assert.equal(generated.steps, 4);
   assert.equal(generated.path, "Matt Damon -> Ocean's Eleven -> George Clooney -> Ocean's Twelve -> Julia Roberts");
 });
 
