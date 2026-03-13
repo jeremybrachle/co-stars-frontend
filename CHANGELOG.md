@@ -10,6 +10,21 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-03-13
+
+Hosted snapshot caching support for S3 and CloudFront-backed snapshot refreshes.
+
+### Added
+
+- Settings page support for manually fetching a published frontend snapshot from a configured S3 or CloudFront manifest URL.
+- Build-time `VITE_SNAPSHOT_MANIFEST_URL` wiring so deployments can point the app at a hosted snapshot manifest without code changes.
+- Browser-side caching of the fetched manifest and snapshot in `localStorage` so hosted data can be reused across sessions.
+
+### Changed
+
+- Snapshot refresh is now an explicit user action: the app keeps using the cached hosted snapshot until it is manually refreshed or cleared.
+- The deployed runtime no longer depends on `public/data/` files for snapshot loading; that export path remains only for local inspection and recovery workflows.
+
 ## [2.0.2] - 2026-03-12
 
 Disable user input
