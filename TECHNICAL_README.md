@@ -70,27 +70,32 @@ Current storage model:
 
 - manifest cached in `localStorage`
 - snapshot cached in `localStorage`
-- optional bundled manifest and snapshot files in `public/data/`
+- optional S3 snapshot manifest URL injected at build time with `VITE_SNAPSHOT_MANIFEST_URL`
 - derived indexes built in memory on load
 
 Current refresh strategy:
 
-- if a cached snapshot exists and is still within the recommended refresh interval, the app reuses it without fetching
-- once the cached export ages beyond the recommended interval, the frontend refreshes from the backend manifest and snapshot endpoints
-- if backend refresh fails, the frontend attempts to load bundled snapshot files from `public/data/`
+- the app reuses a cached snapshot if one has already been loaded into browser storage
+- the Settings page can manually fetch a new snapshot from the backend API export endpoint
+- the Settings page can manually fetch a new snapshot from the configured S3 or CloudFront manifest URL
 - if snapshot data is unavailable and the selected data mode allows it, the app falls back to direct API mode
+- if both snapshot and API data are unavailable, Adventure and Game modes fall back to the built-in demo dataset
 - the backend handoff currently recommends a weekly cadence of `168` hours
 
-This means normal play can run with no backend calls between refresh windows, as long as a valid snapshot already exists in the browser.
+This means normal play can run with no backend calls between manual snapshot refreshes, as long as a valid snapshot already exists in the browser.
 
 Manual snapshot export command:
 
 - `npm run data:refresh`
 
-That script downloads the current backend manifest and snapshot and writes them to:
+That script downloads the current backend manifest and snapshot for local inspection and writes them to:
 
 - `public/data/frontend-manifest.json`
 - `public/data/frontend-snapshot.json`
+
+The deployed frontend no longer reads runtime snapshot data from `public/data/`.
+
+The deployed frontend also no longer auto-refreshes snapshots on load. Snapshot cache changes happen only through the explicit Settings page fetch actions.
 
 For full recovery and refresh instructions, see `DATA_REFRESH_USAGE.md`.
 
@@ -248,7 +253,7 @@ Git tags are not used as deployment triggers. The AWS deployment workflow is man
 
 Deployment configuration lives outside the repo in GitHub Actions repository settings:
 
-- repository variables: `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_CLOUDFRONT_DISTRIBUTION_ID`, `AWS_ROLE_ARN`
+- repository variables: `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_CLOUDFRONT_DISTRIBUTION_ID`, `AWS_ROLE_ARN`, `VITE_SNAPSHOT_MANIFEST_URL`
 - no long-lived AWS keys are required when using GitHub OIDC with `aws-actions/configure-aws-credentials`
 - do not commit deployment AWS values in a project `.env` file
 

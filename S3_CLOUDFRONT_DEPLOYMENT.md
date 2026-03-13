@@ -93,7 +93,10 @@ Recommended setup:
 	- `AWS_S3_BUCKET`
 	- `AWS_CLOUDFRONT_DISTRIBUTION_ID`
 	- `AWS_ROLE_ARN`
+	- `VITE_SNAPSHOT_MANIFEST_URL`
 5. Optionally create an environment named `production` under `Settings` -> `Environments` if you want approvals or environment-scoped values.
+
+`VITE_SNAPSHOT_MANIFEST_URL` should point at the public hosted manifest location, for example `https://your-domain/co-stars/prod/frontend-manifest.json`.
 
 The bucket name and distribution ID do not have to be treated as high-value secrets, but keeping them in GitHub repository variables keeps environment-specific values out of the repo.
 

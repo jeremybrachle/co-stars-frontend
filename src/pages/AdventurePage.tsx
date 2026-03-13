@@ -7,7 +7,6 @@ import { fetchLevels, generatePath, getApiBaseUrl } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
 import { getDemoSnapshotBundle, getDemoSourceLabel } from "../data/demoSnapshot";
-import { getSnapshotBaseUrl } from "../data/frontendSnapshot";
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
 
 const LEVELS_PER_PAGE = 4;
@@ -42,8 +41,7 @@ function AdventurePage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const { mode, setMode } = useDataSourceMode();
-  const { snapshot, indexes, isLoading, errorMessage, refreshSnapshot } = useSnapshotData();
-  const canUseSnapshot = !!snapshot && !!indexes;
+  const { snapshot, indexes, isLoading, errorMessage } = useSnapshotData();
 
   useEffect(() => {
     let isMounted = true;
@@ -63,21 +61,12 @@ function AdventurePage() {
       }
     };
 
-    const trySnapshotLevels = async (forceRefresh: boolean) => {
-      let activeSnapshot = snapshot;
-      let activeIndexes = indexes;
-
-      if (forceRefresh || !activeSnapshot || !activeIndexes) {
-        const refreshed = await refreshSnapshot(true);
-        activeSnapshot = refreshed?.snapshot ?? null;
-        activeIndexes = refreshed?.indexes ?? null;
-      }
-
-      if (!activeSnapshot || !activeIndexes) {
+    const trySnapshotLevels = async () => {
+      if (!snapshot || !indexes) {
         return null;
       }
 
-      return hydrateSnapshotLevels(activeSnapshot.levels, activeIndexes);
+      return hydrateSnapshotLevels(snapshot.levels, indexes);
     };
 
     const loadApiLevelsWithPaths = async () => {
@@ -119,7 +108,7 @@ function AdventurePage() {
             setResolvedDataSource("api");
             return;
           } catch {
-            const snapshotLevels = (await trySnapshotLevels(false)) ?? (await trySnapshotLevels(true));
+            const snapshotLevels = await trySnapshotLevels();
             if (!isMounted) {
               return;
             }
@@ -127,7 +116,7 @@ function AdventurePage() {
             if (snapshotLevels) {
               setLevels(snapshotLevels);
               setResolvedDataSource("snapshot");
-              setStatusMessage(`Live API was unavailable, so Adventure Mode switched to snapshot data from ${getSnapshotBaseUrl()}.`);
+              setStatusMessage("Live API was unavailable, so Adventure Mode switched to the currently loaded snapshot data.");
               return;
             }
 
@@ -136,7 +125,7 @@ function AdventurePage() {
           }
         }
 
-        const snapshotLevels = (await trySnapshotLevels(false)) ?? (await trySnapshotLevels(true));
+        const snapshotLevels = await trySnapshotLevels();
         if (snapshotLevels) {
           if (!isMounted) {
             return;
@@ -144,9 +133,6 @@ function AdventurePage() {
 
           setLevels(snapshotLevels);
           setResolvedDataSource("snapshot");
-          if (!canUseSnapshot) {
-            setStatusMessage(`Snapshot data was refreshed from ${getSnapshotBaseUrl()}.`);
-          }
           return;
         }
 
@@ -168,7 +154,7 @@ function AdventurePage() {
     return () => {
       isMounted = false;
     };
-  }, [canUseSnapshot, indexes, mode, refreshSnapshot, setMode, snapshot]);
+  }, [indexes, mode, setMode, snapshot]);
 
   const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
   const startIdx = page * LEVELS_PER_PAGE;
@@ -191,7 +177,7 @@ function AdventurePage() {
         <div className={styles.levelsListWrapper}>
           {isLoading ? <div className={styles.stateMessage}>Loading Adventure Mode data…</div> : null}
           {statusMessage ? <div className={styles.stateMessage}>{statusMessage}</div> : null}
-          {resolvedDataSource === "snapshot" ? <div className={styles.sourceMessage}>Using local snapshot data from {getSnapshotBaseUrl()}.</div> : null}
+          {resolvedDataSource === "snapshot" ? <div className={styles.sourceMessage}>Using the currently loaded snapshot data.</div> : null}
           {resolvedDataSource === "api" ? <div className={styles.sourceMessage}>Using live API data from {getApiBaseUrl()}.</div> : null}
           {resolvedDataSource === "demo" ? <div className={styles.sourceMessage}>Using offline demo data from {getDemoSourceLabel()}.</div> : null}
           {loadError ?? (errorMessage && resolvedDataSource === "snapshot" ? errorMessage : null) ? <div className={styles.errorMessage}>{loadError ?? errorMessage}</div> : null}

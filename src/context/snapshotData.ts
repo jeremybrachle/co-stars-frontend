@@ -8,10 +8,12 @@ export type SnapshotDataContextValue = {
 	health: HealthCheckResponse | null;
 	isLoading: boolean;
 	errorMessage: string | null;
+	errorSource: "api" | "s3" | null;
 	loadedFrom: SnapshotBundle["loadedFrom"] | null;
 	lastRefreshAt: string | null;
 	recommendedRefreshMs: number;
-	refreshSnapshot: (forceRefresh?: boolean) => Promise<SnapshotBundle | null>;
+	fetchSnapshotFromApi: () => Promise<SnapshotBundle | null>;
+	fetchSnapshotFromS3: () => Promise<SnapshotBundle | null>;
 	clearSnapshotCache: () => void;
 };
 

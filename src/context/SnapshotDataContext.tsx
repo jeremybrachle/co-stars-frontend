@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { clearCachedSnapshot, getCachedSnapshotBundle, getRecommendedRefreshMs, loadFrontendSnapshot } from "../data/frontendSnapshot";
+import { useCallback, useMemo, useState } from "react";
+import { clearCachedSnapshot, fetchSnapshotFromApi, fetchSnapshotFromS3, getCachedSnapshotBundle, getRecommendedRefreshMs } from "../data/frontendSnapshot";
 import { SnapshotDataContext } from "./snapshotData";
 import type { SnapshotDataContextValue } from "./snapshotData";
 import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotIndexes } from "../types";
@@ -11,30 +11,48 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 	const [indexes, setIndexes] = useState<SnapshotIndexes | null>(cachedBundle?.indexes ?? null);
 	const [health, setHealth] = useState<HealthCheckResponse | null>(cachedBundle?.health ?? null);
 	const [loadedFrom, setLoadedFrom] = useState<SnapshotDataContextValue["loadedFrom"]>(cachedBundle?.loadedFrom ?? null);
-	const [isLoading, setIsLoading] = useState(snapshot === null);
+	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [errorSource, setErrorSource] = useState<SnapshotDataContextValue["errorSource"]>(null);
 	const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(snapshot?.meta.exportedAt ?? null);
 
-	const refreshSnapshot = useCallback(async (forceRefresh = false) => {
+	const applySnapshotBundle = useCallback((bundle: NonNullable<Awaited<ReturnType<typeof fetchSnapshotFromApi>>>) => {
+		setSnapshot(bundle.snapshot);
+		setManifest(bundle.manifest);
+		setIndexes(bundle.indexes);
+		setHealth(bundle.health ?? null);
+		setLoadedFrom(bundle.loadedFrom);
+		setLastRefreshAt(bundle.snapshot.meta.exportedAt);
+		return bundle;
+	}, []);
+
+	const loadSnapshot = useCallback(async (
+		loader: () => Promise<NonNullable<Awaited<ReturnType<typeof fetchSnapshotFromApi>>>>,
+		fallbackMessage: string,
+		source: NonNullable<SnapshotDataContextValue["errorSource"]>,
+	) => {
 		setIsLoading(true);
 		setErrorMessage(null);
+		setErrorSource(null);
 
 		try {
-			const bundle = await loadFrontendSnapshot({ forceRefresh });
-			setSnapshot(bundle.snapshot);
-			setManifest(bundle.manifest);
-			setIndexes(bundle.indexes);
-			setHealth(bundle.health ?? null);
-			setLoadedFrom(bundle.loadedFrom);
-			setLastRefreshAt(bundle.snapshot.meta.exportedAt);
-			return bundle;
+			return applySnapshotBundle(await loader());
 		} catch (error) {
-			setErrorMessage(error instanceof Error ? error.message : "Failed to load the frontend snapshot.");
+			setErrorMessage(error instanceof Error ? error.message : fallbackMessage);
+			setErrorSource(source);
 			return null;
 		} finally {
 			setIsLoading(false);
 		}
-	}, []);
+	}, [applySnapshotBundle]);
+
+	const loadSnapshotFromApi = useCallback(async () => {
+		return loadSnapshot(fetchSnapshotFromApi, "Failed to fetch the snapshot from the API.", "api");
+	}, [loadSnapshot]);
+
+	const loadSnapshotFromS3 = useCallback(async () => {
+		return loadSnapshot(fetchSnapshotFromS3, "Failed to fetch the snapshot from S3.", "s3");
+	}, [loadSnapshot]);
 
 	const clearSnapshotCacheState = useCallback(() => {
 		clearCachedSnapshot();
@@ -44,11 +62,9 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 		setHealth(null);
 		setLoadedFrom(null);
 		setLastRefreshAt(null);
+		setErrorMessage(null);
+		setErrorSource(null);
 	}, []);
-
-	useEffect(() => {
-		void refreshSnapshot();
-	}, [refreshSnapshot]);
 
 	return (
 		<SnapshotDataContext.Provider
@@ -59,10 +75,12 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 				health,
 				isLoading,
 				errorMessage,
+				errorSource,
 				loadedFrom,
 				lastRefreshAt,
 				recommendedRefreshMs: getRecommendedRefreshMs(manifest),
-				refreshSnapshot,
+				fetchSnapshotFromApi: loadSnapshotFromApi,
+				fetchSnapshotFromS3: loadSnapshotFromS3,
 				clearSnapshotCache: clearSnapshotCacheState,
 			}}
 		>
