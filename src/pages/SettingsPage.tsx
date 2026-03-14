@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import { APP_VERSION } from "../appVersion"
+import PageBackButton from "../components/PageBackButton"
 import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
 import { getApiSnapshotManifestUrl, getHostedSnapshotManifestUrl } from "../data/frontendSnapshot"
@@ -51,6 +52,7 @@ function SettingsPage() {
 
   return (
     <div className="settingsPage">
+      <PageBackButton to="/" label="Back" />
       <div className="settingsPanel">
         <h1>Settings</h1>
         <p className="settingsIntro">Choose how gameplay data should load using a manually loaded snapshot, live API calls, or the built-in demo fallback.</p>

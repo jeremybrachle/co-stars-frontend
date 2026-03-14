@@ -1,32 +1,29 @@
 import { Link } from "react-router-dom"
 
-function NavigationMenu() {
+export type NavigationMenuItem = {
+  to: string
+  label: string
+  icon: string
+  description?: string
+  className?: string
+}
+
+type Props = {
+  items: NavigationMenuItem[]
+}
+
+function NavigationMenu({ items }: Props) {
   return (
     <div className="nav-menu">
-      <Link to="/adventure">
-        <div className="nav-btn-visual nav-btn-adventure">
-          <span className="nav-icon">🗺️</span>
-          <button>Adventure Mode</button>
-        </div>
-      </Link>
-      <Link to="/speed-round">
-        <div className="nav-btn-visual">
-          <span className="nav-icon">⚡</span>
-          <button>Speed Round</button>
-        </div>
-      </Link>
-      <Link to="/custom-level">
-        <div className="nav-btn-visual">
-          <span className="nav-icon">🎨</span>
-          <button>Custom Level</button>
-        </div>
-      </Link>
-      <Link to="/settings">
-        <div className="nav-btn-visual">
-          <span className="nav-icon">⚙️</span>
-          <button>Settings</button>
-        </div>
-      </Link>
+      {items.map((item) => (
+        <Link key={item.to} to={item.to} className={`nav-btn-visual${item.className ? ` ${item.className}` : ""}`}>
+          <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+          <span className="nav-btn-content">
+            <span className="nav-btn-label">{item.label}</span>
+            {item.description ? <span className="nav-btn-copy">{item.description}</span> : null}
+          </span>
+        </Link>
+      ))}
     </div>
   )
 }

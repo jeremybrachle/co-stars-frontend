@@ -47,6 +47,7 @@ type RouteGameNode = {
 };
 
 type GamePageRouteState = {
+  returnTo?: string;
   startA?: RouteGameNode | string;
   startB?: RouteGameNode | string;
   actorA?: string;
@@ -952,12 +953,13 @@ function GamePage() {
   };
 
   const completionPreviewPath = completion?.fullPath ?? optimalPath;
+  const backDestination = routeState?.returnTo ?? "/play-now";
 
   return (
     <div className="gamePage">
       <div className="topBar">
         <div className="topBarSide topBarSideLeft">
-          <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate("/adventure")}>
+          <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate(backDestination)}>
             ← Back
           </button>
         </div>

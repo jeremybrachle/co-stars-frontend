@@ -10,6 +10,14 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-03-14
+
+More game data visualizations
+
+### Added
+
+- Pages for path finding and game data
+
 ## [2.0.3] - 2026-03-13
 
 Hosted snapshot caching support for S3 and CloudFront-backed snapshot refreshes.

@@ -199,6 +199,7 @@ function AdventurePage() {
                   onClick={() =>
                     navigate("/game", {
                       state: {
+                        returnTo: "/play-now",
                         actorA: level.actorA,
                         actorB: level.actorB,
                         optimalHops: level.optimalHops,

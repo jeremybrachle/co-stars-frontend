@@ -2,11 +2,19 @@ import { Link } from "react-router-dom"
 
 function SpeedRoundPage() {
   return (
-    <div>
-      <h1>Speed Round</h1>
-      <p>This mode will generate a random actor connection challenge.</p>
+    <div className="utilityPage">
+      <div className="utilityPanel utilityPanel--compact">
+        <div className="pageEyebrow">Play Now</div>
+        <h1>Speed Round</h1>
+        <p className="pageLead">This placeholder screen will become the timed challenge flow. The route is live now so it can be added to the new Play Now menu.</p>
 
-      <Link to="/">Back to Home</Link>
+        <div className="placeholderPanel">
+          <h2>Planned Experience</h2>
+          <p className="placeholderCopy">Generate a random matchup, start a timer, and score the player on accuracy and speed.</p>
+        </div>
+
+        <Link to="/play-now" className="pageBackLink">Back to Play Now</Link>
+      </div>
     </div>
   )
 }

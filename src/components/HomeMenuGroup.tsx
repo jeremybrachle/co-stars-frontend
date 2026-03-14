@@ -1,10 +1,16 @@
 import NavigationMenu from "./NavigationMenu"
+import type { NavigationMenuItem } from "./NavigationMenu"
 
-function HomeMenuGroup() {
+type Props = {
+  subtitle: string
+  items: NavigationMenuItem[]
+}
+
+function HomeMenuGroup({ subtitle, items }: Props) {
   return (
     <div className="home-menu-group">
-      <div className="subtitle subtitle-tight">Choose a game type or create your own level!</div>
-      <NavigationMenu />
+      <div className="subtitle subtitle-tight">{subtitle}</div>
+      <NavigationMenu items={items} />
     </div>
   )
 }

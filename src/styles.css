@@ -1,5 +1,6 @@
 .nav-menu a {
   text-decoration: none;
+  color: inherit;
 }
 .adventure-outer {
   position: relative;
@@ -47,6 +48,30 @@
 .home-btn:hover {
   background: rgba(255,255,255,0.18);
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+.pageTopBackButton {
+  position: absolute;
+  top: 48px;
+  left: 72px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.8em 1em;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.13);
+  color: white;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.13);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+  z-index: 10;
+}
+
+.pageTopBackButton:hover {
+  background: rgba(255,255,255,0.18);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  transform: translateY(-1px);
 }
 
 .adventure-back-red {
@@ -145,6 +170,10 @@ body {
   box-shadow: 0 12px 36px rgba(0,0,0,0.22);
 }
 
+.home-center-group--compact {
+  min-width: min(420px, calc(100vw - 40px));
+}
+
 .appVersion {
   margin: 65px 0 0;
   color: rgba(255, 255, 255, 0.72);
@@ -165,24 +194,28 @@ body {
 .nav-menu {
   display: flex;
   flex-direction: column;
-  gap: 1.7em;
+  gap: 1em;
   align-items: center;
+  width: 100%;
 }
 
 .nav-btn-visual {
   display: flex;
   align-items: center;
   gap: 1.2em;
-  border-radius: 16px;
-  padding: 0.5em 1.2em;
-  transition: box-shadow 0.2s, background 0.2s;
-  background: none;
-  box-shadow: none;
+  width: min(100%, 420px);
+  border-radius: 18px;
+  padding: 0.9em 1.2em;
+  transition: box-shadow 0.2s, background 0.2s, transform 0.2s;
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+  border: 1px solid rgba(255,255,255,0.12);
 }
 
 .nav-btn-visual:hover {
-  background: none;
-  box-shadow: none;
+  background: rgba(255,255,255,0.13);
+  box-shadow: 0 16px 28px rgba(0,0,0,0.18);
+  transform: translateY(-2px);
 }
 
 .nav-icon {
@@ -193,6 +226,24 @@ body {
 
 .nav-btn-visual:hover .nav-icon {
   transform: scale(1.15) rotate(-8deg);
+}
+
+.nav-btn-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  align-items: flex-start;
+}
+
+.nav-btn-label {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.nav-btn-copy {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.92rem;
+  line-height: 1.4;
 }
 
 #root {
@@ -300,6 +351,7 @@ button:hover {
 }
 
 .settingsPage {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -468,4 +520,434 @@ button:hover {
 
 .back-button {
   margin-bottom: 20px;
+}
+
+.utilityPage {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px 92px;
+  box-sizing: border-box;
+}
+
+.utilityPanel {
+  width: min(100%, 760px);
+  padding: 32px;
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+
+.utilityPanel--compact {
+  width: min(100%, 720px);
+}
+
+.utilityPanel--wide {
+  width: min(100%, 1100px);
+}
+
+.pageEyebrow {
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pageLead {
+  margin: 0 0 24px;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.6;
+}
+
+.pageStatus {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pageStatus--error {
+  background: rgba(127, 29, 29, 0.42);
+  border-color: rgba(248, 113, 113, 0.42);
+  color: #ffe4e6;
+}
+
+.pageBackLink {
+  display: inline-block;
+  margin-top: 24px;
+  color: white;
+  font-weight: 700;
+}
+
+.placeholderPanel {
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.placeholderPanel h2 {
+  margin-top: 0;
+}
+
+.placeholderCopy {
+  margin-bottom: 0;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.6;
+}
+
+.findPathControls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.formField--search {
+  position: relative;
+}
+
+.searchFieldShell {
+  position: relative;
+}
+
+.formField input {
+  padding: 0.9em 1em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.55);
+  color: white;
+  font-size: 1rem;
+}
+
+.formField--search input {
+  padding-right: 82px;
+}
+
+.searchSelectionBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.searchSelectionBadge--actor {
+  background: rgba(59, 130, 246, 0.22);
+  border: 1px solid rgba(147, 197, 253, 0.32);
+}
+
+.searchSelectionBadge--movie {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(110, 231, 183, 0.3);
+}
+
+.searchFieldShell > .searchSelectionBadge {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+}
+
+.searchDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.28);
+}
+
+.searchOption {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.searchOption:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.searchOptionPrimary {
+  font-size: 0.98rem;
+}
+
+.searchOptionMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.82rem;
+}
+
+.searchDropdownEmpty {
+  padding: 14px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.findPathActionRow {
+  display: flex;
+  align-items: end;
+  min-height: 100%;
+}
+
+.findPathActionRow button {
+  width: 100%;
+}
+
+.pathResultList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.pathNode {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.pathNode--actor {
+  background: rgba(59, 130, 246, 0.22);
+  border: 1px solid rgba(147, 197, 253, 0.32);
+}
+
+.pathNode--movie {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(110, 231, 183, 0.3);
+}
+
+.pathNodeArrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.catalogGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.catalogPanel {
+  min-height: 380px;
+  padding: 20px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.catalogPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.catalogPanelHeader h2 {
+  margin: 0;
+}
+
+.catalogPanelHeader span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  font-weight: 700;
+}
+
+.catalogControls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.catalogControlField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catalogControlField span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.catalogControlField input,
+.catalogControlField select {
+  padding: 0.9em 1em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.55);
+  color: white;
+  font-size: 0.96rem;
+}
+
+.catalogListShell {
+  position: relative;
+}
+
+.catalogListShell::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 36px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.95));
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+.catalogList {
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.catalogList::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.catalogList--withHeader {
+  gap: 10px;
+}
+
+.catalogListHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 2px 2px 8px;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.86));
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.catalogSortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 2px 0;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.88);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.catalogSortButton--numeric {
+  justify-content: flex-end;
+}
+
+.catalogSortButton:hover {
+  background: transparent;
+  color: white;
+}
+
+.catalogListItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.catalogListItem span:last-child {
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+}
+
+.catalogEmptyState {
+  padding: 18px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+@media (max-width: 780px) {
+  .home-center-group {
+    min-width: 0;
+    width: calc(100vw - 40px);
+    margin-top: 6vh;
+    padding: 2.4em 1.3em;
+  }
+
+  .catalogGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .catalogPanel {
+    min-height: 320px;
+  }
+
+  .catalogListHeader,
+  .catalogListItem {
+    grid-template-columns: minmax(0, 1fr) minmax(88px, auto);
+  }
+
+  .home-btn {
+    top: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+  }
+
+  .pageTopBackButton {
+    top: 24px;
+    left: 24px;
+    padding: 0.72em 0.9em;
+  }
 }
