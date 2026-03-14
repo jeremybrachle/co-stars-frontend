@@ -4,9 +4,10 @@ import { generatePath } from "../api/costars"
 import PageBackButton from "../components/PageBackButton"
 import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
-import { getCatalogSourceLabel, resolveCatalogSource } from "../data/catalogSource"
+import { resolveCatalogSource } from "../data/catalogSource"
+import { isOnlineSnapshotMode } from "../data/dataSourcePreferences"
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph"
-import type { Actor, EffectiveDataSource, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types"
+import type { Actor, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types"
 
 type PathResult = {
   nodes: NodeSummary[]
@@ -116,12 +117,10 @@ function isSameOption(left: SearchOption, right: SearchOption) {
 
 function FindPathPage() {
   const { mode } = useDataSourceMode()
-  const { snapshot, indexes: snapshotIndexes } = useSnapshotData()
+  const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading } = useSnapshotData()
   const [actors, setActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
-  const [activeSource, setActiveSource] = useState<EffectiveDataSource>("demo")
   const [pathIndexes, setPathIndexes] = useState<SnapshotIndexes | null>(null)
-  const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [startQuery, setStartQuery] = useState("")
@@ -138,6 +137,11 @@ function FindPathPage() {
     let isMounted = true
 
     const loadCatalog = async () => {
+      if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+        setIsLoading(true)
+        return
+      }
+
       setIsLoading(true)
       setLoadError(null)
 
@@ -150,9 +154,7 @@ function FindPathPage() {
 
         setActors(catalog.actors)
         setMovies(catalog.movies)
-        setActiveSource(catalog.source)
         setPathIndexes(catalog.indexes)
-        setStatusMessage(catalog.statusMessage)
       } catch (error) {
         if (!isMounted) {
           return
@@ -171,7 +173,7 @@ function FindPathPage() {
     return () => {
       isMounted = false
     }
-  }, [mode, snapshot, snapshotIndexes])
+  }, [isSnapshotLoading, mode, snapshot, snapshotIndexes])
 
   const searchOptions = useMemo(
     () => [
@@ -327,8 +329,6 @@ function FindPathPage() {
         <p className="pageLead">Choose any two actors or movies from the currently available game data and Co-Stars will generate the shortest path it can find between them.</p>
 
         {isLoading ? <div className="pageStatus">Loading actor and movie data…</div> : null}
-        {statusMessage ? <div className="pageStatus">{statusMessage}</div> : null}
-        <div className="pageStatus">{getCatalogSourceLabel(activeSource)}</div>
         {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}
 
         <div className="findPathControls">

@@ -134,6 +134,22 @@ export type SnapshotBundle = {
 	loadedFrom: "cache" | "api-snapshot" | "s3-snapshot" | "demo";
 };
 
-export type DataSourceMode = "auto" | "snapshot" | "api" | "demo";
+export type ConnectionMode = "online" | "offline";
+
+export type OnlineDataPreference = "snapshot" | "api";
+
+export type OfflineDataPreference = "snapshot" | "demo";
+
+export type DataSourceMode = {
+	connectionMode: ConnectionMode;
+	onlineSource: OnlineDataPreference;
+	offlineSource: OfflineDataPreference;
+};
 
 export type EffectiveDataSource = "snapshot" | "api" | "demo";
+
+export type DataIndicatorVariant =
+	| "online-snapshot"
+	| "online-api"
+	| "offline-snapshot"
+	| "offline-demo";

@@ -481,16 +481,472 @@ button:hover {
   left: 0;
   width: 100%;
 
-  text-align: center;
-
-  padding: 10px 0;
-
+  padding: 10px 16px;
   font-size: 0.9em;
 
   background: rgba(0,0,0,0.15);
   backdrop-filter: blur(4px);
 
   border-top: 1px solid rgba(255,255,255,0.2);
+  box-sizing: border-box;
+  z-index: 40;
+}
+
+.footerContent {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+}
+
+.footerInfo {
+  position: relative;
+}
+
+.footerActions {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+}
+
+.footerCopyrightButton {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.footerCopyrightButton:hover {
+  background: transparent;
+  color: white;
+}
+
+.footerPopover {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: 0;
+  width: min(420px, calc(100vw - 24px));
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.34);
+}
+
+.footerPopover--info {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(320px, calc(100vw - 24px));
+}
+
+.footerPopover--wide {
+  width: min(520px, calc(100vw - 24px));
+}
+
+.footerPopoverHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.footerPopoverHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.footerPopoverClose {
+  padding: 0;
+  min-width: 28px;
+  min-height: 28px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.footerPopoverClose:hover {
+  background: transparent;
+}
+
+.footerPopoverCopy {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+.footerPopoverCopy + .footerPopoverCopy {
+  margin-top: 10px;
+}
+
+.dataIndicator {
+  position: relative;
+}
+
+.dataIndicatorButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.55em 0.9em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: none;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dataIndicatorButton:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dataIndicatorButtonText {
+  color: white;
+}
+
+.dataIndicatorTooltip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: 240px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.dataIndicator:hover .dataIndicatorTooltip,
+.dataIndicatorButton:focus-visible + .dataIndicatorTooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dataIndicatorTooltip strong,
+.dataIndicatorTooltip span {
+  display: block;
+}
+
+.dataIndicatorTooltip span {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.45;
+}
+
+.dataIndicatorGlyph {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.dataIndicatorGlyphCore {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dataIndicatorGlyphSignal {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  border: 2px solid rgba(15, 23, 42, 0.95);
+}
+
+.dataIndicatorGlyph--online-snapshot {
+  color: #7dd3fc;
+}
+
+.dataIndicatorGlyph--online-api {
+  color: #34d399;
+}
+
+.dataIndicatorGlyph--offline-snapshot {
+  color: #fbbf24;
+}
+
+.dataIndicatorGlyph--offline-demo {
+  color: #f87171;
+}
+
+.dataIndicatorGlyph--pulse {
+  animation: data-indicator-pulse 1.35s ease-in-out infinite;
+}
+
+@keyframes data-indicator-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(125, 211, 252, 0.32);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(125, 211, 252, 0);
+  }
+}
+
+.dataSettingsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dataSettingsHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 8px;
+}
+
+.dataSettingsHeader h2 {
+  margin: 0;
+}
+
+.dataSettingsCurrentState {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 320px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dataSettingsCurrentState strong,
+.dataSettingsCurrentState span {
+  display: block;
+}
+
+.dataSettingsCurrentState span {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.45;
+}
+
+.dataModeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settingsOption--card {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settingsOption--active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(147, 197, 253, 0.28);
+}
+
+.dataSettingsStats {
+  display: grid;
+  gap: 4px;
+}
+
+.catalogListItem--interactive,
+.catalogDialogListItem {
+  width: 100%;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: white;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.catalogListItem--interactive:hover,
+.catalogDialogListItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.catalogDialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.catalogDialog {
+  position: relative;
+  width: min(760px, 100%);
+  max-height: min(88vh, 820px);
+  overflow-y: auto;
+  padding: 28px;
+  border-radius: 24px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.36);
+}
+
+.catalogDialogClose {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  padding: 0;
+  min-width: 32px;
+  min-height: 32px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.catalogDialogClose:hover {
+  background: transparent;
+}
+
+.catalogDialogHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.catalogDialogHeader h2 {
+  margin: 0;
+}
+
+.catalogDetailMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.catalogDetailMetaCard {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.catalogDetailMetaLabel {
+  display: block;
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.catalogRelationToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin-top: 22px;
+}
+
+.catalogFutureAction {
+  position: relative;
+}
+
+.catalogFutureAction button {
+  min-width: 140px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.58);
+  box-shadow: none;
+}
+
+.catalogFutureAction button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.catalogFutureHint {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  width: 240px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.catalogFutureAction:hover .catalogFutureHint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.catalogDialogListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.catalogDialogListHeader h3 {
+  margin: 0;
+}
+
+.catalogDialogListHeader span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 700;
+}
+
+.catalogDialogList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.catalogDialogListItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 13px 14px;
+  border-radius: 14px;
+}
+
+.catalogDialogListItem span:last-child {
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .levels-grid {
@@ -931,6 +1387,48 @@ button:hover {
 
   .catalogPanel {
     min-height: 320px;
+  }
+
+  .dataSettingsHeader,
+  .catalogRelationToolbar,
+  .catalogDetailMetaGrid,
+  .dataModeGrid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .dataSettingsHeader {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .footerContent {
+    justify-content: flex-start;
+    padding-right: 88px;
+  }
+
+  .footerPopover--info {
+    left: 0;
+    right: auto;
+    transform: none;
+  }
+
+  .catalogDialog {
+    padding: 22px;
+  }
+
+  .catalogDialogHeader,
+  .catalogDialogListItem {
+    grid-template-columns: 1fr;
+  }
+
+  .catalogDialogHeader {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .catalogFutureAction button {
+    width: 100%;
   }
 
   .catalogListHeader,

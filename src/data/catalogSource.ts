@@ -1,5 +1,6 @@
 import { fetchActors, fetchMovies, getApiBaseUrl } from "../api/costars"
 import { getDemoSnapshotBundle, getDemoSourceLabel } from "./demoSnapshot"
+import { isOfflineDemoMode, isOfflineSnapshotMode, isOnlineApiMode, isOnlineSnapshotMode } from "./dataSourcePreferences"
 import type { Actor, DataSourceMode, EffectiveDataSource, FrontendSnapshot, Movie, SnapshotIndexes } from "../types"
 
 export type CatalogSource = {
@@ -39,12 +40,16 @@ function fromDemo(statusMessage: string): CatalogSource {
 }
 
 export async function resolveCatalogSource({ mode, snapshot, indexes }: CatalogSourceOptions): Promise<CatalogSource> {
-  if (mode === "demo") {
+  if (isOfflineDemoMode(mode)) {
     return fromDemo(`Offline demo mode is active using ${getDemoSourceLabel()}.`)
   }
 
-  if (snapshot && indexes && mode !== "api") {
+  if ((isOfflineSnapshotMode(mode) || isOnlineSnapshotMode(mode)) && snapshot && indexes) {
     return fromSnapshot(snapshot, indexes, null)
+  }
+
+  if (isOfflineSnapshotMode(mode) || isOnlineSnapshotMode(mode)) {
+    return fromDemo(`No cached snapshot was available, so this page switched to offline demo mode using ${getDemoSourceLabel()}.`)
   }
 
   try {
@@ -55,7 +60,7 @@ export async function resolveCatalogSource({ mode, snapshot, indexes }: CatalogS
       movies,
       indexes: null,
       source: "api",
-      statusMessage: snapshot && indexes && mode === "api"
+      statusMessage: snapshot && indexes && isOnlineApiMode(mode)
         ? `Live API data from ${getApiBaseUrl()} is active for this page.`
         : snapshot && indexes
           ? `Snapshot data was unavailable for this mode, so this page switched to live API data from ${getApiBaseUrl()}.`
@@ -68,16 +73,4 @@ export async function resolveCatalogSource({ mode, snapshot, indexes }: CatalogS
 
     return fromDemo(`No API connection or cached snapshot was available, so this page switched to offline demo mode using ${getDemoSourceLabel()}.`)
   }
-}
-
-export function getCatalogSourceLabel(source: EffectiveDataSource) {
-  if (source === "snapshot") {
-    return "Using the currently loaded snapshot data."
-  }
-
-  if (source === "api") {
-    return `Using live API data from ${getApiBaseUrl()}.`
-  }
-
-  return `Using offline demo data from ${getDemoSourceLabel()}.`
 }

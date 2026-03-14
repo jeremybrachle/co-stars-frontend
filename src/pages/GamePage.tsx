@@ -10,7 +10,6 @@ import {
   fetchMovieActors,
   fetchMovies,
   generatePath,
-  getApiBaseUrl,
   validatePath,
 } from "../api/costars";
 import {
@@ -24,7 +23,14 @@ import {
 } from "../gameplay";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
-import { getDemoSnapshotBundle, getDemoSourceLabel } from "../data/demoSnapshot";
+import { getDemoSnapshotBundle } from "../data/demoSnapshot";
+import {
+  getConfiguredPrimarySource,
+  isOfflineDemoMode,
+  isOnlineApiMode,
+  isOnlineSnapshotMode,
+  shouldAutoSwitchToOfflineDemo,
+} from "../data/dataSourcePreferences";
 import {
   createGameNodeFromSummary,
   findNodeByLabel,
@@ -258,7 +264,7 @@ function GamePage() {
     isLoading: isSnapshotLoading,
     errorMessage: snapshotError,
   } = useSnapshotData();
-  const { mode, setMode } = useDataSourceMode();
+  const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
@@ -285,11 +291,9 @@ function GamePage() {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [completion, setCompletion] = useState<CompletionState | null>(null);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
 
-  const canUseSnapshot = !!snapshot && !!indexes;
-  const preferredDataSource: EffectiveDataSource = mode === "demo" ? "demo" : mode === "api" ? "api" : canUseSnapshot ? "snapshot" : "api";
+  const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
 
   const resolveSnapshotResources = useCallback(
@@ -407,7 +411,7 @@ function GamePage() {
       setSetupError(NETWORK_UNAVAILABLE_MESSAGE);
     };
 
-  const applyDemoSetup = async (message: string, shouldPersistDemoMode: boolean) => {
+  const applyDemoSetup = async (shouldPersistDemoMode: boolean) => {
     const demoSetup = await buildLocalSetup("demo");
     if (!demoSetup || !isMounted) {
       applyPlaceholderState();
@@ -420,12 +424,12 @@ function GamePage() {
     setOptimalHops(demoSetup.optimalHops);
     setOptimalPath(demoSetup.optimalPath);
     setResolvedDataSource("demo");
-    setStatusMessage(message);
     setSetupError(null);
     setIsNetworkUnavailable(false);
 
-    if (shouldPersistDemoMode && mode === "auto") {
-      setMode("demo");
+    if (shouldPersistDemoMode && shouldAutoSwitchToOfflineDemo(mode)) {
+      setConnectionMode("offline");
+      setOfflineSource("demo");
     }
   };
 
@@ -433,7 +437,6 @@ function GamePage() {
       setIsSetupLoading(true);
       setSetupError(null);
       setSuggestionError(null);
-      setStatusMessage(null);
       setCompletion(null);
       setSuggestions([]);
       setTopPath([]);
@@ -447,12 +450,16 @@ function GamePage() {
       setIsNetworkUnavailable(false);
 
       try {
-			if (mode === "demo") {
-				await applyDemoSetup(`Offline demo mode is active using ${getDemoSourceLabel()}.`, false);
-				return;
-			}
+      if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+        return;
+      }
 
-        if (mode === "api") {
+      if (isOfflineDemoMode(mode)) {
+        await applyDemoSetup(false);
+        return;
+      }
+
+        if (isOnlineApiMode(mode)) {
           try {
             const apiSetup = await buildApiSetup();
 
@@ -480,11 +487,10 @@ function GamePage() {
               setOptimalHops(snapshotSetup.optimalHops);
               setOptimalPath(snapshotSetup.optimalPath);
               setResolvedDataSource("snapshot");
-              setStatusMessage("Live API was unavailable, so Game Mode switched to the currently loaded snapshot data.");
               return;
             }
 
-				await applyDemoSetup(`Live API and snapshot data were unavailable, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`, false);
+				await applyDemoSetup(false);
 				return;
           }
         }
@@ -504,21 +510,10 @@ function GamePage() {
           return;
         }
 
-        const apiSetup = await buildApiSetup();
-        if (!isMounted) {
-          return;
-        }
-
-        setActorA(apiSetup.actorA);
-        setActorB(apiSetup.actorB);
-        setMoviesCatalog(apiSetup.movies);
-        setOptimalHops(apiSetup.optimalHops);
-        setOptimalPath(apiSetup.optimalPath);
-        setResolvedDataSource("api");
-		setStatusMessage(`Snapshot data was unavailable, so Game Mode is using live API data from ${getApiBaseUrl()}.`);
+        await applyDemoSetup(isOnlineSnapshotMode(mode));
       } catch {
         if (isMounted) {
-			await applyDemoSetup(`No API connection or cached snapshot was available, so Game Mode defaulted to offline demo mode using ${getDemoSourceLabel()}.`, true);
+			await applyDemoSetup(isOnlineSnapshotMode(mode));
         }
       } finally {
         if (isMounted) {
@@ -532,7 +527,7 @@ function GamePage() {
     return () => {
       isMounted = false;
     };
-  }, [canUseSnapshot, mode, resolveSnapshotResources, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, setMode]);
+  }, [isSnapshotLoading, mode, resolveSnapshotResources, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, setConnectionMode, setOfflineSource, snapshot]);
 
   const totalSelections = topPath.length + bottomPath.length;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
@@ -558,7 +553,7 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
-  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && mode !== "demo") || !!completion;
+  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
 
   useEffect(() => {
     if (!actorA || !actorB || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
@@ -676,9 +671,6 @@ function GamePage() {
 
           const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode);
           setResolvedDataSource(resources.source);
-			setStatusMessage(resources.source === "demo"
-				? `Live API suggestions failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
-				: "Live API suggestions failed, so Game Mode switched to the currently loaded snapshot data.");
           setSuggestions(weightedSuggestions.length > 0 ? weightedSuggestions : createPlaceholderSuggestions(currentSelection.type));
           if (weightedSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned after falling back to snapshot data.");
@@ -724,9 +716,6 @@ function GamePage() {
 
           validation = validateLocalPath(fullPath, resources.indexes);
           setResolvedDataSource(resources.source);
-			setStatusMessage(resources.source === "demo"
-				? `Live API validation failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
-				: "Live API validation failed, so Game Mode switched to the currently loaded snapshot data.");
         }
       }
 
@@ -928,9 +917,6 @@ function GamePage() {
           }
 
           setResolvedDataSource(resources.source);
-			setStatusMessage(resources.source === "demo"
-				? `Live API write-ins failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
-				: "Live API write-ins failed, so Game Mode switched to the currently loaded snapshot data.");
           await handleSuggestion(createGameNodeFromSummary(actor, resources.indexes));
           return;
         }
@@ -942,9 +928,6 @@ function GamePage() {
         }
 
         setResolvedDataSource(resources.source);
-		setStatusMessage(resources.source === "demo"
-			? `Live API write-ins failed, so Game Mode switched to offline demo mode using ${getDemoSourceLabel()}.`
-      : "Live API write-ins failed, so Game Mode switched to the currently loaded snapshot data.");
         await handleSuggestion(createGameNodeFromSummary(movie, resources.indexes));
       }
     } catch (error) {
@@ -994,10 +977,6 @@ function GamePage() {
             Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
           </div>
 
-          {statusMessage ? <div className="gamePageStatus">{statusMessage}</div> : null}
-          {activeDataSource === "snapshot" ? <div className="gamePageStatus">Using the currently loaded snapshot data.</div> : null}
-          {activeDataSource === "api" ? <div className="gamePageStatus">Using live API data from {getApiBaseUrl()}.</div> : null}
-          {activeDataSource === "demo" ? <div className="gamePageStatus">Using offline demo data from {getDemoSourceLabel()}.</div> : null}
           {setupError || (activeDataSource === "snapshot" ? snapshotError : null) ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
 
           <GameRightPanel
@@ -1038,24 +1017,16 @@ function GamePage() {
             </button>
             <h2 className="gameRulesTitle">How To Play</h2>
             <p className="gameRulesText">
-                {activeDataSource === "snapshot"
-        ? "The frontend is currently playing from the snapshot currently loaded into browser storage. Each turn alternates actor → movie → actor until a valid path connects the two endpoints."
-        : activeDataSource === "demo"
-          ? `The frontend is currently playing from ${getDemoSourceLabel()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`
-          : `The frontend is currently using live API calls against ${getApiBaseUrl()}. Each turn alternates actor → movie → actor until a valid path connects the two endpoints.`}
+              Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
             </p>
             <p className="gameRulesText">
-                {activeDataSource === "snapshot" || activeDataSource === "demo"
-        ? "Suggestion lists are generated from locally available actor, movie, and adjacency data. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool locally."
-        : "Suggestion lists are generated by the backend API for the current node. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool after each request."}
+              Suggestion lists are generated from the currently active dataset. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool each time.
             </p>
             <p className="gameRulesText">
               A best-path option has a {Math.round(OPTIMAL_PATH_INCLUSION_RATE * 100)}% chance to appear in each reroll when no direct connection is available. If a suggestion can immediately reveal the target on the next alternating node, it is always highlighted as Connection found.
             </p>
             <p className="gameRulesText">
-                {activeDataSource === "snapshot" || activeDataSource === "demo"
-        ? "Optimal hops are computed locally before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."
-        : "Optimal hops are fetched from the backend before the round starts. Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution."}
+              Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
             </p>
           </div>
         </div>
