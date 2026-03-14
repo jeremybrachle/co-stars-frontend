@@ -1,13 +1,27 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
+import { fetchActorMovies, fetchMovieActors } from "../api/costars"
 import PageBackButton from "../components/PageBackButton"
 import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
-import { getCatalogSourceLabel, resolveCatalogSource } from "../data/catalogSource"
-import type { Actor, EffectiveDataSource, Movie } from "../types"
+import { resolveCatalogSource } from "../data/catalogSource"
+import { isOnlineSnapshotMode } from "../data/dataSourcePreferences"
+import type { Actor, EffectiveDataSource, Movie, SnapshotIndexes } from "../types"
 
 type ActorSortMode = "name-asc" | "name-desc" | "popularity-desc" | "popularity-asc"
 type MovieSortMode = "title-asc" | "title-desc" | "release-desc" | "release-asc"
+
+type CatalogDetail =
+  | { type: "actor"; item: Actor }
+  | { type: "movie"; item: Movie }
+  | null
+
+type RelatedEntity = {
+  id: number
+  type: "actor" | "movie"
+  label: string
+  meta: string
+}
 
 function normalizeSearchValue(value: string) {
   return value.trim().toLocaleLowerCase()
@@ -65,24 +79,183 @@ function getSortIndicator(isAscending: boolean) {
   return isAscending ? "↑" : "↓"
 }
 
+function formatActorMeta(actor: Actor) {
+  return actor.popularity === null ? "Popularity unavailable" : `Popularity ${actor.popularity}`
+}
+
+function formatMovieMeta(movie: Movie) {
+  return movie.releaseDate ?? "Release date unavailable"
+}
+
+function createActorRelations(actor: Actor, indexes: SnapshotIndexes): RelatedEntity[] {
+  const movieIds = indexes.actorToMovies[String(actor.id)] ?? []
+
+  return movieIds
+    .map((movieId) => indexes.moviesById.get(movieId))
+    .filter((movie): movie is Movie => !!movie)
+    .map((movie) => ({
+      id: movie.id,
+      type: "movie",
+      label: movie.title,
+      meta: formatMovieMeta(movie),
+    }))
+}
+
+function createMovieRelations(movie: Movie, indexes: SnapshotIndexes): RelatedEntity[] {
+  const actorIds = indexes.movieToActors[String(movie.id)] ?? []
+
+  return actorIds
+    .map((actorId) => indexes.actorsById.get(actorId))
+    .filter((actor): actor is Actor => !!actor)
+    .map((actor) => ({
+      id: actor.id,
+      type: "actor",
+      label: actor.name,
+      meta: formatActorMeta(actor),
+    }))
+}
+
+function CatalogDetailDialog({
+  detail,
+  relationSearch,
+  relatedEntities,
+  isLoading,
+  errorMessage,
+  onClose,
+  onRelationSearchChange,
+  onOpenRelatedEntity,
+}: {
+  detail: CatalogDetail
+  relationSearch: string
+  relatedEntities: RelatedEntity[]
+  isLoading: boolean
+  errorMessage: string | null
+  onClose: () => void
+  onRelationSearchChange: (value: string) => void
+  onOpenRelatedEntity: (entity: RelatedEntity) => void
+}) {
+  if (!detail) {
+    return null
+  }
+
+  const relationshipLabel = detail.type === "actor" ? "Movies in catalog" : "Actors in catalog"
+  const filteredEntities = relatedEntities.filter((entity) => {
+    if (!relationSearch.trim()) {
+      return true
+    }
+
+    return normalizeSearchValue(entity.label).includes(normalizeSearchValue(relationSearch))
+  })
+
+  return (
+    <div className="catalogDialogOverlay" onClick={onClose}>
+      <div className="catalogDialog" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="catalogDialogClose" onClick={onClose} aria-label="Close details">×</button>
+
+        <div className="catalogDialogHeader">
+          <div>
+            <div className="pageEyebrow">{detail.type === "actor" ? "Actor Details" : "Movie Details"}</div>
+            <h2>{detail.type === "actor" ? detail.item.name : detail.item.title}</h2>
+          </div>
+          <div className={`searchSelectionBadge searchSelectionBadge--${detail.type}`}>{detail.type}</div>
+        </div>
+
+        <div className="catalogDetailMetaGrid">
+          <div className="catalogDetailMetaCard">
+            <span className="catalogDetailMetaLabel">Catalog id</span>
+            <strong>{detail.item.id}</strong>
+          </div>
+          {detail.type === "actor" ? (
+            <div className="catalogDetailMetaCard">
+              <span className="catalogDetailMetaLabel">Popularity</span>
+              <strong>{detail.item.popularity ?? "--"}</strong>
+            </div>
+          ) : (
+            <div className="catalogDetailMetaCard">
+              <span className="catalogDetailMetaLabel">Release date</span>
+              <strong>{detail.item.releaseDate ?? "Unknown"}</strong>
+            </div>
+          )}
+          <div className="catalogDetailMetaCard">
+            <span className="catalogDetailMetaLabel">Connected entries</span>
+            <strong>{relatedEntities.length}</strong>
+          </div>
+        </div>
+
+        <div className="catalogRelationToolbar">
+          <label className="catalogControlField">
+            <span>Search this list or stage an add</span>
+            <input
+              type="text"
+              value={relationSearch}
+              onChange={(event) => onRelationSearchChange(event.target.value)}
+              placeholder={detail.type === "actor" ? "Search filmography or type a movie title" : "Search cast or type an actor name"}
+              autoFocus
+            />
+          </label>
+          <div className="catalogFutureAction">
+            <button type="button" disabled aria-disabled="true">Add to list</button>
+            <span className="catalogFutureHint">Add/edit support is planned for a future release.</span>
+          </div>
+        </div>
+
+        <div className="catalogDialogListHeader">
+          <h3>{relationshipLabel}</h3>
+          <span>{filteredEntities.length}</span>
+        </div>
+
+        {isLoading ? <div className="pageStatus">Loading connected entries…</div> : null}
+        {errorMessage ? <div className="pageStatus pageStatus--error">{errorMessage}</div> : null}
+
+        <div className="catalogDialogList">
+          {!isLoading && !errorMessage && filteredEntities.length === 0 ? (
+            <div className="catalogEmptyState">No connected entries matched the current search.</div>
+          ) : null}
+          {filteredEntities.map((entity) => (
+            <button
+              key={`${entity.type}-${entity.id}`}
+              type="button"
+              className="catalogDialogListItem"
+              onClick={() => onOpenRelatedEntity(entity)}
+            >
+              <span>{entity.label}</span>
+              <span>{entity.meta}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function GameDataPage() {
   const { mode } = useDataSourceMode()
-  const { snapshot, indexes } = useSnapshotData()
+  const { snapshot, indexes, isLoading: isSnapshotLoading } = useSnapshotData()
   const [actors, setActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
   const [activeSource, setActiveSource] = useState<EffectiveDataSource>("demo")
-  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [catalogIndexes, setCatalogIndexes] = useState<SnapshotIndexes | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actorSearch, setActorSearch] = useState("")
   const [movieSearch, setMovieSearch] = useState("")
   const [actorSortMode, setActorSortMode] = useState<ActorSortMode>("name-asc")
   const [movieSortMode, setMovieSortMode] = useState<MovieSortMode>("title-asc")
+  const [activeDetail, setActiveDetail] = useState<CatalogDetail>(null)
+  const [relationSearch, setRelationSearch] = useState("")
+  const [relatedEntities, setRelatedEntities] = useState<RelatedEntity[]>([])
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
 
     const loadCatalog = async () => {
+      if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+        setIsLoading(true)
+        return
+      }
+
       setIsLoading(true)
       setLoadError(null)
 
@@ -96,7 +269,7 @@ function GameDataPage() {
         setActors(catalog.actors)
         setMovies(catalog.movies)
         setActiveSource(catalog.source)
-        setStatusMessage(catalog.statusMessage)
+        setCatalogIndexes(catalog.indexes)
       } catch (error) {
         if (!isMounted) {
           return
@@ -115,7 +288,73 @@ function GameDataPage() {
     return () => {
       isMounted = false
     }
-  }, [indexes, mode, snapshot])
+  }, [indexes, isSnapshotLoading, mode, snapshot])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadRelatedEntities = async () => {
+      if (!activeDetail) {
+        setRelationSearch("")
+        setRelatedEntities([])
+        setDetailError(null)
+        return
+      }
+
+      setRelationSearch("")
+      setIsDetailLoading(true)
+      setDetailError(null)
+
+      try {
+        let nextRelations: RelatedEntity[]
+
+        if ((activeSource === "snapshot" || activeSource === "demo") && catalogIndexes) {
+          nextRelations = activeDetail.type === "actor"
+            ? createActorRelations(activeDetail.item, catalogIndexes)
+            : createMovieRelations(activeDetail.item, catalogIndexes)
+        } else if (activeDetail.type === "actor") {
+          const actorMovies = await fetchActorMovies(activeDetail.item.id)
+          nextRelations = actorMovies.map((movie) => ({
+            id: movie.id,
+            type: "movie",
+            label: movie.title,
+            meta: movie.releaseDate ?? "Release date unavailable",
+          }))
+        } else {
+          const movieActors = await fetchMovieActors(activeDetail.item.id, [])
+          nextRelations = movieActors.map((actor) => ({
+            id: actor.id,
+            type: "actor",
+            label: actor.name,
+            meta: formatActorMeta(actor),
+          }))
+        }
+
+        if (!isMounted) {
+          return
+        }
+
+        setRelatedEntities(nextRelations)
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        setDetailError(error instanceof Error ? error.message : "Failed to load connected entries.")
+        setRelatedEntities([])
+      } finally {
+        if (isMounted) {
+          setIsDetailLoading(false)
+        }
+      }
+    }
+
+    void loadRelatedEntities()
+
+    return () => {
+      isMounted = false
+    }
+  }, [activeDetail, activeSource, catalogIndexes])
 
   const filteredActors = useMemo(() => {
     const normalizedSearch = normalizeSearchValue(actorSearch)
@@ -173,17 +412,30 @@ function GameDataPage() {
     })
   }, [movieSearch, movieSortMode, movies])
 
+  const handleOpenRelatedEntity = (entity: RelatedEntity) => {
+    if (entity.type === "actor") {
+      const actor = actors.find((candidate) => candidate.id === entity.id)
+      if (actor) {
+        setActiveDetail({ type: "actor", item: actor })
+      }
+      return
+    }
+
+    const movie = movies.find((candidate) => candidate.id === entity.id)
+    if (movie) {
+      setActiveDetail({ type: "movie", item: movie })
+    }
+  }
+
   return (
     <div className="utilityPage">
       <PageBackButton to="/" label="Back" />
       <div className="utilityPanel utilityPanel--wide">
         <div className="pageEyebrow">Game Data</div>
         <h1>Browse the game catalog</h1>
-        <p className="pageLead">These lists show the actors and movies currently available to the frontend. When a snapshot is loaded, this page reads directly from that snapshot; otherwise it falls back to live API data or the demo dataset.</p>
+        <p className="pageLead">Select any actor or movie to inspect its details, browse connected entries, and preview the future add-to-list workflow.</p>
 
         {isLoading ? <div className="pageStatus">Loading game data…</div> : null}
-        {statusMessage ? <div className="pageStatus">{statusMessage}</div> : null}
-        <div className="pageStatus">{getCatalogSourceLabel(activeSource)}</div>
         {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}
 
         <div className="catalogGrid">
@@ -217,10 +469,10 @@ function GameDataPage() {
                   </button>
                 </div>
                 {filteredActors.map((actor) => (
-                  <div key={actor.id} className="catalogListItem">
+                  <button key={actor.id} type="button" className="catalogListItem catalogListItem--interactive" onClick={() => setActiveDetail({ type: "actor", item: actor })}>
                     <span>{actor.name}</span>
                     <span>{actor.popularity ?? "--"}</span>
-                  </div>
+                  </button>
                 ))}
                 {filteredActors.length === 0 ? <div className="catalogEmptyState">No actors matched the current search.</div> : null}
               </div>
@@ -257,10 +509,10 @@ function GameDataPage() {
                   </button>
                 </div>
                 {filteredMovies.map((movie) => (
-                  <div key={movie.id} className="catalogListItem">
+                  <button key={movie.id} type="button" className="catalogListItem catalogListItem--interactive" onClick={() => setActiveDetail({ type: "movie", item: movie })}>
                     <span>{movie.title}</span>
                     <span>{movie.releaseDate ?? "--"}</span>
-                  </div>
+                  </button>
                 ))}
                 {filteredMovies.length === 0 ? <div className="catalogEmptyState">No movies matched the current search.</div> : null}
               </div>
@@ -270,6 +522,17 @@ function GameDataPage() {
 
         <Link to="/" className="pageBackLink">Back to Home</Link>
       </div>
+
+      <CatalogDetailDialog
+        detail={activeDetail}
+        relationSearch={relationSearch}
+        relatedEntities={relatedEntities}
+        isLoading={isDetailLoading}
+        errorMessage={detailError}
+        onClose={() => setActiveDetail(null)}
+        onRelationSearchChange={setRelationSearch}
+        onOpenRelatedEntity={handleOpenRelatedEntity}
+      />
     </div>
   )
 }

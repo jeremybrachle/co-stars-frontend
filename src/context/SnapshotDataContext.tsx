@@ -1,10 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clearCachedSnapshot, fetchSnapshotFromApi, fetchSnapshotFromS3, getCachedSnapshotBundle, getRecommendedRefreshMs } from "../data/frontendSnapshot";
 import { SnapshotDataContext } from "./snapshotData";
 import type { SnapshotDataContextValue } from "./snapshotData";
+import { useDataSourceMode } from "./dataSourceMode";
+import { isOnlineSnapshotMode } from "../data/dataSourcePreferences";
 import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotIndexes } from "../types";
 
 export function SnapshotDataProvider({ children }: { children: React.ReactNode }) {
+	const { mode } = useDataSourceMode();
 	const cachedBundle = useMemo(() => getCachedSnapshotBundle(), []);
 	const [snapshot, setSnapshot] = useState<FrontendSnapshot | null>(cachedBundle?.snapshot ?? null);
 	const [manifest, setManifest] = useState<FrontendManifest | null>(cachedBundle?.manifest ?? null);
@@ -15,6 +18,8 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [errorSource, setErrorSource] = useState<SnapshotDataContextValue["errorSource"]>(null);
 	const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(snapshot?.meta.exportedAt ?? null);
+	const [isBrowserOnline, setIsBrowserOnline] = useState(() => typeof window === "undefined" ? true : window.navigator.onLine);
+	const autoRefreshKey = useRef<string | null>(null);
 
 	const applySnapshotBundle = useCallback((bundle: NonNullable<Awaited<ReturnType<typeof fetchSnapshotFromApi>>>) => {
 		setSnapshot(bundle.snapshot);
@@ -65,6 +70,39 @@ export function SnapshotDataProvider({ children }: { children: React.ReactNode }
 		setErrorMessage(null);
 		setErrorSource(null);
 	}, []);
+
+	useEffect(() => {
+		if (typeof window === "undefined") {
+			return undefined;
+		}
+
+		const handleOnlineStateChange = () => {
+			setIsBrowserOnline(window.navigator.onLine);
+		};
+
+		window.addEventListener("online", handleOnlineStateChange);
+		window.addEventListener("offline", handleOnlineStateChange);
+
+		return () => {
+			window.removeEventListener("online", handleOnlineStateChange);
+			window.removeEventListener("offline", handleOnlineStateChange);
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!isOnlineSnapshotMode(mode) || !isBrowserOnline) {
+			autoRefreshKey.current = null;
+			return;
+		}
+
+		const nextKey = `${mode.connectionMode}:${mode.onlineSource}:${isBrowserOnline}`;
+		if (autoRefreshKey.current === nextKey) {
+			return;
+		}
+
+		autoRefreshKey.current = nextKey;
+		void loadSnapshotFromApi();
+	}, [isBrowserOnline, loadSnapshotFromApi, mode]);
 
 	return (
 		<SnapshotDataContext.Provider

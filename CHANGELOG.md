@@ -10,6 +10,15 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-03-14
+
+UI updates for data and connection status
+
+### Added
+
+- New footer button for data and online connection status that lets the player control the settings from any page
+
+
 ## [2.0.4] - 2026-03-14
 
 More game data visualizations
