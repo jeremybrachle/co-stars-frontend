@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { generatePath } from "../api/costars"
+import EntityArtwork from "../components/EntityArtwork"
 import PageBackButton from "../components/PageBackButton"
 import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
+import { formatActorInlineMeta, formatMovieInlineMeta, formatYear, getMovieBadges } from "../data/presentation"
 import { resolveCatalogSource } from "../data/catalogSource"
 import { isOnlineSnapshotMode } from "../data/dataSourcePreferences"
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph"
@@ -20,6 +22,8 @@ type SearchOption = {
   label: string
   type: NodeType
   meta: string
+	imageUrl: string | null
+	badges: string[]
 }
 
 type SearchFieldProps = {
@@ -80,11 +84,26 @@ function SearchField({
                   className="searchOption"
                   onMouseDown={() => onSelect(option)}
                 >
-                  <span className="searchOptionPrimary">{option.label}</span>
-                  <span className="searchOptionMeta">
-                    <span className={`searchSelectionBadge searchSelectionBadge--${option.type}`}>{option.type}</span>
-                    <span>{option.meta}</span>
-                  </span>
+          <div className="searchOptionPrimaryRow">
+            <EntityArtwork
+            type={option.type}
+            label={option.label}
+            imageUrl={option.imageUrl}
+            className="entityArtwork entityArtwork--search"
+            imageClassName="entityArtwork__image"
+            placeholderClassName="entityArtwork__emoji"
+            />
+            <span className="searchOptionPrimary">{option.label}</span>
+          </div>
+          <span className="searchOptionMeta">
+            <span className={`searchSelectionBadge searchSelectionBadge--${option.type}`}>{option.type}</span>
+            <span>{option.meta}</span>
+          </span>
+          {option.badges.length > 0 ? (
+            <span className="entityBadgeRow entityBadgeRow--search">
+            {option.badges.slice(0, 3).map((badge) => <span key={badge} className="entityBadge">{badge}</span>)}
+            </span>
+          ) : null}
                 </button>
               ))
             ) : (
@@ -97,10 +116,6 @@ function SearchField({
   )
 }
 
-function formatMovieMeta(movie: Movie) {
-  return movie.releaseDate ? movie.releaseDate.slice(0, 4) : "Release date unavailable"
-}
-
 function resolveOptionFromQuery(query: string, options: SearchOption[]) {
   const normalized = normalizeQuery(query)
 
@@ -109,6 +124,30 @@ function resolveOptionFromQuery(query: string, options: SearchOption[]) {
   }
 
   return options.find((option) => normalizeQuery(option.label) === normalized) ?? null
+}
+
+function resolvePathNodeOption(node: NodeSummary, actors: Actor[], movies: Movie[], indexes: SnapshotIndexes | null): SearchOption {
+  if (node.type === "actor") {
+    const actor = indexes?.actorsById.get(node.id) ?? actors.find((candidate) => candidate.id === node.id)
+    return {
+      id: node.id,
+      label: node.label,
+      type: "actor",
+      meta: actor ? formatActorInlineMeta(actor) : "Actor",
+      imageUrl: actor?.profileUrl ?? null,
+      badges: actor?.knownForDepartment ? [actor.knownForDepartment] : [],
+    }
+  }
+
+  const movie = indexes?.moviesById.get(node.id) ?? movies.find((candidate) => candidate.id === node.id)
+  return {
+    id: node.id,
+    label: node.label,
+    type: "movie",
+    meta: movie ? formatMovieInlineMeta(movie) : formatYear(null) ?? "Movie",
+    imageUrl: movie?.posterUrl ?? null,
+    badges: movie ? getMovieBadges(movie) : [],
+  }
 }
 
 function isSameOption(left: SearchOption, right: SearchOption) {
@@ -181,17 +220,26 @@ function FindPathPage() {
         id: actor.id,
         label: actor.name,
         type: "actor" as const,
-        meta: actor.popularity !== null ? `Popularity ${actor.popularity}` : "Actor",
+		meta: formatActorInlineMeta(actor),
+    		imageUrl: actor.profileUrl ?? null,
+		badges: actor.knownForDepartment ? [actor.knownForDepartment] : [],
       })),
       ...movies.map((movie) => ({
         id: movie.id,
         label: movie.title,
         type: "movie" as const,
-        meta: formatMovieMeta(movie),
+		meta: formatMovieInlineMeta(movie),
+    		imageUrl: movie.posterUrl ?? null,
+		badges: getMovieBadges(movie),
       })),
     ].sort((left, right) => left.label.localeCompare(right.label)),
     [actors, movies],
   )
+
+	const resultOptions = useMemo(
+	  () => result?.nodes.map((node) => resolvePathNodeOption(node, actors, movies, pathIndexes)) ?? [],
+	  [actors, movies, pathIndexes, result],
+	)
 
   const startSuggestions = useMemo(() => {
     const normalized = normalizeQuery(startQuery)
@@ -365,6 +413,45 @@ function FindPathPage() {
           </div>
         </div>
 
+    {selectedStartOption || selectedEndOption ? (
+      <div className="entityPreviewRow">
+      {selectedStartOption ? (
+        <div className="entityPreviewCard">
+        <EntityArtwork
+          type={selectedStartOption.type}
+          label={selectedStartOption.label}
+          imageUrl={selectedStartOption.imageUrl}
+          className="entityArtwork entityArtwork--preview"
+          imageClassName="entityArtwork__image"
+          placeholderClassName="entityArtwork__emoji"
+        />
+        <div className="entityPreviewCopy">
+          <span className="entityPreviewLabel">Start</span>
+          <strong>{selectedStartOption.label}</strong>
+          <span>{selectedStartOption.meta}</span>
+        </div>
+        </div>
+      ) : null}
+      {selectedEndOption ? (
+        <div className="entityPreviewCard">
+        <EntityArtwork
+          type={selectedEndOption.type}
+          label={selectedEndOption.label}
+          imageUrl={selectedEndOption.imageUrl}
+          className="entityArtwork entityArtwork--preview"
+          imageClassName="entityArtwork__image"
+          placeholderClassName="entityArtwork__emoji"
+        />
+        <div className="entityPreviewCopy">
+          <span className="entityPreviewLabel">End</span>
+          <strong>{selectedEndOption.label}</strong>
+          <span>{selectedEndOption.meta}</span>
+        </div>
+        </div>
+      ) : null}
+      </div>
+    ) : null}
+
         <div className="placeholderPanel">
           <h2>Generated Route</h2>
           {pathError ? <div className="pageStatus pageStatus--error">{pathError}</div> : null}
@@ -375,12 +462,23 @@ function FindPathPage() {
                 {result.reason ? result.reason : `Resolved in ${result.steps} step${result.steps === 1 ? "" : "s"}.`}
               </p>
               <div className="pathResultList">
-                {result.nodes.map((node, index) => (
-                  <div key={`${node.type}-${node.id}-${index}`} className={`pathNode pathNode--${node.type}`}>
-                    <span>{node.label}</span>
-                    {index < result.nodes.length - 1 ? <span className="pathNodeArrow">→</span> : null}
-                  </div>
-                ))}
+        {resultOptions.map((node, index) => (
+          <div key={`${node.type}-${node.id}-${index}`} className={`pathNode pathNode--${node.type}`}>
+          <EntityArtwork
+            type={node.type}
+            label={node.label}
+            imageUrl={node.imageUrl}
+            className="entityArtwork entityArtwork--path"
+            imageClassName="entityArtwork__image"
+            placeholderClassName="entityArtwork__emoji"
+          />
+          <span className="pathNodeCopy">
+            <strong>{node.label}</strong>
+            <span>{node.meta}</span>
+          </span>
+          {index < resultOptions.length - 1 ? <span className="pathNodeArrow">→</span> : null}
+          </div>
+        ))}
               </div>
             </>
           ) : null}

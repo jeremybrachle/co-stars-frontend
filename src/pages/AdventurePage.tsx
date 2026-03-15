@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HomeButton from "../components/HomeButton";
-import { fetchLevels, generatePath } from "../api/costars";
+import EntityArtwork from "../components/EntityArtwork";
+import { fetchActors, fetchLevels, generatePath } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
 import { isOfflineDemoMode, isOnlineApiMode, isOnlineSnapshotMode, shouldAutoSwitchToOfflineDemo } from "../data/dataSourcePreferences";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
-import type { Level, SnapshotIndexes } from "../types";
+import type { Actor, Level, SnapshotIndexes } from "../types";
 import styles from "./AdventurePage.module.css";
 
 const LEVELS_PER_PAGE = 4;
@@ -35,9 +36,22 @@ function hydrateSnapshotLevels(levels: Level[], snapshotIndexes: SnapshotIndexes
 	});
 }
 
+function normalizeName(value: string) {
+	return value.trim().toLocaleLowerCase();
+}
+
+function buildActorImageMap(actors: Actor[]) {
+	return Object.fromEntries(actors.map((actor) => [normalizeName(actor.name), actor.profileUrl ?? null]));
+}
+
+function buildActorImageMapFromIndexes(snapshotIndexes: SnapshotIndexes) {
+	return buildActorImageMap(Array.from(snapshotIndexes.actorsById.values()));
+}
+
 function AdventurePage() {
 	const [page, setPage] = useState(0);
 	const [levels, setLevels] = useState<Level[]>([]);
+	const [actorImages, setActorImages] = useState<Record<string, string | null>>({});
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
 	const { snapshot, indexes, isLoading: isSnapshotLoading, errorMessage } = useSnapshotData();
@@ -51,6 +65,7 @@ function AdventurePage() {
 			}
 
 			setLevels(hydrateSnapshotLevels(DEMO_BUNDLE.snapshot.levels, DEMO_BUNDLE.indexes));
+			setActorImages(buildActorImageMapFromIndexes(DEMO_BUNDLE.indexes));
 			setLoadError(null);
 
 			if (shouldPersistDemoMode && shouldAutoSwitchToOfflineDemo(mode)) {
@@ -105,16 +120,18 @@ function AdventurePage() {
 					}
 
 					setLevels(snapshotLevels);
+					setActorImages(buildActorImageMapFromIndexes(indexes));
 					return;
 				}
 
 				if (isOnlineApiMode(mode)) {
-					const apiLevels = await loadApiLevelsWithPaths();
+					const [apiLevels, actors] = await Promise.all([loadApiLevelsWithPaths(), fetchActors()]);
 					if (!isMounted) {
 						return;
 					}
 
 					setLevels(apiLevels);
+					setActorImages(buildActorImageMap(actors));
 					return;
 				}
 
@@ -179,9 +196,33 @@ function AdventurePage() {
 										})
 									}
 								>
-									<span className={styles.levelActorLeft}>{level.actorA}</span>
+													<span className={styles.levelActorLeft}>
+														<span className={styles.levelActorIdentity}>
+															<EntityArtwork
+																type="actor"
+																label={level.actorA}
+																imageUrl={actorImages[normalizeName(level.actorA)] ?? null}
+																className={styles.levelActorArtwork}
+																imageClassName={styles.levelActorArtworkImage}
+																placeholderClassName={styles.levelActorArtworkEmoji}
+															/>
+															<span>{level.actorA}</span>
+														</span>
+													</span>
 									<span className={styles.levelVs}>vs.</span>
-									<span className={styles.levelActorRight}>{level.actorB}</span>
+													<span className={styles.levelActorRight}>
+														<span className={`${styles.levelActorIdentity} ${styles.levelActorIdentityRight}`}>
+															<EntityArtwork
+																type="actor"
+																label={level.actorB}
+																imageUrl={actorImages[normalizeName(level.actorB)] ?? null}
+																className={styles.levelActorArtwork}
+																imageClassName={styles.levelActorArtworkImage}
+																placeholderClassName={styles.levelActorArtworkEmoji}
+															/>
+															<span>{level.actorB}</span>
+														</span>
+													</span>
 								</button>
 							</div>
 						);

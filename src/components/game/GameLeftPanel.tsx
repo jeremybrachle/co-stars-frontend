@@ -1,4 +1,5 @@
 import "./GameLeftPanel.css";
+import EntityArtwork from "../EntityArtwork";
 import type { GameNode } from "../../types";
 import { MAX_PATH_LENGTH } from "../../gameplay";
 
@@ -11,7 +12,7 @@ type BoardPoint = {
 
 type BoardToken = {
   key: string;
-  text: string;
+  node: GameNode;
   fontSize: number;
   side: Side;
   coord: BoardPoint;
@@ -176,7 +177,7 @@ function buildBoardTokens({
 
     return {
       key: `${side}-${step.type}-${step.label}-${index}`,
-      text: step.label,
+      node: step,
       fontSize,
       side,
       coord,
@@ -207,14 +208,14 @@ function buildBoardTokens({
 }
 
 function renderStepRow({
-  text,
+  node,
   fontSize,
   isCurrent,
   removable,
   onRemove,
   onSelect,
 }: {
-  text: string;
+  node: GameNode;
   fontSize: number;
   isCurrent: boolean;
   removable: boolean;
@@ -231,17 +232,27 @@ function renderStepRow({
             event.stopPropagation();
             onRemove?.();
           }}
-          aria-label={`Remove ${text} from current path`}
+          aria-label={`Remove ${node.label} from current path`}
         >
           ×
         </button>
       ) : null}
       <div
         className={`game-left-panel__actor-box game-left-panel__board-box${isCurrent ? " game-left-panel__actor-box--path-current-primary" : " game-left-panel__actor-box--placed"}`}
-        style={{ fontSize }}
+        style={{ fontSize: `${fontSize}px` }}
         onClick={onSelect}
       >
-        {text}
+        <div className="game-left-panel__node-identity">
+          <EntityArtwork
+            type={node.type}
+            label={node.label}
+            imageUrl={node.imageUrl}
+            className="game-left-panel__node-artwork"
+            imageClassName="game-left-panel__node-artwork-image"
+            placeholderClassName="game-left-panel__node-artwork-emoji"
+          />
+          <span className="game-left-panel__node-label">{node.label}</span>
+        </div>
       </div>
     </div>
   );
@@ -249,7 +260,7 @@ function renderStepRow({
 
 function renderBoardToken(token: BoardToken) {
   const tokenRow = renderStepRow({
-    text: token.text,
+    node: token.node,
     fontSize: token.fontSize,
     isCurrent: token.isCurrent,
     removable: token.removable,
@@ -316,12 +327,43 @@ function renderCompletedBoard(completedPath: GameNode[]) {
                 <div
                   className={`game-left-panel__actor-box game-left-panel__board-box game-left-panel__completed-node${isEndpoint ? " game-left-panel__completed-node--endpoint" : ""}`}
                 >
-                  {node.label}
+                  <div className="game-left-panel__node-identity">
+                    <EntityArtwork
+                      type={node.type}
+                      label={node.label}
+                      imageUrl={node.imageUrl}
+                      className="game-left-panel__node-artwork"
+                      imageClassName="game-left-panel__node-artwork-image"
+                      placeholderClassName="game-left-panel__node-artwork-emoji"
+                    />
+                    <span className="game-left-panel__node-label">{node.label}</span>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function renderEndpoint(node: GameNode, side: SelectedSide, isSelected: boolean, onSelectSide: (side: SelectedSide) => void) {
+  return (
+    <div
+      className={`game-left-panel__actor-box game-left-panel__endpoint${side === "top" ? " game-left-panel__actor-box--top" : " game-left-panel__actor-box--bottom"}${isSelected ? ` game-left-panel__actor-box--selected-side-${side}` : ""}`}
+      onClick={() => onSelectSide(side)}
+    >
+      <div className="game-left-panel__node-identity game-left-panel__node-identity--endpoint">
+        <EntityArtwork
+          type={node.type}
+          label={node.label}
+          imageUrl={node.imageUrl}
+          className="game-left-panel__endpoint-artwork"
+          imageClassName="game-left-panel__node-artwork-image"
+          placeholderClassName="game-left-panel__node-artwork-emoji"
+        />
+        <span className="game-left-panel__endpoint-label">{node.label}</span>
       </div>
     </div>
   );
@@ -406,17 +448,14 @@ function GameLeftPanel({
 
       {completedPath ? (
         <>
+          {renderEndpoint(actorA, "top", false, onSelectSide)}
           <div className="game-left-panel__completion-heading">Completed path</div>
           {renderCompletedBoard(completedPath)}
+          {renderEndpoint(actorB, "bottom", false, onSelectSide)}
         </>
       ) : (
         <>
-          <div
-            className={`game-left-panel__actor-box game-left-panel__actor-box--top${selectedSide === "top" ? " game-left-panel__actor-box--selected-side-top" : ""}`}
-            onClick={() => onSelectSide("top")}
-          >
-            {actorA.label}
-          </div>
+          {renderEndpoint(actorA, "top", selectedSide === "top", onSelectSide)}
 
           <div className="game-left-panel__path-area">
             <div className="game-left-panel__board">
@@ -437,12 +476,7 @@ function GameLeftPanel({
             </div>
           </div>
 
-          <div
-            className={`game-left-panel__actor-box game-left-panel__actor-box--bottom${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side-bottom" : ""}`}
-            onClick={() => onSelectSide("bottom")}
-          >
-            {actorB.label}
-          </div>
+          {renderEndpoint(actorB, "bottom", selectedSide === "bottom", onSelectSide)}
         </>
       )}
     </section>

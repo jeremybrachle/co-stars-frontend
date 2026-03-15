@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
-import { getDataIndicatorDescription, getDataIndicatorLabel, getDataIndicatorVariant } from "../data/dataSourcePreferences";
+import { getDataIndicatorLabel, getDataIndicatorVariant } from "../data/dataSourcePreferences";
 import { useBrowserOnlineStatus } from "../hooks/useBrowserOnlineStatus";
 import DataIndicatorGlyph from "./DataIndicatorGlyph";
 import DataSettingsPanel from "./DataSettingsPanel";
@@ -22,12 +22,6 @@ function DataIndicator() {
 		[isBrowserOnline, isLoading, mode, snapshot],
 	);
 	const summary = getDataIndicatorLabel(variant);
-	const description = getDataIndicatorDescription({
-		mode,
-		isBrowserOnline,
-		hasSnapshot: !!snapshot,
-		isSnapshotLoading: isLoading,
-	});
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -56,7 +50,7 @@ function DataIndicator() {
 	}, [isOpen]);
 
 	return (
-		<div className="dataIndicator" ref={rootRef}>
+		<div className={`dataIndicator${isOpen ? " dataIndicator--open" : ""}`} ref={rootRef}>
 			<button
 				type="button"
 				className={`dataIndicatorButton dataIndicatorButton--${variant}`}
@@ -67,12 +61,8 @@ function DataIndicator() {
 				<DataIndicatorGlyph variant={variant} pulse={isLoading && mode.connectionMode === "online" && mode.onlineSource === "snapshot"} />
 				<span className="dataIndicatorButtonText">Data</span>
 			</button>
-			<div className="dataIndicatorTooltip" role="tooltip">
-				<strong>{summary}</strong>
-				<span>{description}</span>
-			</div>
 			{isOpen ? (
-				<div className="footerPopover footerPopover--wide">
+				<div className="footerPopover footerPopover--compactData">
 					<div className="footerPopoverHeader">
 						<h3>Data controls</h3>
 						<button type="button" className="footerPopoverClose" onClick={() => setIsOpen(false)} aria-label="Close data controls">×</button>

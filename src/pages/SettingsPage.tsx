@@ -9,9 +9,9 @@ function SettingsPage() {
       <PageBackButton to="/" label="Back" />
       <div className="settingsPanel">
         <h1>Settings</h1>
-        <p className="settingsIntro">Manage the same connection, snapshot, and fallback controls that are available from the footer data indicator.</p>
+        <p className="settingsIntro">Choose which dataset the app prefers online and offline, then use the snapshot controls below when you need a refresh.</p>
 
-        <DataSettingsPanel />
+        <DataSettingsPanel showHeading={false} />
 
         <section className="settingsSection">
           <h2>App Version</h2>

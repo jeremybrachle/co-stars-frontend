@@ -42,6 +42,9 @@ function createGameNodeFromSummary(node, indexes) {
             label: node.label,
             type: node.type,
             popularity: actor?.popularity ?? null,
+            imageUrl: actor?.profileUrl ?? null,
+            knownForDepartment: actor?.knownForDepartment ?? null,
+            placeOfBirth: actor?.placeOfBirth ?? null,
         };
     }
     const movie = indexes.moviesById.get(node.id);
@@ -50,6 +53,11 @@ function createGameNodeFromSummary(node, indexes) {
         label: node.label,
         type: node.type,
         releaseDate: movie?.releaseDate ?? null,
+        imageUrl: movie?.posterUrl ?? null,
+        genres: movie?.genres ?? [],
+        contentRating: movie?.contentRating ?? null,
+        originalLanguage: movie?.originalLanguage ?? null,
+        overview: movie?.overview ?? null,
     };
 }
 function findNodeByLabel(label, type, indexes) {
@@ -127,6 +135,11 @@ function getMoviesForActor(actorId, target, indexes) {
             label: movie.title,
             type: "movie",
             releaseDate: movie.releaseDate,
+            imageUrl: movie.posterUrl,
+            genres: movie.genres,
+            contentRating: movie.contentRating,
+            originalLanguage: movie.originalLanguage,
+            overview: movie.overview,
             pathHint: target ? createPathHint(summary, target, indexes) : undefined,
         };
     })
@@ -146,6 +159,9 @@ function getActorsForMovie(movieId, excludedNames, target, indexes) {
             label: actor.name,
             type: "actor",
             popularity: actor.popularity,
+            imageUrl: actor.profileUrl,
+            knownForDepartment: actor.knownForDepartment,
+            placeOfBirth: actor.placeOfBirth,
             pathHint: target ? createPathHint(summary, target, indexes) : undefined,
         };
     });

@@ -94,7 +94,7 @@ function compareByHintAndMetadata(a: GameNode, b: GameNode) {
 	return getTieBreakerLabel(a).localeCompare(getTieBreakerLabel(b));
 }
 
-export function buildSuggestionSet(rawSuggestions: GameNode[], target: GameNode) {
+export function buildSuggestionSet(rawSuggestions: GameNode[], target: GameNode, blockedLoopNodeKeys: ReadonlySet<string> = new Set()) {
 	const uniqueSuggestions = Array.from(
 		new Map(rawSuggestions.map((suggestion) => [getNodeKey(suggestion), suggestion])).values(),
 	);
@@ -128,6 +128,17 @@ export function buildSuggestionSet(rawSuggestions: GameNode[], target: GameNode)
 	const bestReachableSteps = reachableSuggestions[0]?.pathHint?.stepsToTarget ?? null;
 
 	return selected.map((suggestion) => {
+		if (blockedLoopNodeKeys.has(getNodeKey(suggestion))) {
+			return {
+				...suggestion,
+				highlight: {
+					kind: "loop" as const,
+					label: "Cycle risk",
+					description: "This node already appears in your route. Choosing it would create a loop.",
+				},
+			};
+		}
+
 		if (isDirectConnectionSuggestion(suggestion, target)) {
 			return {
 				...suggestion,
