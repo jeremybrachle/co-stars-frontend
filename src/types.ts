@@ -6,6 +6,13 @@ export type GameNode = {
 	type: NodeType;
 	popularity?: number | null;
 	releaseDate?: string | null;
+	imageUrl?: string | null;
+	knownForDepartment?: string | null;
+	placeOfBirth?: string | null;
+	genres?: string[];
+	contentRating?: string | null;
+	originalLanguage?: string | null;
+	overview?: string | null;
 	pathHint?: PathHint;
 	popularityRank?: number | null;
 	highlight?: SuggestionHighlight;
@@ -27,12 +34,25 @@ export type Actor = {
 	id: number;
 	name: string;
 	popularity: number | null;
+	birthday?: string | null;
+	deathday?: string | null;
+	placeOfBirth?: string | null;
+	biography?: string | null;
+	profilePath?: string | null;
+	profileUrl?: string | null;
+	knownForDepartment?: string | null;
 };
 
 export type Movie = {
 	id: number;
 	title: string;
 	releaseDate: string | null;
+	genres?: string[];
+	overview?: string | null;
+	posterPath?: string | null;
+	posterUrl?: string | null;
+	originalLanguage?: string | null;
+	contentRating?: string | null;
 };
 
 export type ActorSuggestion = Actor & {
@@ -70,7 +90,7 @@ export type ValidatePathResponse = {
 };
 
 export type SuggestionHighlight = {
-	kind: "connection" | "optimal";
+	kind: "connection" | "optimal" | "loop";
 	label: string;
 	description: string;
 };

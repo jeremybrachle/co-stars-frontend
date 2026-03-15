@@ -10,6 +10,14 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.6] - 2026-03-14
+
+UI updates for displaying new meta data
+
+### Added
+
+- New display for data like actor picture ande movie poster
+
 ## [2.0.5] - 2026-03-14
 
 UI updates for data and connection status

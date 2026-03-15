@@ -35,8 +35,29 @@ type ApiFrontendSnapshot = {
 		relationship_count: number;
 		level_count: number;
 	};
-	actors: Array<{ id: number; name: string; popularity: number | null }>;
-	movies: Array<{ id: number; title: string; release_date: string | null }>;
+	actors: Array<{
+		id: number;
+		name: string;
+		popularity: number | null;
+		birthday: string | null;
+		deathday: string | null;
+		place_of_birth: string | null;
+		biography: string | null;
+		profile_path: string | null;
+		profile_url: string | null;
+		known_for_department: string | null;
+	}>;
+	movies: Array<{
+		id: number;
+		title: string;
+		release_date: string | null;
+		genres: string[];
+		overview: string | null;
+		poster_path: string | null;
+		poster_url: string | null;
+		original_language: string | null;
+		content_rating: string | null;
+	}>;
 	movie_actors: Array<{ movie_id: number; actor_id: number }>;
 	adjacency: {
 		actor_to_movies: Record<string, number[]>;
@@ -90,6 +111,13 @@ function mapActor(actor: ApiFrontendSnapshot["actors"][number]): Actor {
 		id: actor.id,
 		name: actor.name,
 		popularity: actor.popularity,
+		birthday: actor.birthday,
+		deathday: actor.deathday,
+		placeOfBirth: actor.place_of_birth,
+		biography: actor.biography,
+		profilePath: actor.profile_path,
+		profileUrl: actor.profile_url,
+		knownForDepartment: actor.known_for_department,
 	};
 }
 
@@ -98,6 +126,12 @@ function mapMovie(movie: ApiFrontendSnapshot["movies"][number]): Movie {
 		id: movie.id,
 		title: movie.title,
 		releaseDate: movie.release_date,
+		genres: movie.genres,
+		overview: movie.overview,
+		posterPath: movie.poster_path,
+		posterUrl: movie.poster_url,
+		originalLanguage: movie.original_language,
+		contentRating: movie.content_rating,
 	};
 }
 

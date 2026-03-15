@@ -15,6 +15,7 @@ import {
 import {
   buildSuggestionSet,
   combineMeetingPath,
+  getNodeKey,
   isDirectConnectionSuggestion,
   isSameNode,
   MAX_PATH_LENGTH,
@@ -50,6 +51,13 @@ type RouteGameNode = {
   type?: NodeType;
   popularity?: number | null;
   releaseDate?: string | null;
+	imageUrl?: string | null;
+	knownForDepartment?: string | null;
+	placeOfBirth?: string | null;
+	genres?: string[];
+	contentRating?: string | null;
+	originalLanguage?: string | null;
+	overview?: string | null;
 };
 
 type GamePageRouteState = {
@@ -74,6 +82,34 @@ type CompletionState = {
   isValidated: boolean | null;
   validationMessage?: string;
 };
+
+function createAllowedLoopNodeKeySet(...nodes: Array<GameNode | null>) {
+  return new Set(nodes.filter((node): node is GameNode => node !== null).map((node) => getNodeKey(node)));
+}
+
+function createBlockedLoopNodeKeySet(allNodes: GameNode[], allowedKeys: ReadonlySet<string>) {
+  return new Set(
+    allNodes
+      .map((node) => getNodeKey(node))
+      .filter((nodeKey) => !allowedKeys.has(nodeKey)),
+  );
+}
+
+function findLoopedNode(nodesToAdd: GameNode[], blockedLoopNodeKeys: ReadonlySet<string>) {
+  const seenNodeKeys = new Set(blockedLoopNodeKeys);
+
+  for (const node of nodesToAdd) {
+    const nodeKey = getNodeKey(node);
+
+    if (seenNodeKeys.has(nodeKey)) {
+      return node;
+    }
+
+    seenNodeKeys.add(nodeKey);
+  }
+
+  return null;
+}
 
 function createNode(label: string, type: NodeType, partial?: Partial<GameNode>): GameNode {
   return {
@@ -112,6 +148,13 @@ function normalizeRouteNode(value: RouteGameNode | string | undefined, fallbackT
       id: value.id,
       popularity: value.popularity,
       releaseDate: value.releaseDate,
+    imageUrl: value.imageUrl,
+    knownForDepartment: value.knownForDepartment,
+    placeOfBirth: value.placeOfBirth,
+    genres: value.genres,
+    contentRating: value.contentRating,
+    originalLanguage: value.originalLanguage,
+    overview: value.overview,
     });
   }
 
@@ -133,6 +176,9 @@ function resolveRouteNode(
         return createNode(actor.name, "actor", {
           id: actor.id,
           popularity: actor.popularity,
+			imageUrl: actor.profileUrl,
+			knownForDepartment: actor.knownForDepartment,
+			placeOfBirth: actor.placeOfBirth,
         });
       }
     }
@@ -147,6 +193,11 @@ function resolveRouteNode(
       return createNode(movie.title, "movie", {
         id: movie.id,
         releaseDate: movie.releaseDate,
+		imageUrl: movie.posterUrl,
+		genres: movie.genres,
+		contentRating: movie.contentRating,
+		originalLanguage: movie.originalLanguage,
+		overview: movie.overview,
       });
     }
   }
@@ -159,6 +210,9 @@ function createNodeFromActor(actor: Actor): GameNode {
   return createNode(actor.name, "actor", {
     id: actor.id,
     popularity: actor.popularity,
+	imageUrl: actor.profileUrl,
+	knownForDepartment: actor.knownForDepartment,
+	placeOfBirth: actor.placeOfBirth,
   });
 }
 
@@ -166,6 +220,11 @@ function createNodeFromMovie(movie: Movie): GameNode {
   return createNode(movie.title, "movie", {
     id: movie.id,
     releaseDate: movie.releaseDate,
+	imageUrl: movie.posterUrl,
+	genres: movie.genres,
+	contentRating: movie.contentRating,
+	originalLanguage: movie.originalLanguage,
+	overview: movie.overview,
   });
 }
 
@@ -268,6 +327,7 @@ function GamePage() {
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
+	const [actorsCatalog, setActorsCatalog] = useState<Actor[]>([]);
   const [moviesCatalog, setMoviesCatalog] = useState<Movie[]>([]);
 
   const [selectedSide, setSelectedSide] = useState<SelectedSide>("top");
@@ -290,6 +350,7 @@ function GamePage() {
   const [setupError, setSetupError] = useState<string | null>(null);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [completion, setCompletion] = useState<CompletionState | null>(null);
+  const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
 
@@ -393,6 +454,7 @@ function GamePage() {
       return {
         actorA: resolvedActorA,
         actorB: resolvedActorB,
+		actors,
         optimalHops: resolvedOptimalHops,
         optimalPath: resolvedOptimalPath,
         movies,
@@ -420,6 +482,7 @@ function GamePage() {
 
     setActorA(demoSetup.actorA);
     setActorB(demoSetup.actorB);
+  	setActorsCatalog([]);
     setMoviesCatalog([]);
     setOptimalHops(demoSetup.optimalHops);
     setOptimalPath(demoSetup.optimalPath);
@@ -438,6 +501,7 @@ function GamePage() {
       setSetupError(null);
       setSuggestionError(null);
       setCompletion(null);
+      setIsCompletionDialogOpen(false);
       setSuggestions([]);
       setTopPath([]);
       setBottomPath([]);
@@ -469,6 +533,7 @@ function GamePage() {
 
             setActorA(apiSetup.actorA);
             setActorB(apiSetup.actorB);
+      			setActorsCatalog(apiSetup.actors);
             setMoviesCatalog(apiSetup.movies);
             setOptimalHops(apiSetup.optimalHops);
             setOptimalPath(apiSetup.optimalPath);
@@ -483,6 +548,7 @@ function GamePage() {
             if (snapshotSetup) {
               setActorA(snapshotSetup.actorA);
               setActorB(snapshotSetup.actorB);
+				setActorsCatalog([]);
               setMoviesCatalog([]);
               setOptimalHops(snapshotSetup.optimalHops);
               setOptimalPath(snapshotSetup.optimalPath);
@@ -503,6 +569,7 @@ function GamePage() {
 
           setActorA(snapshotSetup.actorA);
           setActorB(snapshotSetup.actorB);
+		  setActorsCatalog([]);
           setMoviesCatalog([]);
           setOptimalHops(snapshotSetup.optimalHops);
           setOptimalPath(snapshotSetup.optimalPath);
@@ -553,7 +620,29 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
+  const oppositeFrontierNode = useMemo(() => {
+    if (!actorA || !actorB) {
+      return null;
+    }
+
+    if (selectedSide === "top") {
+      return bottomPath.length > 0 ? bottomPath[bottomPath.length - 1] : actorB;
+    }
+
+    return topPath.length > 0 ? topPath[topPath.length - 1] : actorA;
+  }, [actorA, actorB, bottomPath, selectedSide, topPath]);
+
+  const blockedLoopNodeKeys = useMemo(() => {
+    if (!actorA || !actorB) {
+      return new Set<string>();
+    }
+
+    const allowedKeys = createAllowedLoopNodeKeySet(targetNode, oppositeFrontierNode);
+    return createBlockedLoopNodeKeySet([actorA, actorB, ...topPath, ...bottomPath], allowedKeys);
+  }, [actorA, actorB, bottomPath, oppositeFrontierNode, targetNode, topPath]);
+
   const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
+  const isGameComplete = !!completion;
 
   useEffect(() => {
     if (!actorA || !actorB || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
@@ -601,7 +690,7 @@ function GamePage() {
             localSuggestions = getActorsForMovie(currentSelection.id, excludedNames, targetSummary, resources.indexes);
           }
 
-          const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode);
+          const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode, blockedLoopNodeKeys);
           setSuggestions(weightedSuggestions.length > 0 ? weightedSuggestions : createPlaceholderSuggestions(currentSelection.type));
           if (weightedSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned for this node.");
@@ -624,9 +713,15 @@ function GamePage() {
               movieSuggestions.map((movie) => createNode(movie.title, "movie", {
                 id: movie.id,
                 releaseDate: movie.releaseDate,
+				imageUrl: moviesCatalog.find((entry) => entry.id === movie.id)?.posterUrl ?? null,
+				genres: moviesCatalog.find((entry) => entry.id === movie.id)?.genres ?? [],
+				contentRating: moviesCatalog.find((entry) => entry.id === movie.id)?.contentRating ?? null,
+				originalLanguage: moviesCatalog.find((entry) => entry.id === movie.id)?.originalLanguage ?? null,
+				overview: moviesCatalog.find((entry) => entry.id === movie.id)?.overview ?? null,
                 pathHint: movie.pathHint,
               })),
               targetNode,
+              blockedLoopNodeKeys,
             );
           } else {
             if (currentSelection.id === undefined) {
@@ -641,10 +736,14 @@ function GamePage() {
               actorSuggestions.map((actor) => createNode(actor.name, "actor", {
                 id: actor.id,
                 popularity: actor.popularity,
+				imageUrl: actorsCatalog.find((entry) => entry.id === actor.id)?.profileUrl ?? null,
+				knownForDepartment: actorsCatalog.find((entry) => entry.id === actor.id)?.knownForDepartment ?? null,
+				placeOfBirth: actorsCatalog.find((entry) => entry.id === actor.id)?.placeOfBirth ?? null,
                 pathHint: actor.pathHint,
                 popularityRank: actor.popularityRank,
               })),
               targetNode,
+              blockedLoopNodeKeys,
             );
           }
 
@@ -669,7 +768,7 @@ function GamePage() {
             localSuggestions = getActorsForMovie(currentSelection.id, excludedNames, targetSummary, resources.indexes);
           }
 
-          const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode);
+          const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode, blockedLoopNodeKeys);
           setResolvedDataSource(resources.source);
           setSuggestions(weightedSuggestions.length > 0 ? weightedSuggestions : createPlaceholderSuggestions(currentSelection.type));
           if (weightedSuggestions.length === 0) {
@@ -682,7 +781,7 @@ function GamePage() {
     };
 
     void loadSuggestions();
-  }, [actorA, actorB, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, resolveSnapshotResources, shuffleSeed, targetNode, topPath]);
+  }, [actorA, actorB, actorsCatalog, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalog, resolveSnapshotResources, shuffleSeed, targetNode, topPath]);
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const provisionalCompletion: CompletionState = {
@@ -694,6 +793,8 @@ function GamePage() {
     };
 
     setCompletion(provisionalCompletion);
+    setIsCompletionDialogOpen(true);
+    setIsRulesOpen(false);
 
     try {
       let validation;
@@ -743,6 +844,12 @@ function GamePage() {
     const autoCompletionTail = shouldAutoComplete
       ? (choice.pathHint?.path.slice(1).map(nodeFromSummary) ?? [])
       : [];
+    const cycleNode = findLoopedNode([choice, ...autoCompletionTail], blockedLoopNodeKeys);
+
+    if (cycleNode) {
+      setSuggestionError(`Cycle detected: ${cycleNode.label} is already in your path. The move was cancelled and your current selection stayed in place.`);
+      return;
+    }
 
     const updatedPath = [...activePath, choice, ...autoCompletionTail];
     const nextTopPath = selectedSide === "top" ? updatedPath : topPath;
@@ -841,6 +948,7 @@ function GamePage() {
     setShuffleSeed((currentSeed) => currentSeed + 1);
     setSuggestionError(null);
     setCompletion(null);
+    setIsCompletionDialogOpen(false);
   };
 
   const handleShuffle = () => {
@@ -973,16 +1081,13 @@ function GamePage() {
           onRemoveBottomPathItem={handleRemoveBottomPathItem}
         />
         <div className="gameSidebar">
-          <div className={`gameSidebarWarning${isPathLimitReached ? " gameSidebarWarning--visible" : ""}`}>
+          <div className={`gameSidebarWarning${isPathLimitReached && !isGameComplete ? " gameSidebarWarning--visible" : ""}`}>
             Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
           </div>
 
           {setupError || (activeDataSource === "snapshot" ? snapshotError : null) ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
 
           <GameRightPanel
-            actorA={actorA ?? createNode("Loading…", "actor")}
-            actorB={actorB ?? createNode("Loading…", "actor")}
-            selectedSide={selectedSide}
             currentSelection={currentSelection ?? createNode("Loading…", "actor")}
             suggestions={suggestions}
             turns={turns}
@@ -991,14 +1096,15 @@ function GamePage() {
             optimalHops={optimalHops}
             currentHops={currentHops}
             isDisabled={isInteractionDisabled}
+            isComplete={isGameComplete}
             isLoading={isSuggestionsLoading}
             errorMessage={suggestionError}
             onBack={handleBackCurrentPathItem}
+            onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
             onSuggestion={(choice) => {
               void handleSuggestion(choice);
             }}
             onWriteIn={handleWriteIn}
-            onSelectSide={setSelectedSide}
             onReverse={handleReverseSides}
             onShuffle={handleShuffle}
           />
@@ -1032,10 +1138,10 @@ function GamePage() {
         </div>
       ) : null}
 
-      {completion ? (
-        <div className="gameCompletionOverlay" onClick={() => setCompletion(null)}>
+      {completion && isCompletionDialogOpen ? (
+        <div className="gameCompletionOverlay" onClick={() => setIsCompletionDialogOpen(false)}>
           <div className="gameCompletionDialog" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="gameRulesCloseButton" onClick={() => setCompletion(null)} aria-label="Close completion dialog">
+            <button type="button" className="gameRulesCloseButton" onClick={() => setIsCompletionDialogOpen(false)} aria-label="Close completion dialog">
               ×
             </button>
             <h2 className="gameRulesTitle">Level Complete</h2>

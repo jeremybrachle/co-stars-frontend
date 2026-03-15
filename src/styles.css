@@ -504,6 +504,17 @@ button:hover {
   position: relative;
 }
 
+.footerInfo--hover {
+  display: flex;
+  align-items: center;
+}
+
+.footerVersionTrigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .footerActions {
   position: absolute;
   right: 0;
@@ -543,10 +554,30 @@ button:hover {
   right: auto;
   transform: translateX(-50%);
   width: min(320px, calc(100vw - 24px));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 .footerPopover--wide {
   width: min(520px, calc(100vw - 24px));
+}
+
+.footerPopover--compactData {
+  width: min(340px, calc(100vw - 24px));
+  padding: 14px;
+}
+
+.footerPopover--compactData .footerPopoverHeader {
+  margin-bottom: 8px;
+}
+
+.footerVersionTrigger:hover .footerPopover--info,
+.footerVersionTrigger:focus-within .footerPopover--info {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
 }
 
 .footerPopoverHeader {
@@ -615,39 +646,6 @@ button:hover {
   color: white;
 }
 
-.dataIndicatorTooltip {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 10px);
-  width: 240px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(6px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.dataIndicator:hover .dataIndicatorTooltip,
-.dataIndicatorButton:focus-visible + .dataIndicatorTooltip {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.dataIndicatorTooltip strong,
-.dataIndicatorTooltip span {
-  display: block;
-}
-
-.dataIndicatorTooltip span {
-  margin-top: 6px;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.45;
-}
-
 .dataIndicatorGlyph {
   position: relative;
   display: inline-flex;
@@ -714,6 +712,20 @@ button:hover {
   gap: 0;
 }
 
+.dataSettingsPanel--popover {
+  gap: 2px;
+}
+
+.dataSettingsPanel--popover .settingsSection {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.dataSettingsPanel--popover .settingsSection h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+
 .dataSettingsHeader {
   display: flex;
   align-items: flex-start;
@@ -754,6 +766,10 @@ button:hover {
   gap: 14px;
 }
 
+.dataModeGrid--popover {
+  gap: 10px;
+}
+
 .settingsOption--card {
   padding: 16px;
   border-radius: 18px;
@@ -762,13 +778,97 @@ button:hover {
 }
 
 .settingsOption--active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(147, 197, 253, 0.28);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.22), rgba(30, 64, 175, 0.18));
+  border-color: rgba(147, 197, 253, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(191, 219, 254, 0.14);
+}
+
+.settingsOption--radio {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settingsOption--radio input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settingsOption--radio-page {
+  min-height: 72px;
+}
+
+.settingsOption--radio-popover {
+  min-height: 0;
+  padding: 10px 12px;
+}
+
+.settingsOptionControl {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-top: 3px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.settingsOptionControl::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.18s ease, transform 0.18s ease;
+  transform: scale(0.92);
+}
+
+.settingsOption--active .settingsOptionControl {
+  border-color: rgba(30, 64, 175, 0.95);
+  background: rgba(147, 197, 253, 0.42);
+}
+
+.settingsOption--active .settingsOptionControl::after {
+  background: #1e3a8a;
+  transform: scale(1);
+}
+
+.settingsOption--radio strong {
+  display: block;
+}
+
+.settingsOption--radio .settingsHint {
+  margin-top: 5px;
 }
 
 .dataSettingsStats {
   display: grid;
   gap: 4px;
+}
+
+.dataSettingsStats--compact {
+  gap: 2px;
+}
+
+.dataSettingsSection--compactStatus {
+  margin-top: 6px;
+}
+
+.settingsActions--popover {
+  gap: 8px;
+}
+
+.settingsActionButton--compact {
+  min-width: 0;
+  padding: 0.7em 0.9em;
+  font-size: 0.88rem;
 }
 
 .catalogListItem--interactive,
@@ -804,11 +904,18 @@ button:hover {
   width: min(760px, 100%);
   max-height: min(88vh, 820px);
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   padding: 28px;
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.36);
+}
+
+.catalogDialog::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .catalogDialogClose {
@@ -836,8 +943,25 @@ button:hover {
   gap: 18px;
 }
 
+.catalogDialogHero {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
 .catalogDialogHeader h2 {
   margin: 0;
+}
+
+.catalogDetailLead {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.5;
+}
+
+.catalogDetailSubtle {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.66);
 }
 
 .catalogDetailMetaGrid {
@@ -864,6 +988,68 @@ button:hover {
   text-transform: uppercase;
 }
 
+.catalogDetailNarrative {
+  position: relative;
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 156px;
+  overflow: hidden;
+}
+
+.catalogDetailNarrative--expanded {
+  max-height: none;
+}
+
+.catalogDetailNarrative::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.9) 70%, rgba(15, 23, 42, 0.98));
+  pointer-events: none;
+}
+
+.catalogDetailNarrative--expanded::after {
+  display: none;
+}
+
+.catalogDetailNarrativeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.catalogDetailNarrative h3 {
+  margin: 0;
+}
+
+.catalogDetailNarrative p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.6;
+  padding-bottom: 22px;
+}
+
+.catalogDetailNarrative--expanded p {
+  padding-bottom: 0;
+}
+
+.catalogDetailNarrativeToggle {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
 .catalogRelationToolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -874,6 +1060,24 @@ button:hover {
 
 .catalogFutureAction {
   position: relative;
+}
+
+.catalogSearchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.catalogFutureAction {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.catalogFutureAction--visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .catalogFutureAction button {
@@ -945,8 +1149,39 @@ button:hover {
   border-radius: 14px;
 }
 
-.catalogDialogListItem span:last-child {
-  color: rgba(255, 255, 255, 0.72);
+.catalogDialogListPrimary,
+.catalogListPrimary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.catalogDialogListPrimary > div:last-child,
+.catalogListPrimary > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.catalogDialogListPrimary span:first-child,
+.catalogListPrimary span:first-child {
+  font-weight: 700;
+}
+
+.catalogDialogListMeta,
+.catalogListMeta {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.82rem;
+}
+
+.catalogDialogListSecondary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .levels-grid {
@@ -1153,6 +1388,12 @@ button:hover {
   text-align: left;
 }
 
+.searchOptionPrimaryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .searchOption:hover {
   background: rgba(255, 255, 255, 0.08);
 }
@@ -1164,9 +1405,76 @@ button:hover {
 .searchOptionMeta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   color: rgba(255, 255, 255, 0.68);
   font-size: 0.82rem;
+}
+
+.entityArtwork {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  flex: 0 0 auto;
+}
+
+.entityArtwork--search,
+.entityArtwork--row {
+  width: 44px;
+  height: 44px;
+}
+
+.entityArtwork--path,
+.entityArtwork--preview {
+  width: 56px;
+  height: 56px;
+}
+
+.entityArtwork--hero {
+  width: 112px;
+  height: 112px;
+  border-radius: 20px;
+}
+
+.entityArtwork__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.entityArtwork__emoji {
+  font-size: 1.45rem;
+}
+
+.entityBadgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entityBadgeRow--search {
+  margin-top: 2px;
+}
+
+.entityBadgeRow--detail {
+  margin-top: 18px;
+}
+
+.entityBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .searchDropdownEmpty {
@@ -1184,6 +1492,44 @@ button:hover {
   width: 100%;
 }
 
+.entityPreviewRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.entityPreviewCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.entityPreviewCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.entityPreviewCopy strong,
+.entityPreviewCopy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entityPreviewLabel {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .pathResultList {
   display: flex;
   flex-wrap: wrap;
@@ -1195,9 +1541,8 @@ button:hover {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 20px;
 }
 
 .pathNode--actor {
@@ -1212,6 +1557,21 @@ button:hover {
 
 .pathNodeArrow {
   color: rgba(255, 255, 255, 0.72);
+}
+
+.pathNodeCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pathNodeCopy strong {
+  font-size: 0.95rem;
+}
+
+.pathNodeCopy span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.76rem;
 }
 
 .catalogGrid {
@@ -1385,6 +1745,10 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
+  .entityPreviewRow {
+    grid-template-columns: 1fr;
+  }
+
   .catalogPanel {
     min-height: 320px;
   }
@@ -1425,6 +1789,14 @@ button:hover {
   .catalogDialogHeader {
     display: flex;
     flex-direction: column;
+  }
+
+  .catalogDialogHero {
+    flex-direction: column;
+  }
+
+  .catalogDialogListSecondary {
+    justify-content: flex-start;
   }
 
   .catalogFutureAction button {

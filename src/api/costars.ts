@@ -36,6 +36,13 @@ type ApiActor = {
 	id: number;
 	name: string;
 	popularity: number | null;
+	birthday?: string | null;
+	deathday?: string | null;
+	place_of_birth?: string | null;
+	biography?: string | null;
+	profile_path?: string | null;
+	profile_url?: string | null;
+	known_for_department?: string | null;
 	path_hint?: ApiPathHint;
 	popularity_rank?: number | null;
 };
@@ -44,6 +51,12 @@ type ApiMovie = {
 	id: number;
 	title: string;
 	release_date: string | null;
+	genres?: string[];
+	overview?: string | null;
+	poster_path?: string | null;
+	poster_url?: string | null;
+	original_language?: string | null;
+	content_rating?: string | null;
 	path_hint?: ApiPathHint;
 };
 
@@ -95,6 +108,13 @@ function mapActor(actor: ApiActor): Actor {
 		id: actor.id,
 		name: actor.name,
 		popularity: actor.popularity,
+		birthday: actor.birthday ?? null,
+		deathday: actor.deathday ?? null,
+		placeOfBirth: actor.place_of_birth ?? null,
+		biography: actor.biography ?? null,
+		profilePath: actor.profile_path ?? null,
+		profileUrl: actor.profile_url ?? null,
+		knownForDepartment: actor.known_for_department ?? null,
 	};
 }
 
@@ -103,6 +123,12 @@ function mapMovie(movie: ApiMovie): Movie {
 		id: movie.id,
 		title: movie.title,
 		releaseDate: movie.release_date,
+		genres: movie.genres ?? [],
+		overview: movie.overview ?? null,
+		posterPath: movie.poster_path ?? null,
+		posterUrl: movie.poster_url ?? null,
+		originalLanguage: movie.original_language ?? null,
+		contentRating: movie.content_rating ?? null,
 	};
 }
 
