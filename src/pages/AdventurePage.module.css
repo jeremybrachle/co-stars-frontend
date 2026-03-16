@@ -113,6 +113,38 @@
   white-space: nowrap;
 }
 
+.levelActorIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.levelActorIdentityRight {
+  flex-direction: row-reverse;
+}
+
+.levelActorArtwork {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.levelActorArtworkImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.levelActorArtworkEmoji {
+  font-size: 1.25rem;
+}
+
 .levelVs {
   justify-self: center;
   font-size: 1.15em;

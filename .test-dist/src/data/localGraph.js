@@ -8,6 +8,7 @@ exports.getMoviesForActor = getMoviesForActor;
 exports.getActorsForMovie = getActorsForMovie;
 exports.generateLocalPath = generateLocalPath;
 exports.validateLocalPath = validateLocalPath;
+const entityDetails_1 = require("./entityDetails");
 function normalizeLookupKey(value) {
     return value.trim().toLocaleLowerCase();
 }
@@ -42,6 +43,9 @@ function createGameNodeFromSummary(node, indexes) {
             label: node.label,
             type: node.type,
             popularity: actor?.popularity ?? null,
+            imageUrl: actor?.profileUrl ?? null,
+            knownForDepartment: actor?.knownForDepartment ?? null,
+            placeOfBirth: actor?.placeOfBirth ?? null,
         };
     }
     const movie = indexes.moviesById.get(node.id);
@@ -50,6 +54,11 @@ function createGameNodeFromSummary(node, indexes) {
         label: node.label,
         type: node.type,
         releaseDate: movie?.releaseDate ?? null,
+        imageUrl: movie?.posterUrl ?? null,
+        genres: movie?.genres ?? [],
+        contentRating: movie?.contentRating ?? null,
+        originalLanguage: movie?.originalLanguage ?? null,
+        overview: movie?.overview ?? null,
     };
 }
 function findNodeByLabel(label, type, indexes) {
@@ -115,7 +124,7 @@ function isNonNull(value) {
 }
 function getMoviesForActor(actorId, target, indexes) {
     const movieIds = indexes.actorToMovies[String(actorId)] ?? [];
-    return movieIds
+    return (0, entityDetails_1.sortMoviesByReleaseDateDescending)(movieIds
         .map((movieId) => {
         const movie = indexes.moviesById.get(movieId);
         if (!movie) {
@@ -127,10 +136,15 @@ function getMoviesForActor(actorId, target, indexes) {
             label: movie.title,
             type: "movie",
             releaseDate: movie.releaseDate,
+            imageUrl: movie.posterUrl,
+            genres: movie.genres,
+            contentRating: movie.contentRating,
+            originalLanguage: movie.originalLanguage,
+            overview: movie.overview,
             pathHint: target ? createPathHint(summary, target, indexes) : undefined,
         };
     })
-        .filter(isNonNull);
+        .filter(isNonNull), (entry) => entry.releaseDate, (entry) => entry.label);
 }
 function getActorsForMovie(movieId, excludedNames, target, indexes) {
     const excluded = new Set(excludedNames.map(normalizeLookupKey));
@@ -146,6 +160,9 @@ function getActorsForMovie(movieId, excludedNames, target, indexes) {
             label: actor.name,
             type: "actor",
             popularity: actor.popularity,
+            imageUrl: actor.profileUrl,
+            knownForDepartment: actor.knownForDepartment,
+            placeOfBirth: actor.placeOfBirth,
             pathHint: target ? createPathHint(summary, target, indexes) : undefined,
         };
     });

@@ -137,17 +137,18 @@
   flex: 1.15;
   min-width: 360px;
   max-width: 460px;
-  margin-top: 98px;
+  margin-top: 24px;
   position: relative;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   gap: 14px;
 }
 
 .gameSidebarWarning {
   position: absolute;
   left: 50%;
-  top: 210px;
+  top: 136px;
   transform: translateX(-50%);
   width: 318px;
   min-height: 148px;
@@ -194,7 +195,7 @@
 .gameInfoButton {
   position: fixed;
   left: 50%;
-  bottom: 52px;
+  bottom: 5.8%;
   transform: translateX(-50%);
   width: 42px;
   height: 42px;
@@ -236,12 +237,14 @@
   position: relative;
   width: min(100%, 980px);
   min-height: 260px;
+  max-height: min(90vh, 950px);
   padding: 30px 34px 28px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.88);
   color: white;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .gameRulesCloseButton {
@@ -400,6 +403,177 @@
   line-height: 1.55;
 }
 
+.gameInspectorOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36px;
+  background: rgba(2, 6, 23, 0.68);
+  backdrop-filter: blur(10px);
+  z-index: 45;
+}
+
+.gameInspectorDialog {
+  position: relative;
+  width: min(100%, 920px);
+  max-height: min(86vh, 860px);
+  overflow: auto;
+  padding: 30px 32px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(244, 114, 182, 0.14), transparent 42%),
+    rgba(15, 23, 42, 0.96);
+  color: white;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.36);
+}
+
+.gameInspectorHero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.gameInspectorArtwork {
+  width: 112px;
+  height: 112px;
+  border-radius: 24px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gameInspectorArtworkImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gameInspectorArtworkEmoji,
+.gameInspectorListArtworkEmoji {
+  font-size: 2rem;
+}
+
+.gameInspectorHeader {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gameInspectorType {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.64);
+}
+
+.gameInspectorTitle {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.gameInspectorMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gameInspectorMetaPill {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.gameInspectorMetaPill--muted {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(203, 213, 225, 0.2);
+}
+
+.gameInspectorDescription {
+  margin: 22px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.65;
+}
+
+.gameInspectorSectionTitle {
+  margin-top: 24px;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.gameInspectorList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gameInspectorListItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gameInspectorListItem:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.gameInspectorListArtwork {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.gameInspectorListText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gameInspectorListTitle {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.gameInspectorListMeta {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.84rem;
+}
+
+.gameInspectorEmpty {
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.72);
+}
+
 @media (max-width: 960px) {
   .gameContainer {
     flex-direction: column;
@@ -416,5 +590,15 @@
   .gameCompletionStats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .gameInspectorHero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .gameInspectorList {
+    grid-template-columns: 1fr;
+  }
 }
+
 

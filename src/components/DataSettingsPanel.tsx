@@ -19,6 +19,15 @@ type DataSettingsPanelProps = {
 	showHeading?: boolean;
 };
 
+type ModeChoice = {
+	id: string;
+	group: "online" | "offline";
+	label: string;
+	hint: string;
+	checked: boolean;
+	onSelect: () => void;
+};
+
 function formatRefreshHours(milliseconds: number) {
 	return Math.max(1, Math.round(milliseconds / (1000 * 60 * 60)));
 }
@@ -56,7 +65,7 @@ function formatSnapshotErrorLabel(errorSource: "api" | "s3" | null) {
 }
 
 function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettingsPanelProps) {
-	const { mode, setConnectionMode, setOfflineSource, setOnlineSource } = useDataSourceMode();
+	const { mode, setMode } = useDataSourceMode();
 	const {
 		snapshot,
 		manifest,
@@ -83,6 +92,62 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	);
 	const hostedManifestUrl = getHostedSnapshotManifestUrl();
 	const apiManifestUrl = getApiSnapshotManifestUrl();
+	const isCompact = layout === "popover";
+	const modeChoices = useMemo<Record<"online" | "offline", ModeChoice[]>>(
+		() => ({
+			online: [
+				{
+					id: `online-snapshot-${layout}`,
+					group: "online",
+					label: "Snapshot",
+					hint: "Default online path.",
+					checked: isOnlineSnapshotMode(mode),
+					onSelect: () => setMode({ ...mode, connectionMode: "online", onlineSource: "snapshot" }),
+				},
+				{
+					id: `online-api-${layout}`,
+					group: "online",
+					label: "API",
+					hint: "Secondary live-call path.",
+					checked: isOnlineApiMode(mode),
+					onSelect: () => setMode({ ...mode, connectionMode: "online", onlineSource: "api" }),
+				},
+			],
+			offline: [
+				{
+					id: `offline-snapshot-${layout}`,
+					group: "offline",
+					label: "Snapshot",
+					hint: "Default cached offline path.",
+					checked: isOfflineSnapshotMode(mode),
+					onSelect: () => setMode({ ...mode, connectionMode: "offline", offlineSource: "snapshot" }),
+				},
+				{
+					id: `offline-demo-${layout}`,
+					group: "offline",
+					label: "Demo",
+					hint: "Built-in fallback dataset.",
+					checked: isOfflineDemoMode(mode),
+					onSelect: () => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" }),
+				},
+			],
+		}),
+		[layout, mode, setMode],
+	);
+
+	const renderModeChoice = (choice: ModeChoice) => (
+		<label
+			key={choice.id}
+			className={`settingsOption settingsOption--radio settingsOption--radio-${layout}${choice.checked ? " settingsOption--active" : ""}`}
+		>
+			<input type="radio" name={`${choice.group}-source-${layout}`} checked={choice.checked} onChange={choice.onSelect} />
+			<span className="settingsOptionControl" aria-hidden="true" />
+			<span>
+				<strong>{choice.label}</strong>
+				{isCompact ? null : <span className="settingsHint">{choice.hint}</span>}
+			</span>
+		</label>
+	);
 
 	return (
 		<div className={`dataSettingsPanel dataSettingsPanel--${layout}`}>
@@ -103,85 +168,56 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			) : null}
 
 			<section className="settingsSection dataSettingsSection">
-				<h3>Connection mode</h3>
-				<div className="dataModeGrid">
-					<label className={`settingsOption settingsOption--card${mode.connectionMode === "online" ? " settingsOption--active" : ""}`}>
-						<input type="radio" name={`connection-mode-${layout}`} checked={mode.connectionMode === "online"} onChange={() => setConnectionMode("online")} />
-						<span>
-							<strong>Online mode</strong>
-							<span className="settingsHint">Use network-aware play. Snapshot mode fetches from the API snapshot endpoint first. API mode uses ad-hoc live calls during play.</span>
-						</span>
-					</label>
-					<label className={`settingsOption settingsOption--card${mode.connectionMode === "offline" ? " settingsOption--active" : ""}`}>
-						<input type="radio" name={`connection-mode-${layout}`} checked={mode.connectionMode === "offline"} onChange={() => setConnectionMode("offline")} />
-						<span>
-							<strong>Offline mode</strong>
-							<span className="settingsHint">Skip live API gameplay calls and rely on whatever is already cached locally, or use the built-in demo fallback.</span>
-						</span>
-					</label>
+				<h3>{isCompact ? "Online" : "Online source"}</h3>
+				<div className={`dataModeGrid dataModeGrid--${layout}`}>
+					{modeChoices.online.map(renderModeChoice)}
 				</div>
 			</section>
 
 			<section className="settingsSection dataSettingsSection">
-				<h3>Online mode source</h3>
-				<label className={`settingsOption${isOnlineSnapshotMode(mode) ? " settingsOption--active" : ""}`}>
-					<input type="radio" name={`online-source-${layout}`} checked={isOnlineSnapshotMode(mode)} onChange={() => setOnlineSource("snapshot")} />
-					<span>
-						<strong>Snapshot data</strong>
-						<span className="settingsHint">Default online path. Refresh from the API snapshot endpoint first, then fall back to local snapshot data, and finally demo data if nothing usable is available.</span>
-					</span>
-				</label>
-				<label className={`settingsOption${isOnlineApiMode(mode) ? " settingsOption--active" : ""}`}>
-					<input type="radio" name={`online-source-${layout}`} checked={isOnlineApiMode(mode)} onChange={() => setOnlineSource("api")} />
-					<span>
-						<strong>API data</strong>
-						<span className="settingsHint">Proof-of-concept mode. Gameplay makes live API calls when possible, then falls back to snapshot data or demo data if the API is unavailable.</span>
-					</span>
-				</label>
-			</section>
-
-			<section className="settingsSection dataSettingsSection">
-				<h3>Offline mode source</h3>
-				<label className={`settingsOption${isOfflineSnapshotMode(mode) ? " settingsOption--active" : ""}`}>
-					<input type="radio" name={`offline-source-${layout}`} checked={isOfflineSnapshotMode(mode)} onChange={() => setOfflineSource("snapshot")} />
-					<span>
-						<strong>Snapshot data</strong>
-						<span className="settingsHint">Use the snapshot currently cached in the browser while disconnected or while forcing offline mode.</span>
-					</span>
-				</label>
-				<label className={`settingsOption${isOfflineDemoMode(mode) ? " settingsOption--active" : ""}`}>
-					<input type="radio" name={`offline-source-${layout}`} checked={isOfflineDemoMode(mode)} onChange={() => setOfflineSource("demo")} />
-					<span>
-						<strong>Demo data</strong>
-						<span className="settingsHint">Use the built-in offline demo dataset regardless of cached snapshot state.</span>
-					</span>
-				</label>
-			</section>
-
-			<section className="settingsSection dataSettingsSection">
-				<h3>Current status</h3>
-				<div className="dataSettingsStats">
-					<p className="settingsHint">Browser connection: {isBrowserOnline ? "online" : "offline"}</p>
-					<p className="settingsHint">Indicator state: {getDataIndicatorLabel(variant)}</p>
-					<p className="settingsHint">Current snapshot source: {formatSnapshotLoadSource(loadedFrom)}</p>
-					<p className="settingsHint">Last snapshot refresh: {lastRefreshAt ?? "not refreshed yet"}</p>
-					<p className="settingsHint">Recommended refresh interval: every {formatRefreshHours(recommendedRefreshMs)} hours</p>
-					<p className="settingsHint">Hosted manifest URL: {hostedManifestUrl ?? "not configured"}</p>
-					<p className="settingsHint">API manifest URL: {apiManifestUrl}</p>
-					<p className="settingsHint">Loaded snapshot version: {snapshot?.meta.version ?? "none loaded yet"}</p>
-					<p className="settingsHint">Loaded manifest version: {manifest?.version ?? "none loaded yet"}</p>
-					<p className="settingsHint">Snapshot endpoint: {manifest?.snapshotEndpoint ?? "none loaded yet"}</p>
+				<h3>{isCompact ? "Offline" : "Offline source"}</h3>
+				<div className={`dataModeGrid dataModeGrid--${layout}`}>
+					{modeChoices.offline.map(renderModeChoice)}
 				</div>
 			</section>
+
+			{isCompact ? (
+				<section className="settingsSection dataSettingsSection dataSettingsSection--compactStatus">
+					<h3>Versions</h3>
+					<div className="dataSettingsStats dataSettingsStats--compact">
+						<p className="settingsHint">Snapshot: {snapshot?.meta.version ?? "none loaded"}</p>
+						<p className="settingsHint">Manifest: {manifest?.version ?? "none loaded"}</p>
+					</div>
+				</section>
+			) : (
+				<details className="settingsSection dataSettingsSection dataSettingsDisclosure">
+					<summary className="dataSettingsDisclosureSummary">
+						<span>Current data status</span>
+						<span className="dataSettingsDisclosureValue">{getDataIndicatorLabel(variant)}</span>
+					</summary>
+					<div className="dataSettingsStats dataSettingsStats--expanded">
+						<p className="settingsHint">Browser connection: {isBrowserOnline ? "online" : "offline"}</p>
+						<p className="settingsHint">Indicator state: {getDataIndicatorLabel(variant)}</p>
+						<p className="settingsHint">Current snapshot source: {formatSnapshotLoadSource(loadedFrom)}</p>
+						<p className="settingsHint">Last snapshot refresh: {lastRefreshAt ?? "not refreshed yet"}</p>
+						<p className="settingsHint">Refresh cadence: every {formatRefreshHours(recommendedRefreshMs)} hours</p>
+						<p className="settingsHint">Snapshot version: {snapshot?.meta.version ?? "none loaded yet"}</p>
+						<p className="settingsHint">Manifest version: {manifest?.version ?? "none loaded yet"}</p>
+						<p className="settingsHint">Hosted manifest: {hostedManifestUrl ?? "not configured"}</p>
+						<p className="settingsHint">API manifest: {apiManifestUrl}</p>
+						<p className="settingsHint">Snapshot endpoint: {manifest?.snapshotEndpoint ?? "none loaded yet"}</p>
+					</div>
+				</details>
+			)}
 
 			<section className="settingsSection dataSettingsSection">
 				<h3>Snapshot controls</h3>
-				<div className="settingsActions">
-					<button type="button" onClick={() => void fetchSnapshotFromApi()} disabled={isLoading}>Fetch snapshot from API</button>
-					<button type="button" onClick={() => void fetchSnapshotFromS3()} disabled={isLoading}>Fetch snapshot from hosted file</button>
-					<button type="button" className="settingsDangerButton" onClick={clearSnapshotCache}>Clear cached snapshot</button>
+				<div className={`settingsActions settingsActions--${layout}`}>
+					<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromApi()} disabled={isLoading}>{isCompact ? "Fetch API" : "Fetch API"}</button>
+					<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromS3()} disabled={isLoading}>{isCompact ? "Fetch hosted" : "Fetch hosted"}</button>
+					<button type="button" className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={clearSnapshotCache}>Clear cache</button>
 				</div>
-				<p className="settingsHint">You can refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>
+				{isCompact ? null : <p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>}
 				{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
 			</section>
 		</div>

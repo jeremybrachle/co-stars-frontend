@@ -11,6 +11,7 @@ import type {
 	PathHint,
 	ValidatePathResponse,
 } from "../types";
+import { sortMoviesByReleaseDateDescending } from "../data/entityDetails";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -36,6 +37,13 @@ type ApiActor = {
 	id: number;
 	name: string;
 	popularity: number | null;
+	birthday?: string | null;
+	deathday?: string | null;
+	place_of_birth?: string | null;
+	biography?: string | null;
+	profile_path?: string | null;
+	profile_url?: string | null;
+	known_for_department?: string | null;
 	path_hint?: ApiPathHint;
 	popularity_rank?: number | null;
 };
@@ -44,6 +52,12 @@ type ApiMovie = {
 	id: number;
 	title: string;
 	release_date: string | null;
+	genres?: string[];
+	overview?: string | null;
+	poster_path?: string | null;
+	poster_url?: string | null;
+	original_language?: string | null;
+	content_rating?: string | null;
 	path_hint?: ApiPathHint;
 };
 
@@ -95,6 +109,13 @@ function mapActor(actor: ApiActor): Actor {
 		id: actor.id,
 		name: actor.name,
 		popularity: actor.popularity,
+		birthday: actor.birthday ?? null,
+		deathday: actor.deathday ?? null,
+		placeOfBirth: actor.place_of_birth ?? null,
+		biography: actor.biography ?? null,
+		profilePath: actor.profile_path ?? null,
+		profileUrl: actor.profile_url ?? null,
+		knownForDepartment: actor.known_for_department ?? null,
 	};
 }
 
@@ -103,6 +124,12 @@ function mapMovie(movie: ApiMovie): Movie {
 		id: movie.id,
 		title: movie.title,
 		releaseDate: movie.release_date,
+		genres: movie.genres ?? [],
+		overview: movie.overview ?? null,
+		posterPath: movie.poster_path ?? null,
+		posterUrl: movie.poster_url ?? null,
+		originalLanguage: movie.original_language ?? null,
+		contentRating: movie.content_rating ?? null,
 	};
 }
 
@@ -127,7 +154,7 @@ export async function fetchActors(): Promise<Actor[]> {
 
 export async function fetchMovies(): Promise<Movie[]> {
 	const movies = await fetchJson<ApiMovie[]>("/api/movies");
-	return movies.map(mapMovie);
+	return sortMoviesByReleaseDateDescending(movies.map(mapMovie), (movie) => movie.releaseDate, (movie) => movie.title);
 }
 
 export async function fetchActorByName(name: string): Promise<Actor> {
@@ -150,10 +177,14 @@ export async function fetchActorMovies(
 	const suffix = params.toString() ? `?${params.toString()}` : "";
 	const movies = await fetchJson<ApiMovie[]>(`/api/actor/${actorId}/movies${suffix}`);
 
-	return movies.map((movie) => ({
-		...mapMovie(movie),
-		pathHint: mapPathHint(movie.path_hint),
-	}));
+	return sortMoviesByReleaseDateDescending(
+		movies.map((movie) => ({
+			...mapMovie(movie),
+			pathHint: mapPathHint(movie.path_hint),
+		})),
+		(movie) => movie.releaseDate,
+		(movie) => movie.title,
+	);
 }
 
 export async function fetchMovieActors(

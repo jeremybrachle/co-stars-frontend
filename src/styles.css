@@ -354,15 +354,15 @@ button:hover {
   position: relative;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 32px 20px 92px;
+  padding: 24px 20px 76px;
   box-sizing: border-box;
 }
 
 .settingsPanel {
-  width: min(100%, 760px);
-  padding: 32px;
+  width: min(100%, 980px);
+  padding: 24px 26px 22px;
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -370,18 +370,263 @@ button:hover {
 }
 
 .settingsIntro {
-  margin: 0 0 24px;
+  margin: 0 0 16px;
+  max-width: 68ch;
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .settingsSection {
-  margin-top: 24px;
-  padding-top: 24px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .settingsSection h2 {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   font-size: 1.3rem;
+}
+
+.settingsSection--first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.settingsBuildSection {
+  margin-top: 16px;
+}
+
+.settingsBuildRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settingsBuildLabel {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.settingsBuildValue {
+  font-size: 1rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.settingsDifficultyGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settingsDifficultyCard {
+  min-height: 0;
+}
+
+.settingsCustomPanel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settingsCustomHeader {
+  margin-bottom: 10px;
+}
+
+.settingsCustomHeader h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.settingsToggleSection {
+  display: grid;
+  gap: 8px;
+}
+
+.settingsToggleSection + .settingsToggleSection {
+  margin-top: 12px;
+}
+
+.settingsToggleSection--nested {
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.settingsToggleSection--carded {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.22);
+}
+
+.settingsToggleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settingsToggleSectionTitle {
+  margin: 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.settingsToggleCard {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.settingsToggleCard--disabled {
+  opacity: 0.72;
+}
+
+.settingsToggleCardTop {
+  display: grid;
+  gap: 8px;
+}
+
+.settingsToggleCardLabelWrap {
+  display: grid;
+  gap: 4px;
+}
+
+.settingsToggleControl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settingsToggleState {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: rgba(148, 163, 184, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settingsToggleState--on {
+  color: rgba(147, 197, 253, 0.95);
+}
+
+.settingsToggleText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.settingsToggleSwitch {
+  position: relative;
+  width: 48px;
+  min-width: 48px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.4);
+  box-shadow: none;
+}
+
+.settingsToggleSwitch:hover {
+  background: rgba(148, 163, 184, 0.52);
+}
+
+.settingsToggleSwitch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.settingsToggleSwitch--on {
+  background: rgba(37, 99, 235, 0.82);
+}
+
+.settingsToggleSwitch--on:hover {
+  background: rgba(29, 78, 216, 0.9);
+}
+
+.settingsToggleThumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.18s ease;
+}
+
+.settingsToggleSwitch--on .settingsToggleThumb {
+  transform: translateX(20px);
+}
+
+@media (max-width: 1100px) {
+  .settingsToggleGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .settingsToggleGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settingsDataFilterRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.settingsDataFilterField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settingsDataFilterField span {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settingsDataFilterField input {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.settingsDataFilterField input:focus {
+  outline: none;
+  border-color: rgba(125, 211, 252, 0.54);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.22);
+}
+
+.settingsHowToGrid {
+  display: grid;
+  gap: 6px;
 }
 
 .settingsOption {
@@ -400,7 +645,7 @@ button:hover {
   display: block;
   margin-top: 4px;
   color: rgba(255, 255, 255, 0.82);
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 .settingsError {
@@ -416,8 +661,17 @@ button:hover {
 .settingsActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 18px 0;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.settingsActionButton {
+  min-width: 0;
+  padding: 0.52em 0.82em;
+  font-size: 0.84rem;
+  line-height: 1.1;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18);
 }
 
 .settingsDangerButton {
@@ -504,6 +758,38 @@ button:hover {
   position: relative;
 }
 
+.footerInfo--stacked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.footerCopyrightText {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.footerVersionText {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.footerInfo--hover {
+  display: flex;
+  align-items: center;
+}
+
+.footerVersionTrigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .footerActions {
   position: absolute;
   right: 0;
@@ -543,10 +829,30 @@ button:hover {
   right: auto;
   transform: translateX(-50%);
   width: min(320px, calc(100vw - 24px));
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(6px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
 .footerPopover--wide {
   width: min(520px, calc(100vw - 24px));
+}
+
+.footerPopover--compactData {
+  width: min(340px, calc(100vw - 24px));
+  padding: 14px;
+}
+
+.footerPopover--compactData .footerPopoverHeader {
+  margin-bottom: 8px;
+}
+
+.footerVersionTrigger:hover .footerPopover--info,
+.footerVersionTrigger:focus-within .footerPopover--info {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
 }
 
 .footerPopoverHeader {
@@ -615,39 +921,6 @@ button:hover {
   color: white;
 }
 
-.dataIndicatorTooltip {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 10px);
-  width: 240px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(6px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.dataIndicator:hover .dataIndicatorTooltip,
-.dataIndicatorButton:focus-visible + .dataIndicatorTooltip {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.dataIndicatorTooltip strong,
-.dataIndicatorTooltip span {
-  display: block;
-}
-
-.dataIndicatorTooltip span {
-  margin-top: 6px;
-  color: rgba(255, 255, 255, 0.8);
-  line-height: 1.45;
-}
-
 .dataIndicatorGlyph {
   position: relative;
   display: inline-flex;
@@ -714,6 +987,20 @@ button:hover {
   gap: 0;
 }
 
+.dataSettingsPanel--popover {
+  gap: 2px;
+}
+
+.dataSettingsPanel--popover .settingsSection {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.dataSettingsPanel--popover .settingsSection h3 {
+  margin: 0 0 8px;
+  font-size: 0.92rem;
+}
+
 .dataSettingsHeader {
   display: flex;
   align-items: flex-start;
@@ -751,7 +1038,11 @@ button:hover {
 .dataModeGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
+}
+
+.dataModeGrid--popover {
+  gap: 10px;
 }
 
 .settingsOption--card {
@@ -762,13 +1053,167 @@ button:hover {
 }
 
 .settingsOption--active {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(147, 197, 253, 0.28);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.22), rgba(30, 64, 175, 0.18));
+  border-color: rgba(147, 197, 253, 0.38);
+  box-shadow: inset 0 0 0 1px rgba(191, 219, 254, 0.14);
+}
+
+.settingsOption--radio {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settingsOption--radio input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settingsOption--radio-page {
+  min-height: 62px;
+}
+
+.settingsOption--radio-popover {
+  min-height: 0;
+  padding: 10px 12px;
+}
+
+.settingsOptionControl {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  margin-top: 3px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.settingsOptionControl::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.18s ease, transform 0.18s ease;
+  transform: scale(0.92);
+}
+
+.settingsOption--active .settingsOptionControl {
+  border-color: rgba(30, 64, 175, 0.95);
+  background: rgba(147, 197, 253, 0.42);
+}
+
+.settingsOption--active .settingsOptionControl::after {
+  background: #1e3a8a;
+  transform: scale(1);
+}
+
+.settingsOption--radio strong {
+  display: block;
+}
+
+.settingsOption--radio .settingsHint {
+  margin-top: 5px;
 }
 
 .dataSettingsStats {
   display: grid;
   gap: 4px;
+}
+
+.dataSettingsStats--expanded {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 18px;
+  margin-top: 12px;
+}
+
+.dataSettingsStats--compact {
+  gap: 2px;
+}
+
+.dataSettingsSection--compactStatus {
+  margin-top: 6px;
+}
+
+.settingsActions--popover {
+  gap: 8px;
+}
+
+.settingsActionButton--compact {
+  min-width: 0;
+  padding: 0.48em 0.74em;
+  font-size: 0.8rem;
+}
+
+.dataSettingsDisclosure {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0;
+  overflow: hidden;
+}
+
+.dataSettingsDisclosureSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+.dataSettingsDisclosureSummary::-webkit-details-marker {
+  display: none;
+}
+
+.dataSettingsDisclosureValue {
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.dataSettingsDisclosure[open] {
+  padding-bottom: 12px;
+}
+
+.dataSettingsDisclosure .dataSettingsStats {
+  padding: 0 14px;
+}
+
+@media (max-height: 860px) {
+  .settingsPage {
+    padding-top: 18px;
+    padding-bottom: 58px;
+  }
+
+  .settingsPanel {
+    padding: 20px 22px 18px;
+  }
+
+  .settingsIntro {
+    margin-bottom: 12px;
+  }
+
+  .settingsSection {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+}
+
+@media (max-width: 960px) {
+  .settingsDifficultyGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .catalogListItem--interactive,
@@ -804,11 +1249,18 @@ button:hover {
   width: min(760px, 100%);
   max-height: min(88vh, 820px);
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   padding: 28px;
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.36);
+}
+
+.catalogDialog::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .catalogDialogClose {
@@ -829,6 +1281,35 @@ button:hover {
   background: transparent;
 }
 
+.catalogDetailTrail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.catalogDetailTrailStep {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  box-shadow: none;
+}
+
+.catalogDetailTrailStep:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.catalogDetailTrailStep--active,
+.catalogDetailTrailStep--active:hover {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.16);
+}
+
 .catalogDialogHeader {
   display: flex;
   align-items: flex-start;
@@ -836,8 +1317,25 @@ button:hover {
   gap: 18px;
 }
 
+.catalogDialogHero {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
 .catalogDialogHeader h2 {
   margin: 0;
+}
+
+.catalogDetailLead {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.5;
+}
+
+.catalogDetailSubtle {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.66);
 }
 
 .catalogDetailMetaGrid {
@@ -864,6 +1362,68 @@ button:hover {
   text-transform: uppercase;
 }
 
+.catalogDetailNarrative {
+  position: relative;
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 156px;
+  overflow: hidden;
+}
+
+.catalogDetailNarrative--expanded {
+  max-height: none;
+}
+
+.catalogDetailNarrative::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.9) 70%, rgba(15, 23, 42, 0.98));
+  pointer-events: none;
+}
+
+.catalogDetailNarrative--expanded::after {
+  display: none;
+}
+
+.catalogDetailNarrativeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.catalogDetailNarrative h3 {
+  margin: 0;
+}
+
+.catalogDetailNarrative p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.6;
+  padding-bottom: 22px;
+}
+
+.catalogDetailNarrative--expanded p {
+  padding-bottom: 0;
+}
+
+.catalogDetailNarrativeToggle {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
 .catalogRelationToolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -874,6 +1434,24 @@ button:hover {
 
 .catalogFutureAction {
   position: relative;
+}
+
+.catalogSearchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.catalogFutureAction {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+.catalogFutureAction--visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .catalogFutureAction button {
@@ -945,8 +1523,50 @@ button:hover {
   border-radius: 14px;
 }
 
-.catalogDialogListItem span:last-child {
-  color: rgba(255, 255, 255, 0.72);
+.catalogDialogListPrimary,
+.catalogListPrimary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.catalogDialogListPrimary > div:last-child,
+.catalogListPrimary > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.catalogDialogListPrimary span:first-child,
+.catalogListPrimary span:first-child {
+  font-weight: 700;
+}
+
+.catalogDialogListMeta,
+.catalogListMeta {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.82rem;
+}
+
+.catalogDialogListSecondary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.catalogDialogPopularity {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .levels-grid {
@@ -1153,6 +1773,12 @@ button:hover {
   text-align: left;
 }
 
+.searchOptionPrimaryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .searchOption:hover {
   background: rgba(255, 255, 255, 0.08);
 }
@@ -1164,9 +1790,76 @@ button:hover {
 .searchOptionMeta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   color: rgba(255, 255, 255, 0.68);
   font-size: 0.82rem;
+}
+
+.entityArtwork {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  flex: 0 0 auto;
+}
+
+.entityArtwork--search,
+.entityArtwork--row {
+  width: 44px;
+  height: 44px;
+}
+
+.entityArtwork--path,
+.entityArtwork--preview {
+  width: 56px;
+  height: 56px;
+}
+
+.entityArtwork--hero {
+  width: 112px;
+  height: 112px;
+  border-radius: 20px;
+}
+
+.entityArtwork__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.entityArtwork__emoji {
+  font-size: 1.45rem;
+}
+
+.entityBadgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.entityBadgeRow--search {
+  margin-top: 2px;
+}
+
+.entityBadgeRow--detail {
+  margin-top: 18px;
+}
+
+.entityBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 .searchDropdownEmpty {
@@ -1184,6 +1877,44 @@ button:hover {
   width: 100%;
 }
 
+.entityPreviewRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.entityPreviewCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.entityPreviewCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.entityPreviewCopy strong,
+.entityPreviewCopy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entityPreviewLabel {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .pathResultList {
   display: flex;
   flex-wrap: wrap;
@@ -1195,9 +1926,20 @@ button:hover {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 20px;
+}
+
+.pathNode--interactive {
+  color: white;
+  text-align: left;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.pathNode--interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
 .pathNode--actor {
@@ -1212,6 +1954,21 @@ button:hover {
 
 .pathNodeArrow {
   color: rgba(255, 255, 255, 0.72);
+}
+
+.pathNodeCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pathNodeCopy strong {
+  font-size: 0.95rem;
+}
+
+.pathNodeCopy span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.76rem;
 }
 
 .catalogGrid {
@@ -1347,9 +2104,17 @@ button:hover {
   justify-content: flex-end;
 }
 
+.catalogSortButton--static {
+  cursor: default;
+}
+
 .catalogSortButton:hover {
   background: transparent;
   color: white;
+}
+
+.catalogSortButton--static:hover {
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .catalogListItem {
@@ -1382,6 +2147,10 @@ button:hover {
   }
 
   .catalogGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .entityPreviewRow {
     grid-template-columns: 1fr;
   }
 
@@ -1425,6 +2194,14 @@ button:hover {
   .catalogDialogHeader {
     display: flex;
     flex-direction: column;
+  }
+
+  .catalogDialogHero {
+    flex-direction: column;
+  }
+
+  .catalogDialogListSecondary {
+    justify-content: flex-start;
   }
 
   .catalogFutureAction button {

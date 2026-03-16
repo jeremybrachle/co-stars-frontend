@@ -1,4 +1,5 @@
 import "./GameLeftPanel.css";
+import EntityArtwork from "../EntityArtwork";
 import type { GameNode } from "../../types";
 import { MAX_PATH_LENGTH } from "../../gameplay";
 
@@ -11,7 +12,7 @@ type BoardPoint = {
 
 type BoardToken = {
   key: string;
-  text: string;
+  node: GameNode;
   fontSize: number;
   side: Side;
   coord: BoardPoint;
@@ -20,7 +21,7 @@ type BoardToken = {
   isCurrent: boolean;
   isDimmed: boolean;
   removable: boolean;
-  onSelect?: () => void;
+  onInspect: () => void;
   onRemove?: () => void;
 };
 
@@ -43,7 +44,9 @@ type Props = {
   completedPath?: GameNode[];
   currentHops: number;
   optimalHops: number | null;
+  showOptimalTracking: boolean;
   onSelectSide: (side: SelectedSide) => void;
+  onInspectNode: (node: GameNode) => void;
   onRemoveTopPathItem: () => void;
   onRemoveBottomPathItem: () => void;
 };
@@ -153,6 +156,7 @@ function buildBoardTokens({
   cappedSide,
   fontSize,
   onSelectSide,
+  onInspectNode,
   onRemove,
 }: {
   path: GameNode[];
@@ -162,6 +166,7 @@ function buildBoardTokens({
   cappedSide: Side | null;
   fontSize: number;
   onSelectSide: (side: Side) => void;
+  onInspectNode: (node: GameNode) => void;
   onRemove: () => void;
 }) {
   const order = getOrderForSide(side);
@@ -176,7 +181,7 @@ function buildBoardTokens({
 
     return {
       key: `${side}-${step.type}-${step.label}-${index}`,
-      text: step.label,
+      node: step,
       fontSize,
       side,
       coord,
@@ -185,7 +190,7 @@ function buildBoardTokens({
       isCurrent,
       isDimmed: !isActivePath,
       removable: isCurrent,
-      onSelect: isCurrent ? () => onSelectSide(side) : undefined,
+      onInspect: () => onInspectNode(step),
       onRemove: isCurrent ? onRemove : undefined,
     };
   });
@@ -207,19 +212,19 @@ function buildBoardTokens({
 }
 
 function renderStepRow({
-  text,
+  node,
   fontSize,
   isCurrent,
   removable,
   onRemove,
-  onSelect,
+  onInspect,
 }: {
-  text: string;
+  node: GameNode;
   fontSize: number;
   isCurrent: boolean;
   removable: boolean;
   onRemove?: () => void;
-  onSelect?: () => void;
+  onInspect: () => void;
 }) {
   return (
     <div className="game-left-panel__step-row">
@@ -231,17 +236,27 @@ function renderStepRow({
             event.stopPropagation();
             onRemove?.();
           }}
-          aria-label={`Remove ${text} from current path`}
+          aria-label={`Remove ${node.label} from current path`}
         >
           ×
         </button>
       ) : null}
       <div
         className={`game-left-panel__actor-box game-left-panel__board-box${isCurrent ? " game-left-panel__actor-box--path-current-primary" : " game-left-panel__actor-box--placed"}`}
-        style={{ fontSize }}
-        onClick={onSelect}
+        style={{ fontSize: `${fontSize}px` }}
+        onClick={onInspect}
       >
-        {text}
+        <div className="game-left-panel__node-identity">
+          <EntityArtwork
+            type={node.type}
+            label={node.label}
+            imageUrl={node.imageUrl}
+            className="game-left-panel__node-artwork"
+            imageClassName="game-left-panel__node-artwork-image"
+            placeholderClassName="game-left-panel__node-artwork-emoji"
+          />
+          <span className="game-left-panel__node-label">{node.label}</span>
+        </div>
       </div>
     </div>
   );
@@ -249,12 +264,12 @@ function renderStepRow({
 
 function renderBoardToken(token: BoardToken) {
   const tokenRow = renderStepRow({
-    text: token.text,
+    node: token.node,
     fontSize: token.fontSize,
     isCurrent: token.isCurrent,
     removable: token.removable,
     onRemove: token.onRemove,
-    onSelect: token.onSelect,
+    onInspect: token.onInspect,
   });
 
   const originArrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${token.side === "top" ? "game-left-panel__board-arrow--up-origin" : "game-left-panel__board-arrow--down-origin"}${token.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
@@ -280,7 +295,7 @@ function renderBoardEllipsis(ellipsis: BoardEllipsis) {
   );
 }
 
-function renderCompletedBoard(completedPath: GameNode[]) {
+function renderCompletedBoard(completedPath: GameNode[], onInspectNode: (node: GameNode) => void) {
   const totalNodes = completedPath.length;
   const columns = Math.min(4, Math.max(2, totalNodes >= 4 ? 4 : totalNodes));
   const rows = Math.max(1, Math.ceil(totalNodes / columns));
@@ -293,11 +308,12 @@ function renderCompletedBoard(completedPath: GameNode[]) {
         style={{
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+          gap: rows === 2 ? "10px 26px" : undefined,
         }}
       >
         {completedPath.map((node, index) => {
           const coord = snakeOrder[index];
-          const nextCoord = snakeOrder[index + 1];
+          const nextCoord = index < completedPath.length - 1 ? snakeOrder[index + 1] : undefined;
           const outgoingArrow = nextCoord ? getDirectionalArrow(coord, nextCoord) : undefined;
           const isEndpoint = index === 0 || index === completedPath.length - 1;
 
@@ -315,13 +331,45 @@ function renderCompletedBoard(completedPath: GameNode[]) {
                 ) : null}
                 <div
                   className={`game-left-panel__actor-box game-left-panel__board-box game-left-panel__completed-node${isEndpoint ? " game-left-panel__completed-node--endpoint" : ""}`}
+                  onClick={() => onInspectNode(node)}
                 >
-                  {node.label}
+                  <div className="game-left-panel__node-identity">
+                    <EntityArtwork
+                      type={node.type}
+                      label={node.label}
+                      imageUrl={node.imageUrl}
+                      className="game-left-panel__node-artwork"
+                      imageClassName="game-left-panel__node-artwork-image"
+                      placeholderClassName="game-left-panel__node-artwork-emoji"
+                    />
+                    <span className="game-left-panel__node-label">{node.label}</span>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function renderEndpoint(node: GameNode, side: SelectedSide, isSelected: boolean, onInspectNode: (node: GameNode) => void) {
+  return (
+    <div
+      className={`game-left-panel__actor-box game-left-panel__endpoint${side === "top" ? " game-left-panel__actor-box--top" : " game-left-panel__actor-box--bottom"}${isSelected ? ` game-left-panel__actor-box--selected-side-${side}` : ""}`}
+      onClick={() => onInspectNode(node)}
+    >
+      <div className="game-left-panel__node-identity game-left-panel__node-identity--endpoint">
+        <EntityArtwork
+          type={node.type}
+          label={node.label}
+          imageUrl={node.imageUrl}
+          className="game-left-panel__endpoint-artwork"
+          imageClassName="game-left-panel__node-artwork-image"
+          placeholderClassName="game-left-panel__node-artwork-emoji"
+        />
+        <span className="game-left-panel__endpoint-label">{node.label}</span>
       </div>
     </div>
   );
@@ -337,7 +385,9 @@ function GameLeftPanel({
   completedPath,
   currentHops,
   optimalHops,
+  showOptimalTracking,
   onSelectSide,
+  onInspectNode,
   onRemoveTopPathItem,
   onRemoveBottomPathItem,
 }: Props) {
@@ -356,6 +406,7 @@ function GameLeftPanel({
     cappedSide,
     fontSize: topFontSize,
     onSelectSide,
+    onInspectNode,
     onRemove: onRemoveTopPathItem,
   });
 
@@ -367,6 +418,7 @@ function GameLeftPanel({
     cappedSide,
     fontSize: bottomFontSize,
     onSelectSide,
+    onInspectNode,
     onRemove: onRemoveBottomPathItem,
   });
 
@@ -399,24 +451,23 @@ function GameLeftPanel({
     <section className="game-left-panel">
       <div className="game-left-panel__status-row">
         <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
-        <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
-          Optimal hops: {optimalHops ?? "--"}
-        </span>
+        {showOptimalTracking ? (
+          <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
+            Optimal hops: {optimalHops ?? "--"}
+          </span>
+        ) : null}
       </div>
 
       {completedPath ? (
         <>
+          {renderEndpoint(actorA, "top", false, onInspectNode)}
           <div className="game-left-panel__completion-heading">Completed path</div>
-          {renderCompletedBoard(completedPath)}
+          {renderCompletedBoard(completedPath, onInspectNode)}
+          {renderEndpoint(actorB, "bottom", false, onInspectNode)}
         </>
       ) : (
         <>
-          <div
-            className={`game-left-panel__actor-box game-left-panel__actor-box--top${selectedSide === "top" ? " game-left-panel__actor-box--selected-side-top" : ""}`}
-            onClick={() => onSelectSide("top")}
-          >
-            {actorA.label}
-          </div>
+          {renderEndpoint(actorA, "top", selectedSide === "top", onInspectNode)}
 
           <div className="game-left-panel__path-area">
             <div className="game-left-panel__board">
@@ -437,12 +488,7 @@ function GameLeftPanel({
             </div>
           </div>
 
-          <div
-            className={`game-left-panel__actor-box game-left-panel__actor-box--bottom${selectedSide === "bottom" ? " game-left-panel__actor-box--selected-side-bottom" : ""}`}
-            onClick={() => onSelectSide("bottom")}
-          >
-            {actorB.label}
-          </div>
+          {renderEndpoint(actorB, "bottom", selectedSide === "bottom", onInspectNode)}
         </>
       )}
     </section>

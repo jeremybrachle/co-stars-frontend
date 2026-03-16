@@ -1,27 +1,26 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { fetchActorMovies, fetchMovieActors } from "../api/costars"
+import EntityDetailsDialog, {
+  type EntityDetailsDialogData,
+  type EntityDetailsHistoryEntry,
+  type EntityDetailsRelatedEntity,
+} from "../components/EntityDetailsDialog"
+import EntityArtwork from "../components/EntityArtwork"
 import PageBackButton from "../components/PageBackButton"
+import {
+  buildCatalogDetailDialogData,
+  type CatalogDetailEntry,
+  loadCatalogRelatedEntities,
+} from "../data/catalogEntityDetails"
 import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
 import { resolveCatalogSource } from "../data/catalogSource"
 import { isOnlineSnapshotMode } from "../data/dataSourcePreferences"
+import { buildNextDetailTrail, sortMoviesByReleaseDateDescending } from "../data/entityDetails"
+import { formatActorInlineMeta, formatMovieInlineMeta } from "../data/presentation"
 import type { Actor, EffectiveDataSource, Movie, SnapshotIndexes } from "../types"
 
 type ActorSortMode = "name-asc" | "name-desc" | "popularity-desc" | "popularity-asc"
-type MovieSortMode = "title-asc" | "title-desc" | "release-desc" | "release-asc"
-
-type CatalogDetail =
-  | { type: "actor"; item: Actor }
-  | { type: "movie"; item: Movie }
-  | null
-
-type RelatedEntity = {
-  id: number
-  type: "actor" | "movie"
-  label: string
-  meta: string
-}
 
 function normalizeSearchValue(value: string) {
   return value.trim().toLocaleLowerCase()
@@ -43,22 +42,6 @@ function compareNullableNumber(left: number | null, right: number | null) {
   return left - right
 }
 
-function compareNullableDate(left: string | null, right: string | null) {
-  if (!left && !right) {
-    return 0
-  }
-
-  if (!left) {
-    return 1
-  }
-
-  if (!right) {
-    return -1
-  }
-
-  return left.localeCompare(right)
-}
-
 function getNextActorSortMode(current: ActorSortMode, column: "name" | "popularity"): ActorSortMode {
   if (column === "name") {
     return current === "name-asc" ? "name-desc" : "name-asc"
@@ -67,165 +50,16 @@ function getNextActorSortMode(current: ActorSortMode, column: "name" | "populari
   return current === "popularity-desc" ? "popularity-asc" : "popularity-desc"
 }
 
-function getNextMovieSortMode(current: MovieSortMode, column: "title" | "release"): MovieSortMode {
-  if (column === "title") {
-    return current === "title-asc" ? "title-desc" : "title-asc"
-  }
-
-  return current === "release-desc" ? "release-asc" : "release-desc"
-}
-
 function getSortIndicator(isAscending: boolean) {
   return isAscending ? "↑" : "↓"
 }
 
 function formatActorMeta(actor: Actor) {
-  return actor.popularity === null ? "Popularity unavailable" : `Popularity ${actor.popularity}`
+  return formatActorInlineMeta(actor)
 }
 
 function formatMovieMeta(movie: Movie) {
-  return movie.releaseDate ?? "Release date unavailable"
-}
-
-function createActorRelations(actor: Actor, indexes: SnapshotIndexes): RelatedEntity[] {
-  const movieIds = indexes.actorToMovies[String(actor.id)] ?? []
-
-  return movieIds
-    .map((movieId) => indexes.moviesById.get(movieId))
-    .filter((movie): movie is Movie => !!movie)
-    .map((movie) => ({
-      id: movie.id,
-      type: "movie",
-      label: movie.title,
-      meta: formatMovieMeta(movie),
-    }))
-}
-
-function createMovieRelations(movie: Movie, indexes: SnapshotIndexes): RelatedEntity[] {
-  const actorIds = indexes.movieToActors[String(movie.id)] ?? []
-
-  return actorIds
-    .map((actorId) => indexes.actorsById.get(actorId))
-    .filter((actor): actor is Actor => !!actor)
-    .map((actor) => ({
-      id: actor.id,
-      type: "actor",
-      label: actor.name,
-      meta: formatActorMeta(actor),
-    }))
-}
-
-function CatalogDetailDialog({
-  detail,
-  relationSearch,
-  relatedEntities,
-  isLoading,
-  errorMessage,
-  onClose,
-  onRelationSearchChange,
-  onOpenRelatedEntity,
-}: {
-  detail: CatalogDetail
-  relationSearch: string
-  relatedEntities: RelatedEntity[]
-  isLoading: boolean
-  errorMessage: string | null
-  onClose: () => void
-  onRelationSearchChange: (value: string) => void
-  onOpenRelatedEntity: (entity: RelatedEntity) => void
-}) {
-  if (!detail) {
-    return null
-  }
-
-  const relationshipLabel = detail.type === "actor" ? "Movies in catalog" : "Actors in catalog"
-  const filteredEntities = relatedEntities.filter((entity) => {
-    if (!relationSearch.trim()) {
-      return true
-    }
-
-    return normalizeSearchValue(entity.label).includes(normalizeSearchValue(relationSearch))
-  })
-
-  return (
-    <div className="catalogDialogOverlay" onClick={onClose}>
-      <div className="catalogDialog" onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="catalogDialogClose" onClick={onClose} aria-label="Close details">×</button>
-
-        <div className="catalogDialogHeader">
-          <div>
-            <div className="pageEyebrow">{detail.type === "actor" ? "Actor Details" : "Movie Details"}</div>
-            <h2>{detail.type === "actor" ? detail.item.name : detail.item.title}</h2>
-          </div>
-          <div className={`searchSelectionBadge searchSelectionBadge--${detail.type}`}>{detail.type}</div>
-        </div>
-
-        <div className="catalogDetailMetaGrid">
-          <div className="catalogDetailMetaCard">
-            <span className="catalogDetailMetaLabel">Catalog id</span>
-            <strong>{detail.item.id}</strong>
-          </div>
-          {detail.type === "actor" ? (
-            <div className="catalogDetailMetaCard">
-              <span className="catalogDetailMetaLabel">Popularity</span>
-              <strong>{detail.item.popularity ?? "--"}</strong>
-            </div>
-          ) : (
-            <div className="catalogDetailMetaCard">
-              <span className="catalogDetailMetaLabel">Release date</span>
-              <strong>{detail.item.releaseDate ?? "Unknown"}</strong>
-            </div>
-          )}
-          <div className="catalogDetailMetaCard">
-            <span className="catalogDetailMetaLabel">Connected entries</span>
-            <strong>{relatedEntities.length}</strong>
-          </div>
-        </div>
-
-        <div className="catalogRelationToolbar">
-          <label className="catalogControlField">
-            <span>Search this list or stage an add</span>
-            <input
-              type="text"
-              value={relationSearch}
-              onChange={(event) => onRelationSearchChange(event.target.value)}
-              placeholder={detail.type === "actor" ? "Search filmography or type a movie title" : "Search cast or type an actor name"}
-              autoFocus
-            />
-          </label>
-          <div className="catalogFutureAction">
-            <button type="button" disabled aria-disabled="true">Add to list</button>
-            <span className="catalogFutureHint">Add/edit support is planned for a future release.</span>
-          </div>
-        </div>
-
-        <div className="catalogDialogListHeader">
-          <h3>{relationshipLabel}</h3>
-          <span>{filteredEntities.length}</span>
-        </div>
-
-        {isLoading ? <div className="pageStatus">Loading connected entries…</div> : null}
-        {errorMessage ? <div className="pageStatus pageStatus--error">{errorMessage}</div> : null}
-
-        <div className="catalogDialogList">
-          {!isLoading && !errorMessage && filteredEntities.length === 0 ? (
-            <div className="catalogEmptyState">No connected entries matched the current search.</div>
-          ) : null}
-          {filteredEntities.map((entity) => (
-            <button
-              key={`${entity.type}-${entity.id}`}
-              type="button"
-              className="catalogDialogListItem"
-              onClick={() => onOpenRelatedEntity(entity)}
-            >
-              <span>{entity.label}</span>
-              <span>{entity.meta}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
+  return formatMovieInlineMeta(movie)
 }
 
 function GameDataPage() {
@@ -239,13 +73,13 @@ function GameDataPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actorSearch, setActorSearch] = useState("")
   const [movieSearch, setMovieSearch] = useState("")
-  const [actorSortMode, setActorSortMode] = useState<ActorSortMode>("name-asc")
-  const [movieSortMode, setMovieSortMode] = useState<MovieSortMode>("title-asc")
-  const [activeDetail, setActiveDetail] = useState<CatalogDetail>(null)
+  const [actorSortMode, setActorSortMode] = useState<ActorSortMode>("popularity-desc")
+  const [detailTrail, setDetailTrail] = useState<CatalogDetailEntry[]>([])
   const [relationSearch, setRelationSearch] = useState("")
-  const [relatedEntities, setRelatedEntities] = useState<RelatedEntity[]>([])
+  const [relatedEntities, setRelatedEntities] = useState<EntityDetailsRelatedEntity[]>([])
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const activeDetail = detailTrail.length > 0 ? detailTrail[detailTrail.length - 1] : null
 
   useEffect(() => {
     let isMounted = true
@@ -306,29 +140,13 @@ function GameDataPage() {
       setDetailError(null)
 
       try {
-        let nextRelations: RelatedEntity[]
-
-        if ((activeSource === "snapshot" || activeSource === "demo") && catalogIndexes) {
-          nextRelations = activeDetail.type === "actor"
-            ? createActorRelations(activeDetail.item, catalogIndexes)
-            : createMovieRelations(activeDetail.item, catalogIndexes)
-        } else if (activeDetail.type === "actor") {
-          const actorMovies = await fetchActorMovies(activeDetail.item.id)
-          nextRelations = actorMovies.map((movie) => ({
-            id: movie.id,
-            type: "movie",
-            label: movie.title,
-            meta: movie.releaseDate ?? "Release date unavailable",
-          }))
-        } else {
-          const movieActors = await fetchMovieActors(activeDetail.item.id, [])
-          nextRelations = movieActors.map((actor) => ({
-            id: actor.id,
-            type: "actor",
-            label: actor.name,
-            meta: formatActorMeta(actor),
-          }))
-        }
+        const nextRelations = await loadCatalogRelatedEntities({
+          detail: activeDetail,
+          activeSource,
+          catalogIndexes,
+          actors,
+          movies,
+        })
 
         if (!isMounted) {
           return
@@ -354,7 +172,19 @@ function GameDataPage() {
     return () => {
       isMounted = false
     }
-  }, [activeDetail, activeSource, catalogIndexes])
+  }, [activeDetail, activeSource, actors, catalogIndexes, movies])
+
+  const detailDialogData = useMemo<EntityDetailsDialogData | null>(() => {
+    return activeDetail ? buildCatalogDetailDialogData(activeDetail, relatedEntities.length) : null
+  }, [activeDetail, relatedEntities.length])
+
+  const detailHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
+    return detailTrail.map((entry) => ({
+      key: `${entry.type}-${entry.item.id}`,
+      type: entry.type,
+      label: entry.type === "actor" ? entry.item.name : entry.item.title,
+    }))
+  }, [detailTrail])
 
   const filteredActors = useMemo(() => {
     const normalizedSearch = normalizeSearchValue(actorSearch)
@@ -395,35 +225,49 @@ function GameDataPage() {
       return normalizeSearchValue(movie.title).includes(normalizedSearch)
     })
 
-    return filtered.sort((left, right) => {
-      if (movieSortMode === "title-asc") {
-        return left.title.localeCompare(right.title)
-      }
+    return sortMoviesByReleaseDateDescending(filtered, (movie) => movie.releaseDate, (movie) => movie.title)
+  }, [movieSearch, movies])
 
-      if (movieSortMode === "title-desc") {
-        return right.title.localeCompare(left.title)
-      }
+  const actorCanStageAdd = useMemo(() => {
+    const normalized = normalizeSearchValue(actorSearch)
 
-      if (movieSortMode === "release-desc") {
-        return compareNullableDate(right.releaseDate, left.releaseDate) || left.title.localeCompare(right.title)
-      }
+    if (!normalized) {
+      return false
+    }
 
-      return compareNullableDate(left.releaseDate, right.releaseDate) || left.title.localeCompare(right.title)
-    })
-  }, [movieSearch, movieSortMode, movies])
+    return !actors.some((actor) => normalizeSearchValue(actor.name) === normalized)
+  }, [actorSearch, actors])
 
-  const handleOpenRelatedEntity = (entity: RelatedEntity) => {
+  const movieCanStageAdd = useMemo(() => {
+    const normalized = normalizeSearchValue(movieSearch)
+
+    if (!normalized) {
+      return false
+    }
+
+    return !movies.some((movie) => normalizeSearchValue(movie.title) === normalized)
+  }, [movieSearch, movies])
+
+  const handleOpenRelatedEntity = (entity: EntityDetailsRelatedEntity) => {
     if (entity.type === "actor") {
       const actor = actors.find((candidate) => candidate.id === entity.id)
       if (actor) {
-        setActiveDetail({ type: "actor", item: actor })
+        setDetailTrail((currentTrail) => buildNextDetailTrail(
+          currentTrail,
+          { type: "actor", item: actor },
+          (left, right) => left.type === right.type && left.item.id === right.item.id,
+        ))
       }
       return
     }
 
     const movie = movies.find((candidate) => candidate.id === entity.id)
     if (movie) {
-      setActiveDetail({ type: "movie", item: movie })
+      setDetailTrail((currentTrail) => buildNextDetailTrail(
+        currentTrail,
+        { type: "movie", item: movie },
+        (left, right) => left.type === right.type && left.item.id === right.item.id,
+      ))
     }
   }
 
@@ -445,16 +289,22 @@ function GameDataPage() {
               <span>{filteredActors.length}</span>
             </div>
             <div className="catalogControls">
-              <label className="catalogControlField">
-                <span>Search</span>
-                <input
-                  type="text"
-                  value={actorSearch}
-                  onChange={(event) => setActorSearch(event.target.value)}
-                  placeholder="Search actors by name"
-                  disabled={isLoading}
-                />
-              </label>
+              <div className="catalogSearchRow">
+                <label className="catalogControlField">
+                  <span>Search or stage an add</span>
+                  <input
+                    type="text"
+                    value={actorSearch}
+                    onChange={(event) => setActorSearch(event.target.value)}
+                    placeholder="Search actors by name or type a new one"
+                    disabled={isLoading}
+                  />
+                </label>
+                <div className={`catalogFutureAction${actorCanStageAdd ? " catalogFutureAction--visible" : ""}`}>
+                  <button type="button" disabled aria-disabled="true">Add</button>
+                  <span className="catalogFutureHint">Add/edit support is planned for a future release.</span>
+                </div>
+              </div>
             </div>
             <div className="catalogListShell">
               <div className="catalogList catalogList--withHeader">
@@ -469,9 +319,22 @@ function GameDataPage() {
                   </button>
                 </div>
                 {filteredActors.map((actor) => (
-                  <button key={actor.id} type="button" className="catalogListItem catalogListItem--interactive" onClick={() => setActiveDetail({ type: "actor", item: actor })}>
-                    <span>{actor.name}</span>
-                    <span>{actor.popularity ?? "--"}</span>
+                  <button key={actor.id} type="button" className="catalogListItem catalogListItem--interactive" onClick={() => setDetailTrail([{ type: "actor", item: actor }])}>
+          <div className="catalogListPrimary">
+            <EntityArtwork
+            type="actor"
+            label={actor.name}
+            imageUrl={actor.profileUrl}
+            className="entityArtwork entityArtwork--row"
+            imageClassName="entityArtwork__image"
+            placeholderClassName="entityArtwork__emoji"
+            />
+            <div>
+            <span>{actor.name}</span>
+            <span className="catalogListMeta">{formatActorMeta(actor)}</span>
+            </div>
+          </div>
+          <span>{actor.popularity?.toFixed(1) ?? "--"}</span>
                   </button>
                 ))}
                 {filteredActors.length === 0 ? <div className="catalogEmptyState">No actors matched the current search.</div> : null}
@@ -485,33 +348,46 @@ function GameDataPage() {
               <span>{filteredMovies.length}</span>
             </div>
             <div className="catalogControls">
-              <label className="catalogControlField">
-                <span>Search</span>
-                <input
-                  type="text"
-                  value={movieSearch}
-                  onChange={(event) => setMovieSearch(event.target.value)}
-                  placeholder="Search movies by title"
-                  disabled={isLoading}
-                />
-              </label>
+              <div className="catalogSearchRow">
+                <label className="catalogControlField">
+                  <span>Search or stage an add</span>
+                  <input
+                    type="text"
+                    value={movieSearch}
+                    onChange={(event) => setMovieSearch(event.target.value)}
+                    placeholder="Search movies by title or type a new one"
+                    disabled={isLoading}
+                  />
+                </label>
+                <div className={`catalogFutureAction${movieCanStageAdd ? " catalogFutureAction--visible" : ""}`}>
+                  <button type="button" disabled aria-disabled="true">Add</button>
+                  <span className="catalogFutureHint">Add/edit support is planned for a future release.</span>
+                </div>
+              </div>
             </div>
             <div className="catalogListShell">
               <div className="catalogList catalogList--withHeader">
                 <div className="catalogListHeader">
-                  <button type="button" className="catalogSortButton" onClick={() => setMovieSortMode(getNextMovieSortMode(movieSortMode, "title"))}>
-                    <span>Title</span>
-                    {movieSortMode === "title-asc" || movieSortMode === "title-desc" ? <span>{getSortIndicator(movieSortMode === "title-asc")}</span> : null}
-                  </button>
-                  <button type="button" className="catalogSortButton catalogSortButton--numeric" onClick={() => setMovieSortMode(getNextMovieSortMode(movieSortMode, "release"))}>
-                    <span>Release Date</span>
-                    {movieSortMode === "release-asc" || movieSortMode === "release-desc" ? <span>{getSortIndicator(movieSortMode === "release-asc")}</span> : null}
-                  </button>
+                  <span className="catalogSortButton catalogSortButton--static">Title</span>
+                  <span className="catalogSortButton catalogSortButton--numeric catalogSortButton--static">Release Date ↓</span>
                 </div>
                 {filteredMovies.map((movie) => (
-                  <button key={movie.id} type="button" className="catalogListItem catalogListItem--interactive" onClick={() => setActiveDetail({ type: "movie", item: movie })}>
-                    <span>{movie.title}</span>
-                    <span>{movie.releaseDate ?? "--"}</span>
+                  <button key={movie.id} type="button" className="catalogListItem catalogListItem--interactive" onClick={() => setDetailTrail([{ type: "movie", item: movie }])}>
+          <div className="catalogListPrimary">
+            <EntityArtwork
+            type="movie"
+            label={movie.title}
+            imageUrl={movie.posterUrl}
+            className="entityArtwork entityArtwork--row"
+            imageClassName="entityArtwork__image"
+            placeholderClassName="entityArtwork__emoji"
+            />
+            <div>
+            <span>{movie.title}</span>
+            <span className="catalogListMeta">{formatMovieMeta(movie)}</span>
+            </div>
+          </div>
+          <span>{movie.releaseDate ?? "--"}</span>
                   </button>
                 ))}
                 {filteredMovies.length === 0 ? <div className="catalogEmptyState">No movies matched the current search.</div> : null}
@@ -523,15 +399,17 @@ function GameDataPage() {
         <Link to="/" className="pageBackLink">Back to Home</Link>
       </div>
 
-      <CatalogDetailDialog
-        detail={activeDetail}
+      <EntityDetailsDialog
+        detail={detailDialogData}
+        history={detailHistory}
         relationSearch={relationSearch}
         relatedEntities={relatedEntities}
         isLoading={isDetailLoading}
         errorMessage={detailError}
-        onClose={() => setActiveDetail(null)}
+        onClose={() => setDetailTrail([])}
         onRelationSearchChange={setRelationSearch}
         onOpenRelatedEntity={handleOpenRelatedEntity}
+        onNavigateHistory={(index) => setDetailTrail((currentTrail) => currentTrail.slice(0, index + 1))}
       />
     </div>
   )

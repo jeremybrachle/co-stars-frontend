@@ -6,6 +6,13 @@ export type GameNode = {
 	type: NodeType;
 	popularity?: number | null;
 	releaseDate?: string | null;
+	imageUrl?: string | null;
+	knownForDepartment?: string | null;
+	placeOfBirth?: string | null;
+	genres?: string[];
+	contentRating?: string | null;
+	originalLanguage?: string | null;
+	overview?: string | null;
 	pathHint?: PathHint;
 	popularityRank?: number | null;
 	highlight?: SuggestionHighlight;
@@ -27,12 +34,25 @@ export type Actor = {
 	id: number;
 	name: string;
 	popularity: number | null;
+	birthday?: string | null;
+	deathday?: string | null;
+	placeOfBirth?: string | null;
+	biography?: string | null;
+	profilePath?: string | null;
+	profileUrl?: string | null;
+	knownForDepartment?: string | null;
 };
 
 export type Movie = {
 	id: number;
 	title: string;
 	releaseDate: string | null;
+	genres?: string[];
+	overview?: string | null;
+	posterPath?: string | null;
+	posterUrl?: string | null;
+	originalLanguage?: string | null;
+	contentRating?: string | null;
 };
 
 export type ActorSuggestion = Actor & {
@@ -70,7 +90,7 @@ export type ValidatePathResponse = {
 };
 
 export type SuggestionHighlight = {
-	kind: "connection" | "optimal";
+	kind: "connection" | "optimal" | "loop" | "deep-loop" | "cast-lock" | "full-cast-lock" | "blocked";
 	label: string;
 	description: string;
 };
@@ -147,6 +167,44 @@ export type DataSourceMode = {
 };
 
 export type EffectiveDataSource = "snapshot" | "api" | "demo";
+
+export type DifficultyOption = "easy" | "medium" | "hard" | "custom";
+
+export type DifficultyToggleId =
+	| "show-suggestions"
+	| "show-hint-color"
+	| "show-optimal-tracking"
+	| "guarantee-best-path-suggestion"
+	| "show-visited-suggestions"
+	| "sort-suggestions-by-risk-priority"
+	| "cycle-risk-click-adds-penalty"
+	| "show-cast-lock-risk"
+	| "show-full-cast-lock";
+
+export type DifficultySettings = Record<DifficultyToggleId, boolean>;
+
+export type SuggestionViewMode = "all" | "subset";
+export type SuggestionWindowMode = "pagination" | "scroll";
+
+export type SuggestionDisplaySettings = {
+	viewMode: SuggestionViewMode;
+	subsetCount: number;
+	allWindowMode: SuggestionWindowMode;
+};
+
+export type GameDataFilters = {
+	actorPopularityCutoff: number | null;
+	releaseYearCutoff: number | null;
+	movieSortMode: "releaseYear" | "random";
+	actorSortMode: "popularity" | "random";
+};
+
+export type GameDifficultySettings = {
+	difficulty: DifficultyOption;
+	customSettings: DifficultySettings;
+	dataFilters: GameDataFilters;
+	suggestionDisplay: SuggestionDisplaySettings;
+};
 
 export type DataIndicatorVariant =
 	| "online-snapshot"
