@@ -8,6 +8,7 @@ exports.getMoviesForActor = getMoviesForActor;
 exports.getActorsForMovie = getActorsForMovie;
 exports.generateLocalPath = generateLocalPath;
 exports.validateLocalPath = validateLocalPath;
+const entityDetails_1 = require("./entityDetails");
 function normalizeLookupKey(value) {
     return value.trim().toLocaleLowerCase();
 }
@@ -123,7 +124,7 @@ function isNonNull(value) {
 }
 function getMoviesForActor(actorId, target, indexes) {
     const movieIds = indexes.actorToMovies[String(actorId)] ?? [];
-    return movieIds
+    return (0, entityDetails_1.sortMoviesByReleaseDateDescending)(movieIds
         .map((movieId) => {
         const movie = indexes.moviesById.get(movieId);
         if (!movie) {
@@ -143,7 +144,7 @@ function getMoviesForActor(actorId, target, indexes) {
             pathHint: target ? createPathHint(summary, target, indexes) : undefined,
         };
     })
-        .filter(isNonNull);
+        .filter(isNonNull), (entry) => entry.releaseDate, (entry) => entry.label);
 }
 function getActorsForMovie(movieId, excludedNames, target, indexes) {
     const excluded = new Set(excludedNames.map(normalizeLookupKey));

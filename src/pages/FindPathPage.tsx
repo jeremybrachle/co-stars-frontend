@@ -1,15 +1,25 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
+import EntityDetailsDialog, {
+  type EntityDetailsHistoryEntry,
+  type EntityDetailsRelatedEntity,
+} from "../components/EntityDetailsDialog"
 import { generatePath } from "../api/costars"
 import EntityArtwork from "../components/EntityArtwork"
 import PageBackButton from "../components/PageBackButton"
+import {
+  buildCatalogDetailDialogData,
+  type CatalogDetailEntry,
+  loadCatalogRelatedEntities,
+} from "../data/catalogEntityDetails"
 import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
 import { formatActorInlineMeta, formatMovieInlineMeta, formatYear, getMovieBadges } from "../data/presentation"
 import { resolveCatalogSource } from "../data/catalogSource"
 import { isOnlineSnapshotMode } from "../data/dataSourcePreferences"
+import { buildNextDetailTrail, compareNullableDateDescending } from "../data/entityDetails"
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph"
-import type { Actor, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types"
+import type { Actor, EffectiveDataSource, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types"
 
 type PathResult = {
   nodes: NodeSummary[]
@@ -24,6 +34,7 @@ type SearchOption = {
   meta: string
 	imageUrl: string | null
 	badges: string[]
+  releaseDate?: string | null
 }
 
 type SearchFieldProps = {
@@ -154,11 +165,20 @@ function isSameOption(left: SearchOption, right: SearchOption) {
   return left.type === right.type && left.id === right.id
 }
 
+function compareSearchOptions(left: SearchOption, right: SearchOption) {
+  if (left.type === "movie" && right.type === "movie") {
+    return compareNullableDateDescending(left.releaseDate, right.releaseDate) || left.label.localeCompare(right.label)
+  }
+
+  return left.label.localeCompare(right.label)
+}
+
 function FindPathPage() {
   const { mode } = useDataSourceMode()
   const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading } = useSnapshotData()
   const [actors, setActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
+  const [activeSource, setActiveSource] = useState<EffectiveDataSource>("demo")
   const [pathIndexes, setPathIndexes] = useState<SnapshotIndexes | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -171,6 +191,12 @@ function FindPathPage() {
   const [result, setResult] = useState<PathResult | null>(null)
   const [pathError, setPathError] = useState<string | null>(null)
   const [isFindingPath, setIsFindingPath] = useState(false)
+  const [detailTrail, setDetailTrail] = useState<CatalogDetailEntry[]>([])
+  const [relationSearch, setRelationSearch] = useState("")
+  const [relatedEntities, setRelatedEntities] = useState<EntityDetailsRelatedEntity[]>([])
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
+  const activeDetail = detailTrail.length > 0 ? detailTrail[detailTrail.length - 1] : null
 
   useEffect(() => {
     let isMounted = true
@@ -193,6 +219,7 @@ function FindPathPage() {
 
         setActors(catalog.actors)
         setMovies(catalog.movies)
+        setActiveSource(catalog.source)
         setPathIndexes(catalog.indexes)
       } catch (error) {
         if (!isMounted) {
@@ -214,6 +241,56 @@ function FindPathPage() {
     }
   }, [isSnapshotLoading, mode, snapshot, snapshotIndexes])
 
+  useEffect(() => {
+    let isMounted = true
+
+    const loadRelatedEntities = async () => {
+      if (!activeDetail) {
+        setRelationSearch("")
+        setRelatedEntities([])
+        setDetailError(null)
+        return
+      }
+
+      setRelationSearch("")
+      setIsDetailLoading(true)
+      setDetailError(null)
+
+      try {
+        const nextRelations = await loadCatalogRelatedEntities({
+          detail: activeDetail,
+          activeSource,
+          catalogIndexes: pathIndexes,
+          actors,
+          movies,
+        })
+
+        if (!isMounted) {
+          return
+        }
+
+        setRelatedEntities(nextRelations)
+      } catch (error) {
+        if (!isMounted) {
+          return
+        }
+
+        setDetailError(error instanceof Error ? error.message : "Failed to load connected entries.")
+        setRelatedEntities([])
+      } finally {
+        if (isMounted) {
+          setIsDetailLoading(false)
+        }
+      }
+    }
+
+    void loadRelatedEntities()
+
+    return () => {
+      isMounted = false
+    }
+  }, [activeDetail, activeSource, actors, movies, pathIndexes])
+
   const searchOptions = useMemo(
     () => [
       ...actors.map((actor) => ({
@@ -231,8 +308,9 @@ function FindPathPage() {
 		meta: formatMovieInlineMeta(movie),
     		imageUrl: movie.posterUrl ?? null,
 		badges: getMovieBadges(movie),
+		releaseDate: movie.releaseDate,
       })),
-    ].sort((left, right) => left.label.localeCompare(right.label)),
+    ].sort(compareSearchOptions),
     [actors, movies],
   )
 
@@ -240,6 +318,19 @@ function FindPathPage() {
 	  () => result?.nodes.map((node) => resolvePathNodeOption(node, actors, movies, pathIndexes)) ?? [],
 	  [actors, movies, pathIndexes, result],
 	)
+
+  const detailDialogData = useMemo(
+    () => activeDetail ? buildCatalogDetailDialogData(activeDetail, relatedEntities.length) : null,
+    [activeDetail, relatedEntities.length],
+  )
+
+  const detailHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
+    return detailTrail.map((entry) => ({
+      key: `${entry.type}-${entry.item.id}`,
+      type: entry.type,
+      label: entry.type === "actor" ? entry.item.name : entry.item.title,
+    }))
+  }, [detailTrail])
 
   const startSuggestions = useMemo(() => {
     const normalized = normalizeQuery(startQuery)
@@ -299,6 +390,36 @@ function FindPathPage() {
     setIsEndOpen(false)
     setPathError(null)
     setResult(null)
+  }
+
+  const handleOpenDetailForOption = (option: SearchOption, appendToTrail = false) => {
+    const actor = option.type === "actor"
+      ? (pathIndexes?.actorsById.get(option.id) ?? actors.find((candidate) => candidate.id === option.id) ?? null)
+      : null
+    const movie = option.type === "movie"
+      ? (pathIndexes?.moviesById.get(option.id) ?? movies.find((candidate) => candidate.id === option.id) ?? null)
+      : null
+
+    const nextDetail = actor
+      ? ({ type: "actor", item: actor } as const)
+      : movie
+      ? ({ type: "movie", item: movie } as const)
+      : null
+
+    if (!nextDetail) {
+      return
+    }
+
+    if (!appendToTrail) {
+      setDetailTrail([nextDetail])
+      return
+    }
+
+    setDetailTrail((currentTrail) => buildNextDetailTrail(
+      currentTrail,
+      nextDetail,
+      (left, right) => left.type === right.type && left.item.id === right.item.id,
+    ))
   }
 
   const handleFindPath = async () => {
@@ -463,7 +584,12 @@ function FindPathPage() {
               </p>
               <div className="pathResultList">
         {resultOptions.map((node, index) => (
-          <div key={`${node.type}-${node.id}-${index}`} className={`pathNode pathNode--${node.type}`}>
+          <button
+            key={`${node.type}-${node.id}-${index}`}
+            type="button"
+            className={`pathNode pathNode--${node.type} pathNode--interactive`}
+            onClick={() => handleOpenDetailForOption(node)}
+          >
           <EntityArtwork
             type={node.type}
             label={node.label}
@@ -477,7 +603,7 @@ function FindPathPage() {
             <span>{node.meta}</span>
           </span>
           {index < resultOptions.length - 1 ? <span className="pathNodeArrow">→</span> : null}
-          </div>
+          </button>
         ))}
               </div>
             </>
@@ -486,6 +612,35 @@ function FindPathPage() {
 
         <Link to="/" className="pageBackLink">Back to Home</Link>
       </div>
+
+      <EntityDetailsDialog
+        detail={detailDialogData}
+        history={detailHistory}
+        relationSearch={relationSearch}
+        relatedEntities={relatedEntities}
+        isLoading={isDetailLoading}
+        errorMessage={detailError}
+        onClose={() => setDetailTrail([])}
+        onRelationSearchChange={setRelationSearch}
+        onOpenRelatedEntity={(entity) => {
+          const option = resultOptions.find((candidate) => candidate.type === entity.type && candidate.id === entity.id)
+
+          if (option) {
+            handleOpenDetailForOption(option, true)
+            return
+          }
+
+          handleOpenDetailForOption({
+            id: entity.id,
+            label: entity.label,
+            type: entity.type,
+            meta: entity.meta,
+            imageUrl: entity.imageUrl,
+            badges: entity.badges,
+          }, true)
+        }}
+        onNavigateHistory={(index) => setDetailTrail((currentTrail) => currentTrail.slice(0, index + 1))}
+      />
     </div>
   )
 }

@@ -1,8 +1,27 @@
 import type { GameNode, NodeSummary } from "./types";
 
 export const MAX_PATH_LENGTH = 19;
-export const SUGGESTION_LIMIT = 6;
-export const OPTIMAL_PATH_INCLUSION_RATE = 0.65;
+export const SUGGESTION_LIMIT = 8;
+
+type SuggestionBuildOptions = {
+	shouldShuffle?: boolean;
+	shouldGuaranteeBestPath?: boolean;
+	suggestionLimit?: number | null;
+	movieSortMode?: "releaseYear" | "random";
+	actorSortMode?: "popularity" | "random";
+	nodeType?: "actor" | "movie";
+};
+
+function shuffleSuggestions<T>(entries: T[]) {
+	const nextEntries = [...entries];
+
+	for (let index = nextEntries.length - 1; index > 0; index -= 1) {
+		const swapIndex = Math.floor(Math.random() * (index + 1));
+		[nextEntries[index], nextEntries[swapIndex]] = [nextEntries[swapIndex], nextEntries[index]];
+	}
+
+	return nextEntries;
+}
 
 function normalizeLabel(label: string) {
 	return label.trim().toLocaleLowerCase();
@@ -73,45 +92,77 @@ function getTieBreakerLabel(node: GameNode) {
 	return normalizeLabel(node.label);
 }
 
-function compareByHintAndMetadata(a: GameNode, b: GameNode) {
-	const aSteps = a.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
-	const bSteps = b.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+function createComparatorBySort(
+	movieSortMode: "releaseYear" | "random" = "releaseYear",
+	actorSortMode: "popularity" | "random" = "popularity",
+) {
+	return (a: GameNode, b: GameNode) => {
+		const aSteps = a.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+		const bSteps = b.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
 
-	if (aSteps !== bSteps) {
-		return aSteps - bSteps;
-	}
+		if (aSteps !== bSteps) {
+			return aSteps - bSteps;
+		}
 
-	const popularityDelta = (b.popularity ?? -1) - (a.popularity ?? -1);
-	if (popularityDelta !== 0) {
-		return popularityDelta;
-	}
+		// Apply per-type sorting
+		if (a.type === "movie" && b.type === "movie") {
+			// Both are movies
+			if (movieSortMode === "releaseYear" || movieSortMode === "random") {
+				const aYear = a.releaseDate ? new Date(a.releaseDate).getFullYear() : 0;
+				const bYear = b.releaseDate ? new Date(b.releaseDate).getFullYear() : 0;
+				if (aYear !== bYear) {
+					return bYear - aYear; // descending
+				}
+			}
+		} else if (a.type === "actor" && b.type === "actor") {
+			// Both are actors
+			if (actorSortMode === "popularity" || actorSortMode === "random") {
+				const popularityDelta = (b.popularity ?? -1) - (a.popularity ?? -1);
+				if (popularityDelta !== 0) {
+					return popularityDelta;
+				}
+			}
+		}
 
-	const recencyDelta = getRecencyScore(b) - getRecencyScore(a);
-	if (recencyDelta !== 0) {
-		return recencyDelta;
-	}
+		const recencyDelta = getRecencyScore(b) - getRecencyScore(a);
+		if (recencyDelta !== 0) {
+			return recencyDelta;
+		}
 
-	return getTieBreakerLabel(a).localeCompare(getTieBreakerLabel(b));
+		return getTieBreakerLabel(a).localeCompare(getTieBreakerLabel(b));
+	};
 }
 
-export function buildSuggestionSet(rawSuggestions: GameNode[], target: GameNode, blockedLoopNodeKeys: ReadonlySet<string> = new Set()) {
+export function buildSuggestionSet(
+	rawSuggestions: GameNode[],
+	target: GameNode,
+	blockedLoopNodeKeys: ReadonlySet<string> = new Set(),
+	options: SuggestionBuildOptions = {},
+) {
+	const shouldShuffle = options.shouldShuffle ?? true;
+	const shouldGuaranteeBestPath = options.shouldGuaranteeBestPath ?? false;
+	const suggestionLimit = options.suggestionLimit === undefined ? SUGGESTION_LIMIT : options.suggestionLimit;
+	const movieSortMode = options.movieSortMode ?? "releaseYear";
+	const actorSortMode = options.actorSortMode ?? "popularity";
+	const comparator = createComparatorBySort(movieSortMode, actorSortMode);
+
 	const uniqueSuggestions = Array.from(
 		new Map(rawSuggestions.map((suggestion) => [getNodeKey(suggestion), suggestion])).values(),
 	);
 
 	const directConnections = uniqueSuggestions
 		.filter((suggestion) => isDirectConnectionSuggestion(suggestion, target))
-		.sort(compareByHintAndMetadata);
+		.sort(comparator);
 
 	const reachableSuggestions = uniqueSuggestions
 		.filter((suggestion) => suggestion.pathHint?.reachable)
-		.sort(compareByHintAndMetadata);
+		.sort(comparator);
 
 	const featured = new Map<string, GameNode>();
 
 	if (directConnections.length > 0) {
 		featured.set(getNodeKey(directConnections[0]), directConnections[0]);
-	} else if (reachableSuggestions.length > 0 && Math.random() < OPTIMAL_PATH_INCLUSION_RATE) {
+	} else if (reachableSuggestions.length > 0 && shouldGuaranteeBestPath) {
 		featured.set(getNodeKey(reachableSuggestions[0]), reachableSuggestions[0]);
 	}
 
@@ -119,12 +170,20 @@ export function buildSuggestionSet(rawSuggestions: GameNode[], target: GameNode,
 		.filter((suggestion) => !featured.has(getNodeKey(suggestion)))
 		.map((suggestion) => ({
 			suggestion,
-			score: getHintScore(suggestion) + getPopularityScore(suggestion) + getRecencyScore(suggestion) + Math.random() * 18,
+			score: getHintScore(suggestion) + getPopularityScore(suggestion) + getRecencyScore(suggestion),
 		}))
-		.sort((a, b) => b.score - a.score)
+		.sort((a, b) => {
+			if (b.score !== a.score) {
+				return b.score - a.score;
+			}
+
+			return comparator(a.suggestion, b.suggestion);
+		})
 		.map((entry) => entry.suggestion);
 
-	const selected = [...featured.values(), ...rankedRemainder].slice(0, SUGGESTION_LIMIT);
+	const allRanked = [...featured.values(), ...rankedRemainder];
+	const shuffledAll = shouldShuffle ? shuffleSuggestions(allRanked) : allRanked;
+	const selected = suggestionLimit === null ? shuffledAll : shuffledAll.slice(0, suggestionLimit);
 	const bestReachableSteps = reachableSuggestions[0]?.pathHint?.stepsToTarget ?? null;
 
 	return selected.map((suggestion) => {
@@ -132,9 +191,9 @@ export function buildSuggestionSet(rawSuggestions: GameNode[], target: GameNode,
 			return {
 				...suggestion,
 				highlight: {
-					kind: "loop" as const,
-					label: "Cycle risk",
-					description: "This node already appears in your route. Choosing it would create a loop.",
+					kind: "blocked" as const,
+					label: "Already in path",
+					description: "This node already appears in your route and cannot be added again.",
 				},
 			};
 		}

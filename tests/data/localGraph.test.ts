@@ -79,10 +79,11 @@ test("getMoviesForActor returns connected movies with path hints toward the targ
   const result = getMoviesForActor(1, target, indexes);
 
   assert.equal(result.length, 2);
-  assert.deepEqual(result.map((entry) => entry.label), ["Ocean's Eleven", "Ocean's Twelve"]);
+  assert.deepEqual(result.map((entry) => entry.label), ["Ocean's Twelve", "Ocean's Eleven"]);
   assert.equal(result[0].type, "movie");
   assert.equal(result[0].pathHint?.reachable, true);
-  assert.equal(result[1].pathHint?.stepsToTarget, 1);
+  assert.equal(result[0].pathHint?.stepsToTarget, 1);
+  assert.equal(result[1].pathHint?.stepsToTarget, 3);
 });
 
 test("getActorsForMovie excludes already-used actor names and returns remaining co-stars", () => {

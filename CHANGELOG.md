@@ -17,6 +17,7 @@ UI updates for displaying new meta data
 ### Added
 
 - New display for data like actor picture ande movie poster
+- Difficulty toggles
 
 ## [2.0.5] - 2026-03-14
 

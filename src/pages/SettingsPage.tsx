@@ -1,14 +1,16 @@
 import { useMemo } from "react"
 import { Link } from "react-router-dom"
 import { APP_VERSION } from "../appVersion"
+import CustomGameSettingsPanel from "../components/CustomGameSettingsPanel"
 import DataSettingsPanel from "../components/DataSettingsPanel"
+import GameDataFilterPanel from "../components/GameDataFilterPanel"
+import SuggestionDisplaySettingsPanel from "../components/SuggestionDisplaySettingsPanel"
 import { CUSTOM_SETTING_DEFINITIONS, useGameSettings } from "../context/gameSettings"
 import PageBackButton from "../components/PageBackButton"
-import type { DifficultyOption } from "../types"
 
 function SettingsPage() {
-  const { settings, setDifficulty, setCustomSetting } = useGameSettings()
-  const { difficulty, customSettings } = settings
+  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSuggestionViewMode, setSubsetCount, setAllWindowMode } = useGameSettings()
+  const { customSettings, dataFilters, suggestionDisplay } = settings
   const activeCustomLabel = useMemo(
     () => CUSTOM_SETTING_DEFINITIONS.filter((setting) => customSettings[setting.id]).map((setting) => setting.label).join(" • "),
     [customSettings],
@@ -32,60 +34,29 @@ function SettingsPage() {
 
         <section className="settingsSection">
           <h2>Difficulty</h2>
-          <div className="settingsDifficultyGrid">
-            {(["easy", "medium", "hard", "custom"] as DifficultyOption[]).map((option) => (
-              <label
-                key={option}
-                className={`settingsOption settingsOption--radio settingsOption--radio-page settingsDifficultyCard${difficulty === option ? " settingsOption--active" : ""}`}
-              >
-                <input
-                  type="radio"
-                  name="difficulty"
-                  checked={difficulty === option}
-                  onChange={() => setDifficulty(option)}
-                />
-                <span className="settingsOptionControl" aria-hidden="true" />
-                <span>
-                  <strong>{option.charAt(0).toUpperCase() + option.slice(1)}</strong>
-                  <span className="settingsHint">
-                    {option === "easy" ? "All gameplay helpers enabled." : null}
-                    {option === "medium" ? "A balanced run with fewer guidance cues enabled." : null}
-                    {option === "hard" ? "Minimal guidance with the core game controls always available." : null}
-                    {option === "custom" ? "Choose exactly which display helpers stay visible during play." : null}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
+              <p className="settingsHint">Current custom rule set: {activeCustomLabel || "No helpers selected"}.</p>
 
-            <p className="settingsHint">Current custom rule set: {activeCustomLabel || "No helpers selected"}.</p>
+              <CustomGameSettingsPanel
+                customSettings={customSettings}
+                onToggle={setCustomSetting}
+                title="Gameplay Helpers"
+                hint="These preferences are shared with the in-game info menu and apply immediately during play."
+              />
 
-          {difficulty === "custom" ? (
-            <div className="settingsCustomPanel">
-              <div className="settingsCustomHeader">
-                <h3>Custom Rules</h3>
-                  <p className="settingsHint">These preferences are shared with the in-game info menu.</p>
-              </div>
-              <div className="settingsToggleList">
-                {CUSTOM_SETTING_DEFINITIONS.map((setting) => (
-                  <label key={setting.id} className="settingsToggleRow">
-                    <span className="settingsToggleText">
-                      <strong>{setting.label}</strong>
-                      <span className="settingsHint">{setting.hint}</span>
-                    </span>
-                    <button
-                      type="button"
-                      className={`settingsToggleSwitch${customSettings[setting.id] ? " settingsToggleSwitch--on" : ""}`}
-                        onClick={() => setCustomSetting(setting.id, !customSettings[setting.id])}
-                      aria-pressed={customSettings[setting.id]}
-                    >
-                      <span className="settingsToggleThumb" aria-hidden="true" />
-                    </button>
-                  </label>
-                ))}
-              </div>
-            </div>
-          ) : null}
+              <GameDataFilterPanel
+                dataFilters={dataFilters}
+                onActorPopularityCutoffChange={setActorPopularityCutoff}
+                onReleaseYearCutoffChange={setReleaseYearCutoff}
+                onMovieSortModeChange={setMovieSortMode}
+                onActorSortModeChange={setActorSortMode}
+              />
+
+              <SuggestionDisplaySettingsPanel
+                suggestionDisplay={suggestionDisplay}
+                onViewModeChange={setSuggestionViewMode}
+                onSubsetCountChange={setSubsetCount}
+                onAllWindowModeChange={setAllWindowMode}
+              />
         </section>
 
         <DataSettingsPanel showHeading={false} />

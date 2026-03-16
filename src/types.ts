@@ -90,7 +90,7 @@ export type ValidatePathResponse = {
 };
 
 export type SuggestionHighlight = {
-	kind: "connection" | "optimal" | "loop";
+	kind: "connection" | "optimal" | "loop" | "deep-loop" | "cast-lock" | "full-cast-lock" | "blocked";
 	label: string;
 	description: string;
 };
@@ -173,13 +173,37 @@ export type DifficultyOption = "easy" | "medium" | "hard" | "custom";
 export type DifficultyToggleId =
 	| "show-suggestions"
 	| "show-hint-color"
-	| "show-optimal-tracking";
+	| "show-optimal-tracking"
+	| "guarantee-best-path-suggestion"
+	| "show-visited-suggestions"
+	| "sort-suggestions-by-risk-priority"
+	| "cycle-risk-click-adds-penalty"
+	| "show-cast-lock-risk"
+	| "show-full-cast-lock";
 
 export type DifficultySettings = Record<DifficultyToggleId, boolean>;
+
+export type SuggestionViewMode = "all" | "subset";
+export type SuggestionWindowMode = "pagination" | "scroll";
+
+export type SuggestionDisplaySettings = {
+	viewMode: SuggestionViewMode;
+	subsetCount: number;
+	allWindowMode: SuggestionWindowMode;
+};
+
+export type GameDataFilters = {
+	actorPopularityCutoff: number | null;
+	releaseYearCutoff: number | null;
+	movieSortMode: "releaseYear" | "random";
+	actorSortMode: "popularity" | "random";
+};
 
 export type GameDifficultySettings = {
 	difficulty: DifficultyOption;
 	customSettings: DifficultySettings;
+	dataFilters: GameDataFilters;
+	suggestionDisplay: SuggestionDisplaySettings;
 };
 
 export type DataIndicatorVariant =

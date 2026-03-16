@@ -1,6 +1,13 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import EntityArtwork from "../components/EntityArtwork";
+import CustomGameSettingsPanel from "../components/CustomGameSettingsPanel";
+import EntityDetailsDialog, {
+  type EntityDetailsDialogData,
+  type EntityDetailsHistoryEntry,
+  type EntityDetailsRelatedEntity,
+} from "../components/EntityDetailsDialog";
+import GameDataFilterPanel from "../components/GameDataFilterPanel";
+import SuggestionDisplaySettingsPanel from "../components/SuggestionDisplaySettingsPanel";
 import HomeButton from "../components/HomeButton";
 import GameLogo from "../components/GameLogo";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
@@ -21,10 +28,9 @@ import {
   isSameNode,
   MAX_PATH_LENGTH,
   nodeFromSummary,
-  OPTIMAL_PATH_INCLUSION_RATE,
 } from "../gameplay";
 import { useDataSourceMode } from "../context/dataSourceMode";
-import { CUSTOM_SETTING_DEFINITIONS, useGameSettings } from "../context/gameSettings";
+import { useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import {
@@ -35,6 +41,10 @@ import {
   shouldAutoSwitchToOfflineDemo,
 } from "../data/dataSourcePreferences";
 import {
+  buildNextDetailTrail,
+  sortByPopularityDescending,
+} from "../data/entityDetails";
+import {
   createGameNodeFromSummary,
   findNodeByLabel,
   generateLocalPath,
@@ -42,8 +52,8 @@ import {
   getMoviesForActor,
   validateLocalPath,
 } from "../data/localGraph";
-import { formatActorLifespan, formatGameNodeMeta, getMovieBadges } from "../data/presentation";
-import type { Actor, DifficultyOption, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
+import { formatActorInlineMeta, formatActorLifespan, formatGameNodeMeta, formatMovieInlineMeta, getMovieBadges } from "../data/presentation";
+import type { Actor, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
 type RouteGameNode = {
@@ -87,11 +97,8 @@ type CompletionState = {
 };
 
 type NodeInspectorState = {
-  node: GameNode;
-  detailLines: string[];
-  description: string | null;
-  relatedTitle: string;
-  relatedNodes: GameNode[];
+  detail: EntityDetailsDialogData;
+  relatedEntities: EntityDetailsRelatedEntity[];
   isLoading: boolean;
   errorMessage: string | null;
 };
@@ -132,10 +139,29 @@ function createNode(label: string, type: NodeType, partial?: Partial<GameNode>):
   };
 }
 
+function getSuggestionPriorityScore(node: GameNode) {
+  if (node.highlight?.kind === "optimal") return 0;
+  if (node.highlight?.kind === "connection") return 0;
+  if (!node.highlight && node.pathHint?.reachable) return 1;
+
+  if (
+    node.highlight?.kind === "deep-loop"
+    || node.highlight?.kind === "cast-lock"
+    || node.highlight?.kind === "full-cast-lock"
+  ) {
+    return 2;
+  }
+
+  if (node.highlight?.kind === "loop") return 3;
+  if (node.highlight?.kind === "blocked") return 5;
+  return 4;
+}
+
 const NETWORK_UNAVAILABLE_MESSAGE = "Network connection couldn't be established. Offline demo mode is being used instead.";
 const PLACEHOLDER_START_A = createNode("Network unavailable", "actor");
 const PLACEHOLDER_START_B = createNode("Reconnect later", "actor");
 const DEMO_BUNDLE = getDemoSnapshotBundle();
+const CYCLE_RISK_CACHE_ENABLED = true;
 
 function createPlaceholderSuggestions(selectionType: NodeType): GameNode[] {
   const nextType = selectionType === "actor" ? "movie" : "actor";
@@ -281,24 +307,6 @@ async function resolveApiRouteNode(
   return movie ? createNodeFromMovie(movie) : normalizeRouteNode(value, "movie", fallbackLabel);
 }
 
-function buildExcludedActorNames(
-  startA: GameNode,
-  startB: GameNode,
-  topPath: GameNode[],
-  bottomPath: GameNode[],
-  target: GameNode,
-) {
-  const names = new Set<string>();
-
-  [startA, startB, ...topPath, ...bottomPath].forEach((node) => {
-    if (node.type === "actor" && !isSameNode(node, target)) {
-      names.add(node.label);
-    }
-  });
-
-  return Array.from(names);
-}
-
 function toNodeSummary(node: GameNode): NodeSummary | null {
   if (node.id === undefined) {
     return null;
@@ -334,21 +342,69 @@ function uniqueText(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim()))));
 }
 
+function toInspectorDetail(node: GameNode, relatedCount: number, detailLines: string[], description: string | null): EntityDetailsDialogData {
+  const cards = node.type === "actor"
+    ? [
+        { label: "Catalog id", value: node.id !== undefined ? String(node.id) : "Unknown" },
+        { label: "Popularity", value: node.popularity !== null && node.popularity !== undefined ? node.popularity.toFixed(1) : "--" },
+        { label: "Department", value: node.knownForDepartment ?? "Unknown" },
+        { label: "Born in", value: node.placeOfBirth ?? "Unknown" },
+        { label: "Lifespan", value: detailLines[0] ?? "Unknown" },
+        { label: "Connected entries", value: String(relatedCount) },
+      ]
+    : [
+        { label: "Catalog id", value: node.id !== undefined ? String(node.id) : "Unknown" },
+        { label: "Release date", value: node.releaseDate ?? "Unknown" },
+        { label: "Rating", value: node.contentRating ?? "Unknown" },
+        { label: "Language", value: node.originalLanguage?.toUpperCase() ?? "Unknown" },
+        { label: "Genres", value: node.genres && node.genres.length > 0 ? node.genres.join(", ") : "Unknown" },
+        { label: "Connected entries", value: String(relatedCount) },
+      ];
+
+  return {
+    key: `${node.type}-${node.id ?? node.label}`,
+    type: node.type,
+    title: node.label,
+    imageUrl: node.imageUrl ?? null,
+    lead: node.type === "actor" ? formatActorInlineMeta({
+      popularity: node.popularity ?? null,
+      placeOfBirth: node.placeOfBirth ?? null,
+      knownForDepartment: node.knownForDepartment ?? null,
+    }) : formatMovieInlineMeta({
+      releaseDate: node.releaseDate ?? null,
+      genres: node.genres ?? [],
+      originalLanguage: node.originalLanguage ?? null,
+      contentRating: node.contentRating ?? null,
+    }),
+    subtle: node.type === "actor" ? node.placeOfBirth ?? null : null,
+    badges: node.type === "movie"
+      ? getMovieBadges({
+          genres: node.genres ?? [],
+          originalLanguage: node.originalLanguage ?? null,
+          contentRating: node.contentRating ?? null,
+        })
+      : node.knownForDepartment
+      ? [node.knownForDepartment]
+      : [],
+    cards,
+    narrativeTitle: node.type === "actor" ? "Biography" : "Overview",
+    narrative: description,
+    relationLabel: node.type === "actor" ? "Movies" : "Cast",
+    relationSearchPlaceholder: node.type === "actor" ? "Search movies" : "Search cast",
+  }
+}
+
 function createNodeInspectorState(
   node: GameNode,
-  relatedTitle: string,
-  relatedNodes: GameNode[],
+  relatedEntities: EntityDetailsRelatedEntity[],
   detailLines: string[],
   description: string | null,
   isLoading = false,
   errorMessage: string | null = null,
 ): NodeInspectorState {
   return {
-    node,
-    relatedTitle,
-    relatedNodes,
-    detailLines,
-    description,
+    detail: toInspectorDetail(node, relatedEntities.length, detailLines, description),
+    relatedEntities,
     isLoading,
     errorMessage,
   };
@@ -357,7 +413,6 @@ function createNodeInspectorState(
 function buildFallbackInspectorState(node: GameNode) {
   return createNodeInspectorState(
     node,
-    node.type === "actor" ? "Movies" : "Cast",
     [],
     uniqueText([
       formatGameNodeMeta(node),
@@ -379,7 +434,16 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
-  const { settings, setDifficulty, setCustomSetting } = useGameSettings();
+  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSuggestionViewMode, setSubsetCount, setAllWindowMode } = useGameSettings();
+  const helperSettings = settings.customSettings;
+  const suggestionDisplay = settings.suggestionDisplay;
+  const dataFilters = settings.dataFilters;
+  const shouldGuaranteeBestPathSuggestion = helperSettings["guarantee-best-path-suggestion"];
+  const showVisitedSuggestions = helperSettings["show-visited-suggestions"];
+  const sortSuggestionsByRiskPriority = helperSettings["sort-suggestions-by-risk-priority"];
+  const cycleRiskClickAddsPenalty = helperSettings["cycle-risk-click-adds-penalty"];
+  const showCastLockRiskHighlight = helperSettings["show-cast-lock-risk"];
+  const showFullCastLockHighlight = helperSettings["show-full-cast-lock"];
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
@@ -393,6 +457,7 @@ function GamePage() {
 
   const [turns, setTurns] = useState(0);
   const [rewinds, setRewinds] = useState(0);
+  const [deadEndPenalties, setDeadEndPenalties] = useState(0);
   const [shuffles, setShuffles] = useState(0);
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
@@ -409,7 +474,10 @@ function GamePage() {
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
+  const [inspectorTrail, setInspectorTrail] = useState<GameNode[]>([]);
   const [nodeInspector, setNodeInspector] = useState<NodeInspectorState | null>(null);
+  const [inspectorRelationSearch, setInspectorRelationSearch] = useState("");
+  const cycleRiskChildCacheRef = useRef<Map<string, GameNode[]>>(new Map());
 
   const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
@@ -654,6 +722,8 @@ function GamePage() {
   }, [isSnapshotLoading, mode, resolveSnapshotResources, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, setConnectionMode, setOfflineSource, snapshot]);
 
   const totalSelections = topPath.length + bottomPath.length;
+  const hasPlacedSelections = totalSelections > 0;
+  const isRiskAnalysisEnabled = helperSettings["show-hint-color"] && hasPlacedSelections && (showCastLockRiskHighlight || showFullCastLockHighlight);
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
   const currentHops = totalSelections;
 
@@ -677,6 +747,24 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
+  const shouldRandomizeSuggestions = useMemo(() => {
+    if (!currentSelection) {
+      return false;
+    }
+
+    return currentSelection.type === "actor"
+      ? dataFilters.movieSortMode === "random"
+      : dataFilters.actorSortMode === "random";
+  }, [currentSelection, dataFilters.actorSortMode, dataFilters.movieSortMode]);
+
+  const suggestionBuildOptions = useMemo(() => ({
+    shouldShuffle: shouldRandomizeSuggestions,
+    shouldGuaranteeBestPath: shouldGuaranteeBestPathSuggestion,
+    suggestionLimit: suggestionDisplay.viewMode === "subset" ? suggestionDisplay.subsetCount : null,
+    movieSortMode: dataFilters.movieSortMode,
+    actorSortMode: dataFilters.actorSortMode,
+  }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.viewMode, suggestionDisplay.subsetCount]);
+
   const oppositeFrontierNode = useMemo(() => {
     if (!actorA || !actorB) {
       return null;
@@ -698,8 +786,372 @@ function GamePage() {
     return createBlockedLoopNodeKeySet([actorA, actorB, ...topPath, ...bottomPath], allowedKeys);
   }, [actorA, actorB, bottomPath, oppositeFrontierNode, targetNode, topPath]);
 
+  const visitedMovieNodeKeys = useMemo(() => {
+    if (!actorA || !actorB) {
+      return new Set<string>();
+    }
+
+    return new Set(
+      [actorA, actorB, ...topPath, ...bottomPath]
+        .filter((node) => node.type === "movie")
+        .map((node) => getNodeKey(node)),
+    );
+  }, [actorA, actorB, bottomPath, topPath]);
+
   const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
   const isGameComplete = !!completion;
+
+  const visibleSuggestions = useMemo(() => {
+    const filtered = showVisitedSuggestions
+      ? [...suggestions]
+      : suggestions.filter((suggestion) => suggestion.highlight?.kind !== "blocked");
+
+    if (!sortSuggestionsByRiskPriority) {
+      return filtered;
+    }
+
+    return [...filtered].sort((a, b) => getSuggestionPriorityScore(a) - getSuggestionPriorityScore(b));
+  }, [showVisitedSuggestions, sortSuggestionsByRiskPriority, suggestions]);
+
+  const applyActorPopularityFilter = useCallback((nextSuggestions: GameNode[]) => {
+    return nextSuggestions.filter((suggestion) => {
+      // Apply actor popularity cutoff
+      if (suggestion.type === "actor" && dataFilters.actorPopularityCutoff !== null) {
+        if ((suggestion.popularity ?? Number.NEGATIVE_INFINITY) < dataFilters.actorPopularityCutoff) {
+          return false;
+        }
+      }
+
+      // Apply movie release year cutoff
+        if (suggestion.type === "movie" && dataFilters.releaseYearCutoff !== null) {
+        const releaseYear = suggestion.releaseDate ? new Date(suggestion.releaseDate).getFullYear() : 0;
+        if (releaseYear < dataFilters.releaseYearCutoff) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [dataFilters]);
+
+  const getCycleRiskChildrenForSuggestion = useCallback(async (
+    suggestion: GameNode,
+    source: EffectiveDataSource,
+    localResources: Awaited<ReturnType<typeof resolveSnapshotResources>>,
+    targetSummary: NodeSummary,
+  ) => {
+    if (suggestion.id === undefined || !targetNode || !actorA || !actorB) {
+      return [] as GameNode[];
+    }
+
+    const useCache = CYCLE_RISK_CACHE_ENABLED && source === "api";
+    const cacheKey = `${source}:${targetNode.type}:${targetNode.id ?? "none"}:${suggestion.type}:${suggestion.id}`;
+    if (useCache) {
+      const cached = cycleRiskChildCacheRef.current.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    let childNodes: GameNode[] = [];
+
+    if ((source === "snapshot" || source === "demo") && localResources) {
+      if (suggestion.type === "actor") {
+        childNodes = getMoviesForActor(suggestion.id, targetSummary, localResources.indexes);
+      } else {
+        // For cycle risk analysis, we need ALL actors (including visited ones) to determine if all next options are blocked
+        // Pass empty exclusion list so we get complete child set
+        childNodes = getActorsForMovie(suggestion.id, [], targetSummary, localResources.indexes);
+      }
+    } else if (source === "api") {
+      if (suggestion.type === "actor") {
+        const relatedMovies = await fetchActorMovies(suggestion.id, targetNode.type, targetNode.id);
+        childNodes = relatedMovies.map((movie) => createNode(movie.title, "movie", {
+          id: movie.id,
+          pathHint: movie.pathHint,
+          releaseDate: movie.releaseDate,
+        }));
+      } else {
+        // For cycle risk analysis, we need ALL actors to check if all next options are blocked
+        // Legacy behavior: pass empty exclusion list for complete child enumeration
+        const relatedActors = await fetchMovieActors(suggestion.id, [], targetNode.type, targetNode.id);
+        childNodes = relatedActors.map((actor) => createNode(actor.name, "actor", {
+          id: actor.id,
+          popularity: actor.popularity,
+          pathHint: actor.pathHint,
+          popularityRank: actor.popularityRank,
+        }));
+      }
+    }
+
+    if (useCache) {
+      cycleRiskChildCacheRef.current.set(cacheKey, childNodes);
+    }
+
+    return childNodes;
+  }, [actorA, actorB, targetNode]);
+
+  const getExhaustiveChildrenForNode = useCallback(async (
+    node: GameNode,
+    source: EffectiveDataSource,
+    localResources: Awaited<ReturnType<typeof resolveSnapshotResources>>,
+  ) => {
+    if (node.id === undefined) {
+      return [] as GameNode[];
+    }
+
+    const useCache = CYCLE_RISK_CACHE_ENABLED && source === "api";
+    const cacheKey = `${source}:exhaustive:${node.type}:${node.id}`;
+
+    if (useCache) {
+      const cached = cycleRiskChildCacheRef.current.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    let childNodes: GameNode[] = [];
+
+    if ((source === "snapshot" || source === "demo") && localResources) {
+      if (node.type === "actor") {
+        childNodes = getMoviesForActor(node.id, null, localResources.indexes);
+      } else {
+        childNodes = getActorsForMovie(node.id, [], null, localResources.indexes);
+      }
+    } else if (source === "api") {
+      if (node.type === "actor") {
+        const relatedMovies = await fetchActorMovies(node.id);
+        childNodes = relatedMovies.map((movie) => createNode(movie.title, "movie", {
+          id: movie.id,
+          releaseDate: movie.releaseDate,
+        }));
+      } else {
+        const relatedActors = await fetchMovieActors(node.id, []);
+        childNodes = relatedActors.map((actor) => createNode(actor.name, "actor", {
+          id: actor.id,
+          popularity: actor.popularity,
+          popularityRank: actor.popularityRank,
+        }));
+      }
+    }
+
+    if (useCache) {
+      cycleRiskChildCacheRef.current.set(cacheKey, childNodes);
+    }
+
+    return childNodes;
+  }, []);
+
+  const annotateOneStepCycleRisk = useCallback(async (nextSuggestions: GameNode[], source: EffectiveDataSource) => {
+    if (nextSuggestions.length === 0) {
+      return nextSuggestions;
+    }
+
+    if (!targetNode) {
+      return nextSuggestions;
+    }
+
+    const targetSummary = toNodeSummary(targetNode);
+    if (!targetSummary || targetNode.id === undefined) {
+      return nextSuggestions;
+    }
+
+    const localResources = source === "snapshot" || source === "demo"
+      ? await resolveSnapshotResources(source === "demo")
+      : null;
+
+    // Helper function: checks if a single node would be marked as yellow (all its children blocked)
+    const wouldBeYellow = async (node: GameNode): Promise<boolean> => {
+      if (node.id === undefined) {
+        return false;
+      }
+
+      let childNodes: GameNode[] = [];
+      try {
+        childNodes = await getCycleRiskChildrenForSuggestion(node, source, localResources, targetSummary);
+      } catch {
+        return false;
+      }
+
+      if (childNodes.length === 0) {
+        return false;
+      }
+
+      const filteredChildren = applyActorPopularityFilter(childNodes);
+      if (filteredChildren.length === 0) {
+        return false;
+      }
+
+      return filteredChildren.every((child) => blockedLoopNodeKeys.has(getNodeKey(child)));
+    };
+
+    const annotated = await Promise.all(nextSuggestions.map(async (suggestion) => {
+      // Skip cycle risk check for suggestions that are definitely not dead-ends:
+      // 1. Already in path (red)
+      // 2. No ID (can't evaluate)
+      if (suggestion.id === undefined || blockedLoopNodeKeys.has(getNodeKey(suggestion))) {
+        return suggestion;
+      }
+
+      // Skip if this is a direct connection—can immediately win
+      const isDirectConnection = isDirectConnectionSuggestion(suggestion, targetNode);
+      if (isDirectConnection) {
+        return suggestion;
+      }
+
+      // Skip if API explicitly marks it as reachable (has a path to target)
+      const hasReachablePath = source === "api" && suggestion.pathHint?.reachable === true;
+      if (hasReachablePath) {
+        return suggestion;
+      }
+
+      // Fetch all possible next-step nodes (children) from this suggestion
+      let childNodes: GameNode[] = [];
+      try {
+        childNodes = await getCycleRiskChildrenForSuggestion(suggestion, source, localResources, targetSummary);
+      } catch {
+        // If child expansion fails, treat as non-dead-end (safer default)
+        return suggestion;
+      }
+
+      // If no children exist, this node can't be a dead-end
+      if (childNodes.length === 0) {
+        return suggestion;
+      }
+
+      // Apply the same filters used for suggestions (e.g., popularity cutoff)
+      const filteredChildNodes = applyActorPopularityFilter(childNodes);
+
+      // If popularity filter removes all children, it's not a dead-end in the suggested set
+      if (filteredChildNodes.length === 0) {
+        return suggestion;
+      }
+
+      // Check if ALL remaining children are already in the path (would be blocked/red on next turn)
+      const allChildrenBlocked = filteredChildNodes.every((childNode) => {
+        return blockedLoopNodeKeys.has(getNodeKey(childNode));
+      });
+
+      // If ALL children are blocked, mark parent as cycle risk (yellow)
+      if (allChildrenBlocked) {
+        return {
+          ...suggestion,
+          highlight: {
+            kind: "loop" as const,
+            label: "Cycle risk",
+            description: "All next-step options from this card are already visited and would be blocked.",
+          },
+        };
+      }
+
+      // Movie-specific sparse-catalog guard:
+      // if ALL cast members only connect to this same movie card or movies already in path,
+      // mark as a strong 5th-color lock (handles 1:1 actor↔movie cases explicitly).
+      // This only applies after the player has made at least one placement.
+      if (hasPlacedSelections && suggestion.type === "movie" && showCastLockRiskHighlight) {
+        try {
+          const castNodes = childNodes.filter((child) => child.type === "actor");
+          if (castNodes.length > 0) {
+            const suggestionMovieKey = getNodeKey(suggestion);
+            const castLockAnalysis = await Promise.all(
+              castNodes.map(async (castNode) => {
+                if (castNode.id === undefined) {
+                  return null;
+                }
+
+                let actorMovies: GameNode[] = [];
+                try {
+                  actorMovies = await getExhaustiveChildrenForNode(castNode, source, localResources);
+                } catch {
+                  return null;
+                }
+
+                if (actorMovies.length === 0) {
+                  return null;
+                }
+
+                const uniqueMovieKeys = Array.from(new Set(actorMovies.map((movieNode) => getNodeKey(movieNode))));
+                const selfOrVisitedOnly = uniqueMovieKeys.every((movieKey) => {
+                  return movieKey === suggestionMovieKey || visitedMovieNodeKeys.has(movieKey);
+                });
+                const selfOnly = uniqueMovieKeys.every((movieKey) => movieKey === suggestionMovieKey);
+
+                return {
+                  selfOrVisitedOnly,
+                  selfOnly,
+                };
+              }),
+            );
+
+            const hasCompleteCastAnalysis = castLockAnalysis.every((entry) => entry !== null);
+            if (!hasCompleteCastAnalysis) {
+              return suggestion;
+            }
+
+            const analyzedCast = castLockAnalysis.filter((entry): entry is { selfOrVisitedOnly: boolean; selfOnly: boolean } => entry !== null);
+            const isFullyCastLocked = analyzedCast.every((entry) => entry.selfOnly);
+            const isCastLocked = analyzedCast.every((entry) => entry.selfOrVisitedOnly);
+
+            if (showFullCastLockHighlight && isFullyCastLocked) {
+              return {
+                ...suggestion,
+                highlight: {
+                  kind: "full-cast-lock" as const,
+                  label: "Full cast lock",
+                  description: "All cast members from this movie only connect back to this same movie.",
+                },
+              };
+            }
+
+            if (isCastLocked) {
+              return {
+                ...suggestion,
+                highlight: {
+                  kind: "cast-lock" as const,
+                  label: "Cast lock risk",
+                  description: "All cast members from this movie only connect to this movie or movies already in your path.",
+                },
+              };
+            }
+          }
+        } catch {
+          // Fall through to generic cascade check.
+        }
+      }
+
+      // Two-level lookahead: check if a majority of children would themselves be yellow (cascade block)
+      // This only applies after the player has made at least one placement.
+      if (hasPlacedSelections) {
+        try {
+          const childWouldBeYellowChecks = await Promise.all(
+            filteredChildNodes.map((child) => wouldBeYellow(child))
+          );
+          const yellowChildrenCount = childWouldBeYellowChecks.filter((isYellow) => isYellow).length;
+          const yellowChildrenRatio = yellowChildrenCount / filteredChildNodes.length;
+          const isMajorityYellowChildren = yellowChildrenRatio > 0.5;
+
+          if (isMajorityYellowChildren) {
+            const percent = Math.round(yellowChildrenRatio * 100);
+            return {
+              ...suggestion,
+              highlight: {
+                kind: "deep-loop" as const,
+                label: "Cascade risk",
+                description: `${percent}% of next-step cards from this option are cycle risks with only visited follow-ups.`,
+              },
+            };
+          }
+        } catch {
+          // If deep check fails, just skip it and leave as-is
+        }
+      }
+
+      // Otherwise, leave as-is (gray for neutral, or existing highlight)
+      return suggestion;
+    }));
+
+    return annotated;
+  }, [applyActorPopularityFilter, blockedLoopNodeKeys, getCycleRiskChildrenForSuggestion, getExhaustiveChildrenForNode, hasPlacedSelections, resolveSnapshotResources, showCastLockRiskHighlight, showFullCastLockHighlight, targetNode, visitedMovieNodeKeys]);
 
   useEffect(() => {
     if (!actorA || !actorB || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
@@ -743,13 +1195,18 @@ function GamePage() {
               return;
             }
 
-            const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
-            localSuggestions = getActorsForMovie(currentSelection.id, excludedNames, targetSummary, resources.indexes);
+              localSuggestions = getActorsForMovie(currentSelection.id, [], targetSummary, resources.indexes);
           }
 
-          const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode, blockedLoopNodeKeys);
-          setSuggestions(weightedSuggestions.length > 0 ? weightedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (weightedSuggestions.length === 0) {
+          const weightedSuggestions = buildSuggestionSet(
+            applyActorPopularityFilter(localSuggestions),
+            targetNode,
+            blockedLoopNodeKeys,
+            suggestionBuildOptions,
+          );
+          const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, activeDataSource);
+          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (cycleRiskAnnotatedSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned for this node.");
           }
           return;
@@ -779,6 +1236,7 @@ function GamePage() {
               })),
               targetNode,
               blockedLoopNodeKeys,
+              suggestionBuildOptions,
             );
           } else {
             if (currentSelection.id === undefined) {
@@ -787,10 +1245,9 @@ function GamePage() {
               return;
             }
 
-            const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
-            const actorSuggestions = await fetchMovieActors(currentSelection.id, excludedNames, targetNode.type, targetNode.id);
+              const actorSuggestions = await fetchMovieActors(currentSelection.id, [], targetNode.type, targetNode.id);
             weightedSuggestions = buildSuggestionSet(
-              actorSuggestions.map((actor) => createNode(actor.name, "actor", {
+              applyActorPopularityFilter(actorSuggestions.map((actor) => createNode(actor.name, "actor", {
                 id: actor.id,
                 popularity: actor.popularity,
 				imageUrl: actorsCatalog.find((entry) => entry.id === actor.id)?.profileUrl ?? null,
@@ -798,14 +1255,16 @@ function GamePage() {
 				placeOfBirth: actorsCatalog.find((entry) => entry.id === actor.id)?.placeOfBirth ?? null,
                 pathHint: actor.pathHint,
                 popularityRank: actor.popularityRank,
-              })),
+              }))),
               targetNode,
               blockedLoopNodeKeys,
+              suggestionBuildOptions,
             );
           }
 
-          setSuggestions(weightedSuggestions.length > 0 ? weightedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (weightedSuggestions.length === 0) {
+          const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, activeDataSource);
+          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (cycleRiskAnnotatedSuggestions.length === 0) {
             setSuggestionError("No API suggestions were returned for this node.");
           }
         } catch {
@@ -821,14 +1280,19 @@ function GamePage() {
           if (currentSelection.type === "actor" && currentSelection.id !== undefined) {
             localSuggestions = getMoviesForActor(currentSelection.id, targetSummary, resources.indexes);
           } else if (currentSelection.type === "movie" && currentSelection.id !== undefined) {
-            const excludedNames = buildExcludedActorNames(actorA, actorB, topPath, bottomPath, targetNode);
-            localSuggestions = getActorsForMovie(currentSelection.id, excludedNames, targetSummary, resources.indexes);
+              localSuggestions = getActorsForMovie(currentSelection.id, [], targetSummary, resources.indexes);
           }
 
-          const weightedSuggestions = buildSuggestionSet(localSuggestions, targetNode, blockedLoopNodeKeys);
+          const weightedSuggestions = buildSuggestionSet(
+            applyActorPopularityFilter(localSuggestions),
+            targetNode,
+            blockedLoopNodeKeys,
+            suggestionBuildOptions,
+          );
+          const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, resources.source);
           setResolvedDataSource(resources.source);
-          setSuggestions(weightedSuggestions.length > 0 ? weightedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (weightedSuggestions.length === 0) {
+          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (cycleRiskAnnotatedSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned after falling back to snapshot data.");
           }
         }
@@ -838,7 +1302,7 @@ function GamePage() {
     };
 
     void loadSuggestions();
-  }, [actorA, actorB, actorsCatalog, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalog, resolveSnapshotResources, shuffleSeed, targetNode, topPath]);
+  }, [actorA, actorB, actorsCatalog, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalog, resolveSnapshotResources, shuffleSeed, suggestionBuildOptions, targetNode, topPath]);
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
@@ -897,6 +1361,12 @@ function GamePage() {
       return;
     }
 
+    if (cycleRiskClickAddsPenalty && choice.highlight?.kind === "loop") {
+      setDeadEndPenalties((currentPenalties) => currentPenalties + 1);
+      setSuggestionError(`Cycle risk selected: ${choice.label} would only branch to already-visited nodes. Dead-end penalty applied.`);
+      return;
+    }
+
     const activePath = selectedSide === "top" ? topPath : bottomPath;
     const shouldAutoComplete = isDirectConnectionSuggestion(choice, targetNode);
     const autoCompletionTail = shouldAutoComplete
@@ -905,7 +1375,8 @@ function GamePage() {
     const cycleNode = findLoopedNode([choice, ...autoCompletionTail], blockedLoopNodeKeys);
 
     if (cycleNode) {
-      setSuggestionError(`Cycle detected: ${cycleNode.label} is already in your path. Make a different selection or rewind the path.`);
+      setDeadEndPenalties((currentPenalties) => currentPenalties + 1);
+      setSuggestionError(`Cycle detected: ${cycleNode.label} is already in your path. Please rewind and make a different selection.`);
       return;
     }
 
@@ -1002,6 +1473,7 @@ function GamePage() {
     setLockedSide(null);
     setTurns(0);
     setRewinds(0);
+    setDeadEndPenalties(0);
     setShuffles(0);
     setShuffleSeed((currentSeed) => currentSeed + 1);
     setSuggestionError(null);
@@ -1010,7 +1482,7 @@ function GamePage() {
   };
 
   const handleShuffle = () => {
-    if (completion) {
+    if (completion || !shouldRandomizeSuggestions) {
       return;
     }
 
@@ -1018,7 +1490,8 @@ function GamePage() {
     setShuffleSeed((currentSeed) => currentSeed + 1);
   };
 
-  const handleInspectNode = useCallback(async (node: GameNode) => {
+  const loadInspectorNode = useCallback(async (node: GameNode) => {
+    setInspectorRelationSearch("");
     setNodeInspector(buildFallbackInspectorState(node));
 
     try {
@@ -1031,12 +1504,24 @@ function GamePage() {
 
           const actor = resources.indexes.actorsById.get(node.id);
           const fullNode = actor ? createNodeFromActor(actor) : node;
-          const relatedNodes = getMoviesForActor(node.id, null, resources.indexes).slice(0, 18);
+          const relatedEntities = getMoviesForActor(node.id, null, resources.indexes)
+            .slice(0, 18)
+            .map((relatedNode) => ({
+              id: relatedNode.id ?? -1,
+              type: "movie" as const,
+              label: relatedNode.label,
+              meta: formatGameNodeMeta(relatedNode),
+              imageUrl: relatedNode.imageUrl ?? null,
+              badges: getMovieBadges({
+                genres: relatedNode.genres ?? [],
+                originalLanguage: relatedNode.originalLanguage ?? null,
+                contentRating: relatedNode.contentRating ?? null,
+              }),
+            }));
 
           setNodeInspector(createNodeInspectorState(
             fullNode,
-            "Movies",
-            relatedNodes,
+            relatedEntities,
             uniqueText([
               actor ? formatActorLifespan(actor) : null,
               actor?.knownForDepartment ?? fullNode.knownForDepartment,
@@ -1054,23 +1539,21 @@ function GamePage() {
         ]);
 
         const fullNode = createNodeFromActor(actorDetails);
-        const relatedNodes = relatedMovies.slice(0, 18).map((movie) => {
+        const relatedEntities = relatedMovies.slice(0, 18).map((movie) => {
           const catalogMovie = moviesCatalog.find((entry) => entry.id === movie.id);
-          return createNode(movie.title, "movie", {
+          return {
             id: movie.id,
-            releaseDate: movie.releaseDate,
+            type: "movie" as const,
+            label: movie.title,
+            meta: formatMovieInlineMeta(movie),
             imageUrl: catalogMovie?.posterUrl ?? movie.posterUrl ?? null,
-            genres: catalogMovie?.genres ?? movie.genres ?? [],
-            contentRating: catalogMovie?.contentRating ?? movie.contentRating ?? null,
-            originalLanguage: catalogMovie?.originalLanguage ?? movie.originalLanguage ?? null,
-            overview: catalogMovie?.overview ?? movie.overview ?? null,
-          });
+            badges: getMovieBadges(catalogMovie ?? movie),
+          };
         });
 
         setNodeInspector(createNodeInspectorState(
           fullNode,
-          "Movies",
-          relatedNodes,
+          relatedEntities,
           uniqueText([
             formatActorLifespan(actorDetails),
             actorDetails.knownForDepartment,
@@ -1090,12 +1573,24 @@ function GamePage() {
 
         const movie = resources.indexes.moviesById.get(node.id);
         const fullNode = movie ? createNodeFromMovie(movie) : node;
-        const relatedNodes = getActorsForMovie(node.id, [], null, resources.indexes).slice(0, 24);
+        const relatedActors = sortByPopularityDescending(
+          getActorsForMovie(node.id, [], null, resources.indexes).slice(0, 24),
+          (entry) => entry.popularity,
+          (entry) => entry.label,
+        );
+        const relatedEntities = relatedActors.map((relatedNode) => ({
+          id: relatedNode.id ?? -1,
+          type: "actor" as const,
+          label: relatedNode.label,
+          meta: formatGameNodeMeta(relatedNode),
+          imageUrl: relatedNode.imageUrl ?? null,
+          badges: relatedNode.knownForDepartment ? [relatedNode.knownForDepartment] : [],
+          popularity: relatedNode.popularity,
+        }));
 
         setNodeInspector(createNodeInspectorState(
           fullNode,
-          "Cast",
-          relatedNodes,
+          relatedEntities,
           uniqueText([
             fullNode.releaseDate ? `Released ${fullNode.releaseDate}` : null,
             fullNode.contentRating,
@@ -1110,21 +1605,27 @@ function GamePage() {
       const relatedActors = node.id !== undefined ? await fetchMovieActors(node.id, []) : [];
       const catalogMovie = node.id !== undefined ? moviesCatalog.find((entry) => entry.id === node.id) : null;
       const fullNode = catalogMovie ? createNodeFromMovie(catalogMovie) : node;
-      const relatedNodes = relatedActors.slice(0, 24).map((actor) => {
+      const sortedActors = sortByPopularityDescending(relatedActors.slice(0, 24), (actor) => actor.popularity, (actor) => actor.name);
+      const relatedEntities = sortedActors.map((actor) => {
         const catalogActor = actorsCatalog.find((entry) => entry.id === actor.id);
-        return createNode(actor.name, "actor", {
+        return {
           id: actor.id,
-          popularity: catalogActor?.popularity ?? actor.popularity ?? null,
+          type: "actor" as const,
+          label: actor.name,
+          meta: formatActorInlineMeta(actor),
           imageUrl: catalogActor?.profileUrl ?? actor.profileUrl ?? null,
-          knownForDepartment: catalogActor?.knownForDepartment ?? actor.knownForDepartment ?? null,
-          placeOfBirth: catalogActor?.placeOfBirth ?? actor.placeOfBirth ?? null,
-        });
+          badges: catalogActor?.knownForDepartment
+            ? [catalogActor.knownForDepartment]
+            : actor.knownForDepartment
+            ? [actor.knownForDepartment]
+            : [],
+          popularity: catalogActor?.popularity ?? actor.popularity ?? null,
+        };
       });
 
       setNodeInspector(createNodeInspectorState(
         fullNode,
-        "Cast",
-        relatedNodes,
+        relatedEntities,
         uniqueText([
           fullNode.releaseDate ? `Released ${fullNode.releaseDate}` : null,
           fullNode.contentRating,
@@ -1143,6 +1644,20 @@ function GamePage() {
         : null);
     }
   }, [activeDataSource, actorsCatalog, moviesCatalog, resolveSnapshotResources]);
+
+  const handleInspectNode = useCallback((node: GameNode, options?: { appendToTrail?: boolean }) => {
+    const appendToTrail = options?.appendToTrail ?? false;
+
+    setInspectorTrail((currentTrail) => {
+      if (!appendToTrail) {
+        return [node];
+      }
+
+      return buildNextDetailTrail(currentTrail, node, (left, right) => isSameNode(left, right));
+    });
+
+    void loadInspectorNode(node);
+  }, [loadInspectorNode]);
 
   const handleWriteIn = async (value: string, type: NodeType) => {
     setSuggestionError(null);
@@ -1229,7 +1744,13 @@ function GamePage() {
 
   const completionPreviewPath = completion?.fullPath ?? optimalPath;
   const backDestination = routeState?.returnTo ?? "/play-now";
-  const difficultyOptions: DifficultyOption[] = ["easy", "medium", "hard", "custom"];
+  const inspectorHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
+    return inspectorTrail.map((node) => ({
+      key: `${node.type}-${node.id ?? node.label}`,
+      type: node.type,
+      label: node.label,
+    }));
+  }, [inspectorTrail]);
 
   return (
     <div className="gamePage">
@@ -1261,6 +1782,7 @@ function GamePage() {
           completedPath={completion?.fullPath}
           currentHops={currentHops}
           optimalHops={optimalHops}
+          showOptimalTracking={helperSettings["show-optimal-tracking"]}
           onSelectSide={setSelectedSide}
           onInspectNode={(node) => {
             void handleInspectNode(node);
@@ -1279,13 +1801,19 @@ function GamePage() {
 
           <GameRightPanel
             currentSelection={currentSelection ?? createNode("Loading…", "actor")}
-            suggestions={suggestions}
+            suggestions={visibleSuggestions}
+            suggestionDisplay={suggestionDisplay}
+            canRandomizeSuggestions={shouldRandomizeSuggestions}
+            showSuggestionValues={helperSettings["show-suggestions"]}
+            showHintColors={helperSettings["show-hint-color"]}
             turns={turns}
             rewinds={rewinds}
+            deadEndPenalties={deadEndPenalties}
             shuffles={shuffles}
             isDisabled={isInteractionDisabled}
             isComplete={isGameComplete}
             isLoading={isSuggestionsLoading}
+            isRiskAnalysisEnabled={isRiskAnalysisEnabled}
             errorMessage={suggestionError}
             onBack={handleBackCurrentPathItem}
             onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
@@ -1314,10 +1842,10 @@ function GamePage() {
               Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
             </p>
             <p className="gameRulesText">
-              Suggestion lists are generated from the currently active dataset. Actor lists are biased by popularity, movie lists are biased by shortest-path metadata and recency, and the shuffle button rerolls that weighted pool each time.
+              Suggestion lists are generated from the currently active dataset. Actor lists can be sorted by popularity or randomized, and movie lists can be sorted by release year or randomized.
             </p>
             <p className="gameRulesText">
-              A best-path option has a {Math.round(OPTIMAL_PATH_INCLUSION_RATE * 100)}% chance to appear in each reroll when no direct connection is available. If a suggestion can immediately reveal the target on the next alternating node, it is always highlighted as Connection found.
+              Best-path inclusion can be guaranteed from settings. When random ordering is enabled for the current list type, the shuffle button rerolls the full list order; otherwise the list stays sorted and you can page or scroll through it using the selected window size.
             </p>
             <p className="gameRulesText">
               Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
@@ -1325,52 +1853,28 @@ function GamePage() {
 
               <div className="gameRulesDifficultySection">
                 <div className="gameRulesDifficultyTitle">Difficulty</div>
-                <div className="gameRulesDifficultyGrid">
-                  {difficultyOptions.map((option) => (
-                    <label
-                      key={option}
-                      className={`settingsOption settingsOption--radio settingsOption--radio-page settingsDifficultyCard gameRulesDifficultyCard${settings.difficulty === option ? " settingsOption--active" : ""}`}
-                    >
-                      <input
-                        type="radio"
-                        name="game-difficulty"
-                        checked={settings.difficulty === option}
-                        onChange={() => setDifficulty(option)}
-                      />
-                      <span className="settingsOptionControl" aria-hidden="true" />
-                      <span>
-                        <strong>{option.charAt(0).toUpperCase() + option.slice(1)}</strong>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-
-                {settings.difficulty === "custom" ? (
-                  <div className="settingsCustomPanel gameRulesCustomPanel">
-                    <div className="settingsCustomHeader">
-                      <h3>Custom Rules</h3>
-                      <p className="settingsHint">Toggle any helper on or off for this run. These changes are shared with the main Settings page.</p>
-                    </div>
-                    <div className="settingsToggleList">
-                      {CUSTOM_SETTING_DEFINITIONS.map((setting) => (
-                        <label key={setting.id} className="settingsToggleRow">
-                          <span className="settingsToggleText">
-                            <strong>{setting.label}</strong>
-                            <span className="settingsHint">{setting.hint}</span>
-                          </span>
-                          <button
-                            type="button"
-                            className={`settingsToggleSwitch${settings.customSettings[setting.id] ? " settingsToggleSwitch--on" : ""}`}
-                            onClick={() => setCustomSetting(setting.id, !settings.customSettings[setting.id])}
-                            aria-pressed={settings.customSettings[setting.id]}
-                          >
-                            <span className="settingsToggleThumb" aria-hidden="true" />
-                          </button>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                <CustomGameSettingsPanel
+                  customSettings={helperSettings}
+                  onToggle={setCustomSetting}
+                  title="Gameplay Helpers"
+                  hint="These toggles are shared with the Settings page and apply immediately to the board."
+                  className="gameRulesCustomPanel"
+                />
+                <GameDataFilterPanel
+                  dataFilters={dataFilters}
+                  onActorPopularityCutoffChange={setActorPopularityCutoff}
+                  onReleaseYearCutoffChange={setReleaseYearCutoff}
+                  onMovieSortModeChange={setMovieSortMode}
+                  onActorSortModeChange={setActorSortMode}
+                  className="gameRulesCustomPanel"
+                />
+                <SuggestionDisplaySettingsPanel
+                  suggestionDisplay={suggestionDisplay}
+                  onViewModeChange={setSuggestionViewMode}
+                  onSubsetCountChange={setSubsetCount}
+                  onAllWindowModeChange={setAllWindowMode}
+                  className="gameRulesCustomPanel"
+                />
               </div>
           </div>
         </div>
@@ -1432,78 +1936,40 @@ function GamePage() {
       ) : null}
 
       {nodeInspector ? (
-        <div className="gameInspectorOverlay" onClick={() => setNodeInspector(null)}>
-          <div className="gameInspectorDialog" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="gameRulesCloseButton" onClick={() => setNodeInspector(null)} aria-label="Close node details">
-              ×
-            </button>
-            <div className="gameInspectorHero">
-              <EntityArtwork
-                type={nodeInspector.node.type}
-                label={nodeInspector.node.label}
-                imageUrl={nodeInspector.node.imageUrl}
-                className="gameInspectorArtwork"
-                imageClassName="gameInspectorArtworkImage"
-                placeholderClassName="gameInspectorArtworkEmoji"
-              />
-              <div className="gameInspectorHeader">
-                <div className="gameInspectorType">{nodeInspector.node.type === "actor" ? "Actor" : "Movie"}</div>
-                <h2 className="gameInspectorTitle">{nodeInspector.node.label}</h2>
-                <div className="gameInspectorMeta">
-                  {nodeInspector.detailLines.map((line) => (
-                    <span key={line} className="gameInspectorMetaPill">{line}</span>
-                  ))}
-                  {nodeInspector.node.type === "movie"
-                    ? getMovieBadges({
-                        genres: nodeInspector.node.genres ?? [],
-                        contentRating: null,
-                        originalLanguage: null,
-                      }).slice(0, 2).map((badge) => (
-                        <span key={badge} className="gameInspectorMetaPill gameInspectorMetaPill--muted">{badge}</span>
-                      ))
-                    : null}
-                </div>
-              </div>
-            </div>
+        <EntityDetailsDialog
+          detail={nodeInspector.detail}
+          history={inspectorHistory}
+          relationSearch={inspectorRelationSearch}
+          relatedEntities={nodeInspector.relatedEntities}
+          isLoading={nodeInspector.isLoading}
+          errorMessage={nodeInspector.errorMessage}
+          onClose={() => {
+            setNodeInspector(null);
+            setInspectorTrail([]);
+            setInspectorRelationSearch("");
+          }}
+          onRelationSearchChange={setInspectorRelationSearch}
+          onOpenRelatedEntity={(entity) => {
+            const relatedNode = createNode(entity.label, entity.type, {
+              id: entity.id,
+              imageUrl: entity.imageUrl,
+              popularity: entity.popularity ?? null,
+            });
+            handleInspectNode(relatedNode, { appendToTrail: true });
+          }}
+          onNavigateHistory={(index) => {
+            setInspectorTrail((currentTrail) => {
+              const nextTrail = currentTrail.slice(0, index + 1);
+              const nextActiveNode = nextTrail[nextTrail.length - 1];
 
-            {nodeInspector.description ? <p className="gameInspectorDescription">{nodeInspector.description}</p> : null}
+              if (nextActiveNode) {
+                void loadInspectorNode(nextActiveNode);
+              }
 
-            <div className="gameInspectorSectionTitle">{nodeInspector.relatedTitle}</div>
-            {nodeInspector.isLoading ? <div className="gameInspectorEmpty">Loading details…</div> : null}
-            {!nodeInspector.isLoading && nodeInspector.errorMessage ? <div className="gameInspectorEmpty">{nodeInspector.errorMessage}</div> : null}
-            {!nodeInspector.isLoading && !nodeInspector.errorMessage ? (
-              nodeInspector.relatedNodes.length > 0 ? (
-                <div className="gameInspectorList">
-                  {nodeInspector.relatedNodes.map((relatedNode, index) => (
-                    <button
-                      key={`${relatedNode.type}-${relatedNode.id ?? relatedNode.label}-${index}`}
-                      type="button"
-                      className="gameInspectorListItem"
-                      onClick={() => {
-                        void handleInspectNode(relatedNode);
-                      }}
-                    >
-                      <EntityArtwork
-                        type={relatedNode.type}
-                        label={relatedNode.label}
-                        imageUrl={relatedNode.imageUrl}
-                        className="gameInspectorListArtwork"
-                        imageClassName="gameInspectorArtworkImage"
-                        placeholderClassName="gameInspectorListArtworkEmoji"
-                      />
-                      <span className="gameInspectorListText">
-                        <span className="gameInspectorListTitle">{relatedNode.label}</span>
-                        <span className="gameInspectorListMeta">{formatGameNodeMeta(relatedNode)}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="gameInspectorEmpty">No related entries were available for this node.</div>
-              )
-            ) : null}
-          </div>
-        </div>
+              return nextTrail;
+            });
+          }}
+        />
       ) : null}
     </div>
   );

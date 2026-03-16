@@ -20,11 +20,85 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 				});
 			},
 			setCustomSetting: (settingId: keyof DifficultySettings, enabled: boolean) => {
+				const nextCustomSettings: DifficultySettings = {
+					...settings.customSettings,
+					[settingId]: enabled,
+				};
+
+				if (settingId === "show-cast-lock-risk" && !enabled) {
+					nextCustomSettings["show-full-cast-lock"] = false;
+				}
+
+				if (settingId === "show-full-cast-lock" && enabled) {
+					nextCustomSettings["show-cast-lock-risk"] = true;
+				}
+
 				persistSettings({
 					...settings,
-					customSettings: {
-						...settings.customSettings,
-						[settingId]: enabled,
+					customSettings: nextCustomSettings,
+				});
+			},
+				setActorPopularityCutoff: (cutoff: number | null) => {
+				persistSettings({
+					...settings,
+					dataFilters: {
+						...settings.dataFilters,
+						actorPopularityCutoff: cutoff,
+					},
+				});
+			},
+			setReleaseYearCutoff: (year: number | null) => {
+				persistSettings({
+					...settings,
+					dataFilters: {
+						...settings.dataFilters,
+						releaseYearCutoff: year,
+					},
+				});
+			},
+			setMovieSortMode: (mode: "releaseYear" | "random") => {
+				persistSettings({
+					...settings,
+					dataFilters: {
+						...settings.dataFilters,
+						movieSortMode: mode,
+					},
+				});
+			},
+			setActorSortMode: (mode: "popularity" | "random") => {
+				persistSettings({
+					...settings,
+					dataFilters: {
+						...settings.dataFilters,
+						actorSortMode: mode,
+					},
+				});
+			},
+			setSuggestionViewMode: (mode: "all" | "subset") => {
+				persistSettings({
+					...settings,
+					suggestionDisplay: {
+						...settings.suggestionDisplay,
+						viewMode: mode,
+					},
+				});
+			},
+			setSubsetCount: (count: number) => {
+				const nextCount = Math.min(10, Math.max(2, Math.round(count)));
+				persistSettings({
+					...settings,
+					suggestionDisplay: {
+						...settings.suggestionDisplay,
+						subsetCount: nextCount,
+					},
+				});
+			},
+			setAllWindowMode: (mode: "pagination" | "scroll") => {
+				persistSettings({
+					...settings,
+					suggestionDisplay: {
+						...settings.suggestionDisplay,
+						allWindowMode: mode,
 					},
 				});
 			},

@@ -237,12 +237,14 @@
   position: relative;
   width: min(100%, 980px);
   min-height: 260px;
+  max-height: min(90vh, 950px);
   padding: 30px 34px 28px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.88);
   color: white;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .gameRulesCloseButton {

@@ -1,4 +1,5 @@
 import type { GameNode, GeneratedPath, NodeSummary, NodeType, PathHint, SnapshotIndexes, ValidatePathResponse } from "../types";
+import { sortMoviesByReleaseDateDescending } from "./entityDetails";
 
 function normalizeLookupKey(value: string) {
 	return value.trim().toLocaleLowerCase();
@@ -143,7 +144,8 @@ function isNonNull<T>(value: T | null): value is T {
 export function getMoviesForActor(actorId: number, target: NodeSummary | null, indexes: SnapshotIndexes): GameNode[] {
 	const movieIds = indexes.actorToMovies[String(actorId)] ?? [];
 
-	return movieIds
+	return sortMoviesByReleaseDateDescending(
+		movieIds
 		.map((movieId) => {
 			const movie = indexes.moviesById.get(movieId);
 			if (!movie) {
@@ -164,7 +166,10 @@ export function getMoviesForActor(actorId: number, target: NodeSummary | null, i
 				pathHint: target ? createPathHint(summary, target, indexes) : undefined,
 			};
 		})
-		.filter(isNonNull);
+		.filter(isNonNull),
+		(entry) => entry.releaseDate,
+		(entry) => entry.label,
+	);
 }
 
 export function getActorsForMovie(movieId: number, excludedNames: string[], target: NodeSummary | null, indexes: SnapshotIndexes): GameNode[] {

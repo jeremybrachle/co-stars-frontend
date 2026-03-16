@@ -61,10 +61,11 @@ function movie(id, label) {
     const target = actor(3, "Julia Roberts");
     const result = (0, localGraph_1.getMoviesForActor)(1, target, indexes);
     strict_1.default.equal(result.length, 2);
-    strict_1.default.deepEqual(result.map((entry) => entry.label), ["Ocean's Eleven", "Ocean's Twelve"]);
+    strict_1.default.deepEqual(result.map((entry) => entry.label), ["Ocean's Twelve", "Ocean's Eleven"]);
     strict_1.default.equal(result[0].type, "movie");
     strict_1.default.equal(result[0].pathHint?.reachable, true);
-    strict_1.default.equal(result[1].pathHint?.stepsToTarget, 1);
+    strict_1.default.equal(result[0].pathHint?.stepsToTarget, 1);
+    strict_1.default.equal(result[1].pathHint?.stepsToTarget, 3);
 });
 (0, node_test_1.default)("getActorsForMovie excludes already-used actor names and returns remaining co-stars", () => {
     const indexes = createFixtureIndexes();

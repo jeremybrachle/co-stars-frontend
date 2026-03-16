@@ -44,6 +44,7 @@ type Props = {
   completedPath?: GameNode[];
   currentHops: number;
   optimalHops: number | null;
+  showOptimalTracking: boolean;
   onSelectSide: (side: SelectedSide) => void;
   onInspectNode: (node: GameNode) => void;
   onRemoveTopPathItem: () => void;
@@ -384,6 +385,7 @@ function GameLeftPanel({
   completedPath,
   currentHops,
   optimalHops,
+  showOptimalTracking,
   onSelectSide,
   onInspectNode,
   onRemoveTopPathItem,
@@ -449,9 +451,11 @@ function GameLeftPanel({
     <section className="game-left-panel">
       <div className="game-left-panel__status-row">
         <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
-        <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
-          Optimal hops: {optimalHops ?? "--"}
-        </span>
+        {showOptimalTracking ? (
+          <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
+            Optimal hops: {optimalHops ?? "--"}
+          </span>
+        ) : null}
       </div>
 
       {completedPath ? (

@@ -11,6 +11,7 @@ import type {
 	PathHint,
 	ValidatePathResponse,
 } from "../types";
+import { sortMoviesByReleaseDateDescending } from "../data/entityDetails";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -153,7 +154,7 @@ export async function fetchActors(): Promise<Actor[]> {
 
 export async function fetchMovies(): Promise<Movie[]> {
 	const movies = await fetchJson<ApiMovie[]>("/api/movies");
-	return movies.map(mapMovie);
+	return sortMoviesByReleaseDateDescending(movies.map(mapMovie), (movie) => movie.releaseDate, (movie) => movie.title);
 }
 
 export async function fetchActorByName(name: string): Promise<Actor> {
@@ -176,10 +177,14 @@ export async function fetchActorMovies(
 	const suffix = params.toString() ? `?${params.toString()}` : "";
 	const movies = await fetchJson<ApiMovie[]>(`/api/actor/${actorId}/movies${suffix}`);
 
-	return movies.map((movie) => ({
-		...mapMovie(movie),
-		pathHint: mapPathHint(movie.path_hint),
-	}));
+	return sortMoviesByReleaseDateDescending(
+		movies.map((movie) => ({
+			...mapMovie(movie),
+			pathHint: mapPathHint(movie.path_hint),
+		})),
+		(movie) => movie.releaseDate,
+		(movie) => movie.title,
+	);
 }
 
 export async function fetchMovieActors(
