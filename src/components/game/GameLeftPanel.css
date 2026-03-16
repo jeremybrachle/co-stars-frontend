@@ -108,7 +108,7 @@
 }
 
 .game-left-panel__completed-node {
-  min-height: 54px;
+  min-height: 66px;
   background: rgba(244, 114, 182, 0.16);
   border-color: rgba(251, 113, 133, 0.42);
 }
@@ -163,8 +163,8 @@
 .game-left-panel__board-box {
   width: calc(100% - 18px);
   min-width: 0;
-  min-height: 54px;
-  padding: 6px 8px;
+  min-height: 66px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -176,7 +176,7 @@
 .game-left-panel__node-identity {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   min-width: 0;
 }
@@ -188,9 +188,9 @@
 
 .game-left-panel__node-artwork,
 .game-left-panel__endpoint-artwork {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
   overflow: hidden;
   flex: 0 0 auto;
   background: rgba(255, 255, 255, 0.08);
@@ -198,9 +198,9 @@
 }
 
 .game-left-panel__endpoint-artwork {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
 }
 
 .game-left-panel__node-artwork-image {
@@ -223,13 +223,13 @@
 }
 
 .game-left-panel__node-label {
-  font-size: 0.74em;
+  font-size: 0.86em;
   line-height: 1.1;
   text-align: left;
 }
 
 .game-left-panel__endpoint-label {
-  font-size: 1rem;
+  font-size: 1.14rem;
   line-height: 1.2;
   text-align: center;
   flex: 0 1 auto;

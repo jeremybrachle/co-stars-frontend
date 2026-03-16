@@ -354,15 +354,15 @@ button:hover {
   position: relative;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 32px 20px 92px;
+  padding: 24px 20px 76px;
   box-sizing: border-box;
 }
 
 .settingsPanel {
-  width: min(100%, 760px);
-  padding: 32px;
+  width: min(100%, 980px);
+  padding: 24px 26px 22px;
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -370,18 +370,144 @@ button:hover {
 }
 
 .settingsIntro {
-  margin: 0 0 24px;
+  margin: 0 0 16px;
+  max-width: 68ch;
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .settingsSection {
-  margin-top: 24px;
-  padding-top: 24px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .settingsSection h2 {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   font-size: 1.3rem;
+}
+
+.settingsSection--first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.settingsBuildSection {
+  margin-top: 16px;
+}
+
+.settingsBuildRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settingsBuildLabel {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.settingsBuildValue {
+  font-size: 1rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.settingsDifficultyGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settingsDifficultyCard {
+  min-height: 0;
+}
+
+.settingsCustomPanel {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.settingsCustomHeader {
+  margin-bottom: 10px;
+}
+
+.settingsCustomHeader h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.settingsToggleList {
+  display: grid;
+  gap: 10px;
+}
+
+.settingsToggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+}
+
+.settingsToggleText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.settingsToggleSwitch {
+  position: relative;
+  width: 48px;
+  min-width: 48px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.4);
+  box-shadow: none;
+}
+
+.settingsToggleSwitch:hover {
+  background: rgba(148, 163, 184, 0.52);
+}
+
+.settingsToggleSwitch--on {
+  background: rgba(37, 99, 235, 0.82);
+}
+
+.settingsToggleSwitch--on:hover {
+  background: rgba(29, 78, 216, 0.9);
+}
+
+.settingsToggleThumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.18s ease;
+}
+
+.settingsToggleSwitch--on .settingsToggleThumb {
+  transform: translateX(20px);
+}
+
+.settingsHowToGrid {
+  display: grid;
+  gap: 6px;
 }
 
 .settingsOption {
@@ -400,7 +526,7 @@ button:hover {
   display: block;
   margin-top: 4px;
   color: rgba(255, 255, 255, 0.82);
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 .settingsError {
@@ -416,8 +542,17 @@ button:hover {
 .settingsActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin: 18px 0;
+  gap: 8px;
+  margin: 12px 0 8px;
+}
+
+.settingsActionButton {
+  min-width: 0;
+  padding: 0.52em 0.82em;
+  font-size: 0.84rem;
+  line-height: 1.1;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.18);
 }
 
 .settingsDangerButton {
@@ -763,7 +898,7 @@ button:hover {
 .dataModeGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .dataModeGrid--popover {
@@ -788,7 +923,7 @@ button:hover {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -801,7 +936,7 @@ button:hover {
 }
 
 .settingsOption--radio-page {
-  min-height: 72px;
+  min-height: 62px;
 }
 
 .settingsOption--radio-popover {
@@ -853,6 +988,12 @@ button:hover {
   gap: 4px;
 }
 
+.dataSettingsStats--expanded {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 18px;
+  margin-top: 12px;
+}
+
 .dataSettingsStats--compact {
   gap: 2px;
 }
@@ -867,8 +1008,72 @@ button:hover {
 
 .settingsActionButton--compact {
   min-width: 0;
-  padding: 0.7em 0.9em;
-  font-size: 0.88rem;
+  padding: 0.48em 0.74em;
+  font-size: 0.8rem;
+}
+
+.dataSettingsDisclosure {
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0;
+  overflow: hidden;
+}
+
+.dataSettingsDisclosureSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+}
+
+.dataSettingsDisclosureSummary::-webkit-details-marker {
+  display: none;
+}
+
+.dataSettingsDisclosureValue {
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.dataSettingsDisclosure[open] {
+  padding-bottom: 12px;
+}
+
+.dataSettingsDisclosure .dataSettingsStats {
+  padding: 0 14px;
+}
+
+@media (max-height: 860px) {
+  .settingsPage {
+    padding-top: 18px;
+    padding-bottom: 58px;
+  }
+
+  .settingsPanel {
+    padding: 20px 22px 18px;
+  }
+
+  .settingsIntro {
+    margin-bottom: 12px;
+  }
+
+  .settingsSection {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+}
+
+@media (max-width: 960px) {
+  .settingsDifficultyGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .catalogListItem--interactive,

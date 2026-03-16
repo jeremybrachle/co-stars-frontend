@@ -190,31 +190,34 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 					</div>
 				</section>
 			) : (
-				<section className="settingsSection dataSettingsSection">
-					<h3>Current status</h3>
-					<div className="dataSettingsStats">
+				<details className="settingsSection dataSettingsSection dataSettingsDisclosure">
+					<summary className="dataSettingsDisclosureSummary">
+						<span>Current data status</span>
+						<span className="dataSettingsDisclosureValue">{getDataIndicatorLabel(variant)}</span>
+					</summary>
+					<div className="dataSettingsStats dataSettingsStats--expanded">
 						<p className="settingsHint">Browser connection: {isBrowserOnline ? "online" : "offline"}</p>
 						<p className="settingsHint">Indicator state: {getDataIndicatorLabel(variant)}</p>
 						<p className="settingsHint">Current snapshot source: {formatSnapshotLoadSource(loadedFrom)}</p>
 						<p className="settingsHint">Last snapshot refresh: {lastRefreshAt ?? "not refreshed yet"}</p>
-						<p className="settingsHint">Recommended refresh interval: every {formatRefreshHours(recommendedRefreshMs)} hours</p>
-						<p className="settingsHint">Hosted manifest URL: {hostedManifestUrl ?? "not configured"}</p>
-						<p className="settingsHint">API manifest URL: {apiManifestUrl}</p>
-						<p className="settingsHint">Loaded snapshot version: {snapshot?.meta.version ?? "none loaded yet"}</p>
-						<p className="settingsHint">Loaded manifest version: {manifest?.version ?? "none loaded yet"}</p>
+						<p className="settingsHint">Refresh cadence: every {formatRefreshHours(recommendedRefreshMs)} hours</p>
+						<p className="settingsHint">Snapshot version: {snapshot?.meta.version ?? "none loaded yet"}</p>
+						<p className="settingsHint">Manifest version: {manifest?.version ?? "none loaded yet"}</p>
+						<p className="settingsHint">Hosted manifest: {hostedManifestUrl ?? "not configured"}</p>
+						<p className="settingsHint">API manifest: {apiManifestUrl}</p>
 						<p className="settingsHint">Snapshot endpoint: {manifest?.snapshotEndpoint ?? "none loaded yet"}</p>
 					</div>
-				</section>
+				</details>
 			)}
 
 			<section className="settingsSection dataSettingsSection">
 				<h3>Snapshot controls</h3>
 				<div className={`settingsActions settingsActions--${layout}`}>
-					<button type="button" className={isCompact ? "settingsActionButton settingsActionButton--compact" : ""} onClick={() => void fetchSnapshotFromApi()} disabled={isLoading}>{isCompact ? "Fetch API" : "Fetch snapshot from API"}</button>
-					<button type="button" className={isCompact ? "settingsActionButton settingsActionButton--compact" : ""} onClick={() => void fetchSnapshotFromS3()} disabled={isLoading}>{isCompact ? "Fetch Hosted" : "Fetch snapshot from hosted file"}</button>
-					<button type="button" className={`${isCompact ? "settingsActionButton settingsActionButton--compact " : ""}settingsDangerButton`} onClick={clearSnapshotCache}>{isCompact ? "Clear Cache" : "Clear cached snapshot"}</button>
+					<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromApi()} disabled={isLoading}>{isCompact ? "Fetch API" : "Fetch API"}</button>
+					<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromS3()} disabled={isLoading}>{isCompact ? "Fetch hosted" : "Fetch hosted"}</button>
+					<button type="button" className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={clearSnapshotCache}>Clear cache</button>
 				</div>
-				{isCompact ? null : <p className="settingsHint">You can refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>}
+				{isCompact ? null : <p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>}
 				{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
 			</section>
 		</div>

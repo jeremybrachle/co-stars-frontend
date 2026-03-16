@@ -164,16 +164,14 @@ function CatalogDetailDialog({
   onRelationSearchChange: (value: string) => void
   onOpenRelatedEntity: (entity: RelatedEntity) => void
 }) {
+  const detailKey = detail ? `${detail.type}-${detail.item.id}` : "catalog-detail-empty"
+  const [expandedNarrativeKey, setExpandedNarrativeKey] = useState<string | null>(null)
+
   if (!detail) {
     return null
   }
 
-  const detailKey = `${detail.type}-${detail.item.id}`
-  const [isNarrativeExpanded, setIsNarrativeExpanded] = useState(false)
-
-  useEffect(() => {
-    setIsNarrativeExpanded(false)
-  }, [detailKey])
+  const isNarrativeExpanded = expandedNarrativeKey === detailKey
 
   const relationshipLabel = detail.type === "actor" ? "Movies in catalog" : "Actors in catalog"
   const detailBadges = detail.type === "movie"
@@ -237,7 +235,12 @@ function CatalogDetailDialog({
       <div className={`catalogDetailNarrative${isNarrativeExpanded ? " catalogDetailNarrative--expanded" : ""}`}>
       <div className="catalogDetailNarrativeHeader">
         <h3>{detail.type === "actor" ? "Biography" : "Overview"}</h3>
-        <button type="button" className="catalogDetailNarrativeToggle" onClick={() => setIsNarrativeExpanded((currentValue) => !currentValue)} aria-label={isNarrativeExpanded ? "Collapse text" : "Expand text"}>
+        <button
+          type="button"
+          className="catalogDetailNarrativeToggle"
+          onClick={() => setExpandedNarrativeKey((currentValue) => (currentValue === detailKey ? null : detailKey))}
+          aria-label={isNarrativeExpanded ? "Collapse text" : "Expand text"}
+        >
           {isNarrativeExpanded ? "−" : "+"}
         </button>
       </div>

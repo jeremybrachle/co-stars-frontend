@@ -120,7 +120,7 @@ function AdventurePage() {
 					}
 
 					setLevels(snapshotLevels);
-					setActorImages(buildActorImageMapFromIndexes(indexes));
+					setActorImages(indexes ? buildActorImageMapFromIndexes(indexes) : {});
 					return;
 				}
 

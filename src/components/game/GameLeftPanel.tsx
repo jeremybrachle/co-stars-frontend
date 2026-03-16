@@ -21,7 +21,7 @@ type BoardToken = {
   isCurrent: boolean;
   isDimmed: boolean;
   removable: boolean;
-  onSelect?: () => void;
+  onInspect: () => void;
   onRemove?: () => void;
 };
 
@@ -45,6 +45,7 @@ type Props = {
   currentHops: number;
   optimalHops: number | null;
   onSelectSide: (side: SelectedSide) => void;
+  onInspectNode: (node: GameNode) => void;
   onRemoveTopPathItem: () => void;
   onRemoveBottomPathItem: () => void;
 };
@@ -154,6 +155,7 @@ function buildBoardTokens({
   cappedSide,
   fontSize,
   onSelectSide,
+  onInspectNode,
   onRemove,
 }: {
   path: GameNode[];
@@ -163,6 +165,7 @@ function buildBoardTokens({
   cappedSide: Side | null;
   fontSize: number;
   onSelectSide: (side: Side) => void;
+  onInspectNode: (node: GameNode) => void;
   onRemove: () => void;
 }) {
   const order = getOrderForSide(side);
@@ -186,7 +189,7 @@ function buildBoardTokens({
       isCurrent,
       isDimmed: !isActivePath,
       removable: isCurrent,
-      onSelect: isCurrent ? () => onSelectSide(side) : undefined,
+      onInspect: () => onInspectNode(step),
       onRemove: isCurrent ? onRemove : undefined,
     };
   });
@@ -213,14 +216,14 @@ function renderStepRow({
   isCurrent,
   removable,
   onRemove,
-  onSelect,
+  onInspect,
 }: {
   node: GameNode;
   fontSize: number;
   isCurrent: boolean;
   removable: boolean;
   onRemove?: () => void;
-  onSelect?: () => void;
+  onInspect: () => void;
 }) {
   return (
     <div className="game-left-panel__step-row">
@@ -240,7 +243,7 @@ function renderStepRow({
       <div
         className={`game-left-panel__actor-box game-left-panel__board-box${isCurrent ? " game-left-panel__actor-box--path-current-primary" : " game-left-panel__actor-box--placed"}`}
         style={{ fontSize: `${fontSize}px` }}
-        onClick={onSelect}
+        onClick={onInspect}
       >
         <div className="game-left-panel__node-identity">
           <EntityArtwork
@@ -265,7 +268,7 @@ function renderBoardToken(token: BoardToken) {
     isCurrent: token.isCurrent,
     removable: token.removable,
     onRemove: token.onRemove,
-    onSelect: token.onSelect,
+    onInspect: token.onInspect,
   });
 
   const originArrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${token.side === "top" ? "game-left-panel__board-arrow--up-origin" : "game-left-panel__board-arrow--down-origin"}${token.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
@@ -291,7 +294,7 @@ function renderBoardEllipsis(ellipsis: BoardEllipsis) {
   );
 }
 
-function renderCompletedBoard(completedPath: GameNode[]) {
+function renderCompletedBoard(completedPath: GameNode[], onInspectNode: (node: GameNode) => void) {
   const totalNodes = completedPath.length;
   const columns = Math.min(4, Math.max(2, totalNodes >= 4 ? 4 : totalNodes));
   const rows = Math.max(1, Math.ceil(totalNodes / columns));
@@ -304,11 +307,12 @@ function renderCompletedBoard(completedPath: GameNode[]) {
         style={{
           gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
+          gap: rows === 2 ? "10px 26px" : undefined,
         }}
       >
         {completedPath.map((node, index) => {
           const coord = snakeOrder[index];
-          const nextCoord = snakeOrder[index + 1];
+          const nextCoord = index < completedPath.length - 1 ? snakeOrder[index + 1] : undefined;
           const outgoingArrow = nextCoord ? getDirectionalArrow(coord, nextCoord) : undefined;
           const isEndpoint = index === 0 || index === completedPath.length - 1;
 
@@ -326,6 +330,7 @@ function renderCompletedBoard(completedPath: GameNode[]) {
                 ) : null}
                 <div
                   className={`game-left-panel__actor-box game-left-panel__board-box game-left-panel__completed-node${isEndpoint ? " game-left-panel__completed-node--endpoint" : ""}`}
+                  onClick={() => onInspectNode(node)}
                 >
                   <div className="game-left-panel__node-identity">
                     <EntityArtwork
@@ -348,11 +353,11 @@ function renderCompletedBoard(completedPath: GameNode[]) {
   );
 }
 
-function renderEndpoint(node: GameNode, side: SelectedSide, isSelected: boolean, onSelectSide: (side: SelectedSide) => void) {
+function renderEndpoint(node: GameNode, side: SelectedSide, isSelected: boolean, onInspectNode: (node: GameNode) => void) {
   return (
     <div
       className={`game-left-panel__actor-box game-left-panel__endpoint${side === "top" ? " game-left-panel__actor-box--top" : " game-left-panel__actor-box--bottom"}${isSelected ? ` game-left-panel__actor-box--selected-side-${side}` : ""}`}
-      onClick={() => onSelectSide(side)}
+      onClick={() => onInspectNode(node)}
     >
       <div className="game-left-panel__node-identity game-left-panel__node-identity--endpoint">
         <EntityArtwork
@@ -380,6 +385,7 @@ function GameLeftPanel({
   currentHops,
   optimalHops,
   onSelectSide,
+  onInspectNode,
   onRemoveTopPathItem,
   onRemoveBottomPathItem,
 }: Props) {
@@ -398,6 +404,7 @@ function GameLeftPanel({
     cappedSide,
     fontSize: topFontSize,
     onSelectSide,
+    onInspectNode,
     onRemove: onRemoveTopPathItem,
   });
 
@@ -409,6 +416,7 @@ function GameLeftPanel({
     cappedSide,
     fontSize: bottomFontSize,
     onSelectSide,
+    onInspectNode,
     onRemove: onRemoveBottomPathItem,
   });
 
@@ -448,14 +456,14 @@ function GameLeftPanel({
 
       {completedPath ? (
         <>
-          {renderEndpoint(actorA, "top", false, onSelectSide)}
+          {renderEndpoint(actorA, "top", false, onInspectNode)}
           <div className="game-left-panel__completion-heading">Completed path</div>
-          {renderCompletedBoard(completedPath)}
-          {renderEndpoint(actorB, "bottom", false, onSelectSide)}
+          {renderCompletedBoard(completedPath, onInspectNode)}
+          {renderEndpoint(actorB, "bottom", false, onInspectNode)}
         </>
       ) : (
         <>
-          {renderEndpoint(actorA, "top", selectedSide === "top", onSelectSide)}
+          {renderEndpoint(actorA, "top", selectedSide === "top", onInspectNode)}
 
           <div className="game-left-panel__path-area">
             <div className="game-left-panel__board">
@@ -476,7 +484,7 @@ function GameLeftPanel({
             </div>
           </div>
 
-          {renderEndpoint(actorB, "bottom", selectedSide === "bottom", onSelectSide)}
+          {renderEndpoint(actorB, "bottom", selectedSide === "bottom", onInspectNode)}
         </>
       )}
     </section>

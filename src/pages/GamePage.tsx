@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import EntityArtwork from "../components/EntityArtwork";
 import HomeButton from "../components/HomeButton";
 import GameLogo from "../components/GameLogo";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
@@ -23,6 +24,7 @@ import {
   OPTIMAL_PATH_INCLUSION_RATE,
 } from "../gameplay";
 import { useDataSourceMode } from "../context/dataSourceMode";
+import { CUSTOM_SETTING_DEFINITIONS, useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import {
@@ -40,7 +42,8 @@ import {
   getMoviesForActor,
   validateLocalPath,
 } from "../data/localGraph";
-import type { Actor, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
+import { formatActorLifespan, formatGameNodeMeta, getMovieBadges } from "../data/presentation";
+import type { Actor, DifficultyOption, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
 type RouteGameNode = {
@@ -81,6 +84,16 @@ type CompletionState = {
   source: string;
   isValidated: boolean | null;
   validationMessage?: string;
+};
+
+type NodeInspectorState = {
+  node: GameNode;
+  detailLines: string[];
+  description: string | null;
+  relatedTitle: string;
+  relatedNodes: GameNode[];
+  isLoading: boolean;
+  errorMessage: string | null;
 };
 
 function createAllowedLoopNodeKeySet(...nodes: Array<GameNode | null>) {
@@ -309,8 +322,50 @@ function reverseFullPath(path: GameNode[]) {
   return [...path].reverse();
 }
 
+function hydrateCompletionPath(path: GameNode[], referenceNodes: GameNode[]) {
+  return path.map((node) => referenceNodes.find((referenceNode) => isSameNode(node, referenceNode)) ?? node);
+}
+
 function formatPathPreview(path: GameNode[]) {
   return path.map((node) => node.label).join(" → ");
+}
+
+function uniqueText(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim()))));
+}
+
+function createNodeInspectorState(
+  node: GameNode,
+  relatedTitle: string,
+  relatedNodes: GameNode[],
+  detailLines: string[],
+  description: string | null,
+  isLoading = false,
+  errorMessage: string | null = null,
+): NodeInspectorState {
+  return {
+    node,
+    relatedTitle,
+    relatedNodes,
+    detailLines,
+    description,
+    isLoading,
+    errorMessage,
+  };
+}
+
+function buildFallbackInspectorState(node: GameNode) {
+  return createNodeInspectorState(
+    node,
+    node.type === "actor" ? "Movies" : "Cast",
+    [],
+    uniqueText([
+      formatGameNodeMeta(node),
+      node.type === "actor" ? node.placeOfBirth : node.genres?.slice(0, 3).join(" • "),
+    ]),
+    node.overview ?? null,
+    true,
+  );
 }
 
 function GamePage() {
@@ -324,6 +379,7 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
+  const { settings, setDifficulty, setCustomSetting } = useGameSettings();
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
@@ -353,6 +409,7 @@ function GamePage() {
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
+  const [nodeInspector, setNodeInspector] = useState<NodeInspectorState | null>(null);
 
   const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
@@ -784,9 +841,10 @@ function GamePage() {
   }, [actorA, actorB, actorsCatalog, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalog, resolveSnapshotResources, shuffleSeed, targetNode, topPath]);
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
+    const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
     const provisionalCompletion: CompletionState = {
-      fullPath,
-      usedHops: fullPath.length - 1,
+      fullPath: hydratedFullPath,
+      usedHops: hydratedFullPath.length - 1,
       winningSide,
       source,
       isValidated: null,
@@ -808,14 +866,14 @@ function GamePage() {
         validation = validateLocalPath(fullPath, resources.indexes);
       } else {
         try {
-          validation = await validatePath(fullPath.map((node) => node.label));
+          validation = await validatePath(hydratedFullPath.map((node) => node.label));
         } catch {
           const resources = (await resolveSnapshotResources()) ?? (await resolveSnapshotResources(true));
           if (!resources) {
             throw new Error(NETWORK_UNAVAILABLE_MESSAGE);
           }
 
-          validation = validateLocalPath(fullPath, resources.indexes);
+          validation = validateLocalPath(hydratedFullPath, resources.indexes);
           setResolvedDataSource(resources.source);
         }
       }
@@ -847,7 +905,7 @@ function GamePage() {
     const cycleNode = findLoopedNode([choice, ...autoCompletionTail], blockedLoopNodeKeys);
 
     if (cycleNode) {
-      setSuggestionError(`Cycle detected: ${cycleNode.label} is already in your path. The move was cancelled and your current selection stayed in place.`);
+      setSuggestionError(`Cycle detected: ${cycleNode.label} is already in your path. Make a different selection or rewind the path.`);
       return;
     }
 
@@ -960,6 +1018,132 @@ function GamePage() {
     setShuffleSeed((currentSeed) => currentSeed + 1);
   };
 
+  const handleInspectNode = useCallback(async (node: GameNode) => {
+    setNodeInspector(buildFallbackInspectorState(node));
+
+    try {
+      if (node.type === "actor") {
+        if (activeDataSource === "snapshot" || activeDataSource === "demo") {
+          const resources = await resolveSnapshotResources(activeDataSource === "demo");
+          if (!resources || node.id === undefined) {
+            throw new Error("Actor details are not available for this node.");
+          }
+
+          const actor = resources.indexes.actorsById.get(node.id);
+          const fullNode = actor ? createNodeFromActor(actor) : node;
+          const relatedNodes = getMoviesForActor(node.id, null, resources.indexes).slice(0, 18);
+
+          setNodeInspector(createNodeInspectorState(
+            fullNode,
+            "Movies",
+            relatedNodes,
+            uniqueText([
+              actor ? formatActorLifespan(actor) : null,
+              actor?.knownForDepartment ?? fullNode.knownForDepartment,
+              actor?.placeOfBirth ?? fullNode.placeOfBirth,
+              actor?.popularity !== null && actor?.popularity !== undefined ? `Popularity ${actor.popularity.toFixed(1)}` : null,
+            ]),
+            actor?.biography ?? null,
+          ));
+          return;
+        }
+
+        const [actorDetails, relatedMovies] = await Promise.all([
+          fetchActorByName(node.label),
+          node.id !== undefined ? fetchActorMovies(node.id) : Promise.resolve([]),
+        ]);
+
+        const fullNode = createNodeFromActor(actorDetails);
+        const relatedNodes = relatedMovies.slice(0, 18).map((movie) => {
+          const catalogMovie = moviesCatalog.find((entry) => entry.id === movie.id);
+          return createNode(movie.title, "movie", {
+            id: movie.id,
+            releaseDate: movie.releaseDate,
+            imageUrl: catalogMovie?.posterUrl ?? movie.posterUrl ?? null,
+            genres: catalogMovie?.genres ?? movie.genres ?? [],
+            contentRating: catalogMovie?.contentRating ?? movie.contentRating ?? null,
+            originalLanguage: catalogMovie?.originalLanguage ?? movie.originalLanguage ?? null,
+            overview: catalogMovie?.overview ?? movie.overview ?? null,
+          });
+        });
+
+        setNodeInspector(createNodeInspectorState(
+          fullNode,
+          "Movies",
+          relatedNodes,
+          uniqueText([
+            formatActorLifespan(actorDetails),
+            actorDetails.knownForDepartment,
+            actorDetails.placeOfBirth,
+            actorDetails.popularity !== null && actorDetails.popularity !== undefined ? `Popularity ${actorDetails.popularity.toFixed(1)}` : null,
+          ]),
+          actorDetails.biography ?? null,
+        ));
+        return;
+      }
+
+      if (activeDataSource === "snapshot" || activeDataSource === "demo") {
+        const resources = await resolveSnapshotResources(activeDataSource === "demo");
+        if (!resources || node.id === undefined) {
+          throw new Error("Movie details are not available for this node.");
+        }
+
+        const movie = resources.indexes.moviesById.get(node.id);
+        const fullNode = movie ? createNodeFromMovie(movie) : node;
+        const relatedNodes = getActorsForMovie(node.id, [], null, resources.indexes).slice(0, 24);
+
+        setNodeInspector(createNodeInspectorState(
+          fullNode,
+          "Cast",
+          relatedNodes,
+          uniqueText([
+            fullNode.releaseDate ? `Released ${fullNode.releaseDate}` : null,
+            fullNode.contentRating,
+            fullNode.originalLanguage ? fullNode.originalLanguage.toUpperCase() : null,
+            fullNode.genres?.slice(0, 3).join(" • "),
+          ]),
+          fullNode.overview ?? null,
+        ));
+        return;
+      }
+
+      const relatedActors = node.id !== undefined ? await fetchMovieActors(node.id, []) : [];
+      const catalogMovie = node.id !== undefined ? moviesCatalog.find((entry) => entry.id === node.id) : null;
+      const fullNode = catalogMovie ? createNodeFromMovie(catalogMovie) : node;
+      const relatedNodes = relatedActors.slice(0, 24).map((actor) => {
+        const catalogActor = actorsCatalog.find((entry) => entry.id === actor.id);
+        return createNode(actor.name, "actor", {
+          id: actor.id,
+          popularity: catalogActor?.popularity ?? actor.popularity ?? null,
+          imageUrl: catalogActor?.profileUrl ?? actor.profileUrl ?? null,
+          knownForDepartment: catalogActor?.knownForDepartment ?? actor.knownForDepartment ?? null,
+          placeOfBirth: catalogActor?.placeOfBirth ?? actor.placeOfBirth ?? null,
+        });
+      });
+
+      setNodeInspector(createNodeInspectorState(
+        fullNode,
+        "Cast",
+        relatedNodes,
+        uniqueText([
+          fullNode.releaseDate ? `Released ${fullNode.releaseDate}` : null,
+          fullNode.contentRating,
+          fullNode.originalLanguage ? fullNode.originalLanguage.toUpperCase() : null,
+          fullNode.genres?.slice(0, 3).join(" • "),
+        ]),
+        fullNode.overview ?? null,
+      ));
+    } catch (error) {
+      setNodeInspector((currentState) => currentState
+        ? {
+            ...currentState,
+            isLoading: false,
+            errorMessage: error instanceof Error ? error.message : "Node details could not be loaded.",
+          }
+        : null);
+    }
+  }, [activeDataSource, actorsCatalog, moviesCatalog, resolveSnapshotResources]);
+
   const handleWriteIn = async (value: string, type: NodeType) => {
     setSuggestionError(null);
 
@@ -1045,6 +1229,7 @@ function GamePage() {
 
   const completionPreviewPath = completion?.fullPath ?? optimalPath;
   const backDestination = routeState?.returnTo ?? "/play-now";
+  const difficultyOptions: DifficultyOption[] = ["easy", "medium", "hard", "custom"];
 
   return (
     <div className="gamePage">
@@ -1077,13 +1262,18 @@ function GamePage() {
           currentHops={currentHops}
           optimalHops={optimalHops}
           onSelectSide={setSelectedSide}
+          onInspectNode={(node) => {
+            void handleInspectNode(node);
+          }}
           onRemoveTopPathItem={handleRemoveTopPathItem}
           onRemoveBottomPathItem={handleRemoveBottomPathItem}
         />
         <div className="gameSidebar">
-          <div className={`gameSidebarWarning${isPathLimitReached && !isGameComplete ? " gameSidebarWarning--visible" : ""}`}>
-            Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
-          </div>
+          {isPathLimitReached && !isGameComplete ? (
+            <div className="gameSidebarWarning gameSidebarWarning--visible">
+              Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
+            </div>
+          ) : null}
 
           {setupError || (activeDataSource === "snapshot" ? snapshotError : null) ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
 
@@ -1093,20 +1283,18 @@ function GamePage() {
             turns={turns}
             rewinds={rewinds}
             shuffles={shuffles}
-            optimalHops={optimalHops}
-            currentHops={currentHops}
             isDisabled={isInteractionDisabled}
             isComplete={isGameComplete}
             isLoading={isSuggestionsLoading}
             errorMessage={suggestionError}
             onBack={handleBackCurrentPathItem}
             onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
+            onReverse={handleReverseSides}
             onSuggestion={(choice) => {
               void handleSuggestion(choice);
             }}
-            onWriteIn={handleWriteIn}
-            onReverse={handleReverseSides}
             onShuffle={handleShuffle}
+            onWriteIn={handleWriteIn}
           />
         </div>
       </div>
@@ -1134,6 +1322,56 @@ function GamePage() {
             <p className="gameRulesText">
               Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
             </p>
+
+              <div className="gameRulesDifficultySection">
+                <div className="gameRulesDifficultyTitle">Difficulty</div>
+                <div className="gameRulesDifficultyGrid">
+                  {difficultyOptions.map((option) => (
+                    <label
+                      key={option}
+                      className={`settingsOption settingsOption--radio settingsOption--radio-page settingsDifficultyCard gameRulesDifficultyCard${settings.difficulty === option ? " settingsOption--active" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="game-difficulty"
+                        checked={settings.difficulty === option}
+                        onChange={() => setDifficulty(option)}
+                      />
+                      <span className="settingsOptionControl" aria-hidden="true" />
+                      <span>
+                        <strong>{option.charAt(0).toUpperCase() + option.slice(1)}</strong>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                {settings.difficulty === "custom" ? (
+                  <div className="settingsCustomPanel gameRulesCustomPanel">
+                    <div className="settingsCustomHeader">
+                      <h3>Custom Rules</h3>
+                      <p className="settingsHint">Toggle any helper on or off for this run. These changes are shared with the main Settings page.</p>
+                    </div>
+                    <div className="settingsToggleList">
+                      {CUSTOM_SETTING_DEFINITIONS.map((setting) => (
+                        <label key={setting.id} className="settingsToggleRow">
+                          <span className="settingsToggleText">
+                            <strong>{setting.label}</strong>
+                            <span className="settingsHint">{setting.hint}</span>
+                          </span>
+                          <button
+                            type="button"
+                            className={`settingsToggleSwitch${settings.customSettings[setting.id] ? " settingsToggleSwitch--on" : ""}`}
+                            onClick={() => setCustomSetting(setting.id, !settings.customSettings[setting.id])}
+                            aria-pressed={settings.customSettings[setting.id]}
+                          >
+                            <span className="settingsToggleThumb" aria-hidden="true" />
+                          </button>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
           </div>
         </div>
       ) : null}
@@ -1174,10 +1412,12 @@ function GamePage() {
               <div className="gameCompletionPreviewTitle">Completed path preview</div>
               <div className="gameCompletionTrack">
                 {completionPreviewPath.map((node, index) => (
-                  <div key={`${node.type}-${node.label}-${index}`} className="gameCompletionTrackSegment">
-                    <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
-                    {index < completionPreviewPath.length - 1 ? <span className="gameCompletionArrow">→</span> : null}
-                  </div>
+                  <Fragment key={`${node.type}-${node.label}-${index}`}>
+                    <div key={`${node.type}-${node.label}-${index}`} className="gameCompletionTrackSegment">
+                      <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
+                    </div>
+                    {index < completionPreviewPath.length - 1 ? <span key={`arrow-${node.type}-${node.label}-${index}`} className="gameCompletionArrow">→</span> : null}
+                  </Fragment>
                 ))}
               </div>
               <div className="gameCompletionPreviewText">{formatPathPreview(completion.fullPath)}</div>
@@ -1187,6 +1427,81 @@ function GamePage() {
               {completion.isValidated === true ? "Path validated successfully." : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
               {completion.validationMessage ? ` ${completion.validationMessage}` : ""}
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {nodeInspector ? (
+        <div className="gameInspectorOverlay" onClick={() => setNodeInspector(null)}>
+          <div className="gameInspectorDialog" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="gameRulesCloseButton" onClick={() => setNodeInspector(null)} aria-label="Close node details">
+              ×
+            </button>
+            <div className="gameInspectorHero">
+              <EntityArtwork
+                type={nodeInspector.node.type}
+                label={nodeInspector.node.label}
+                imageUrl={nodeInspector.node.imageUrl}
+                className="gameInspectorArtwork"
+                imageClassName="gameInspectorArtworkImage"
+                placeholderClassName="gameInspectorArtworkEmoji"
+              />
+              <div className="gameInspectorHeader">
+                <div className="gameInspectorType">{nodeInspector.node.type === "actor" ? "Actor" : "Movie"}</div>
+                <h2 className="gameInspectorTitle">{nodeInspector.node.label}</h2>
+                <div className="gameInspectorMeta">
+                  {nodeInspector.detailLines.map((line) => (
+                    <span key={line} className="gameInspectorMetaPill">{line}</span>
+                  ))}
+                  {nodeInspector.node.type === "movie"
+                    ? getMovieBadges({
+                        genres: nodeInspector.node.genres ?? [],
+                        contentRating: null,
+                        originalLanguage: null,
+                      }).slice(0, 2).map((badge) => (
+                        <span key={badge} className="gameInspectorMetaPill gameInspectorMetaPill--muted">{badge}</span>
+                      ))
+                    : null}
+                </div>
+              </div>
+            </div>
+
+            {nodeInspector.description ? <p className="gameInspectorDescription">{nodeInspector.description}</p> : null}
+
+            <div className="gameInspectorSectionTitle">{nodeInspector.relatedTitle}</div>
+            {nodeInspector.isLoading ? <div className="gameInspectorEmpty">Loading details…</div> : null}
+            {!nodeInspector.isLoading && nodeInspector.errorMessage ? <div className="gameInspectorEmpty">{nodeInspector.errorMessage}</div> : null}
+            {!nodeInspector.isLoading && !nodeInspector.errorMessage ? (
+              nodeInspector.relatedNodes.length > 0 ? (
+                <div className="gameInspectorList">
+                  {nodeInspector.relatedNodes.map((relatedNode, index) => (
+                    <button
+                      key={`${relatedNode.type}-${relatedNode.id ?? relatedNode.label}-${index}`}
+                      type="button"
+                      className="gameInspectorListItem"
+                      onClick={() => {
+                        void handleInspectNode(relatedNode);
+                      }}
+                    >
+                      <EntityArtwork
+                        type={relatedNode.type}
+                        label={relatedNode.label}
+                        imageUrl={relatedNode.imageUrl}
+                        className="gameInspectorListArtwork"
+                        imageClassName="gameInspectorArtworkImage"
+                        placeholderClassName="gameInspectorListArtworkEmoji"
+                      />
+                      <span className="gameInspectorListText">
+                        <span className="gameInspectorListTitle">{relatedNode.label}</span>
+                        <span className="gameInspectorListMeta">{formatGameNodeMeta(relatedNode)}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="gameInspectorEmpty">No related entries were available for this node.</div>
+              )
+            ) : null}
           </div>
         </div>
       ) : null}

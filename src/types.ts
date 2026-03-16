@@ -168,6 +168,20 @@ export type DataSourceMode = {
 
 export type EffectiveDataSource = "snapshot" | "api" | "demo";
 
+export type DifficultyOption = "easy" | "medium" | "hard" | "custom";
+
+export type DifficultyToggleId =
+	| "show-suggestions"
+	| "show-hint-color"
+	| "show-optimal-tracking";
+
+export type DifficultySettings = Record<DifficultyToggleId, boolean>;
+
+export type GameDifficultySettings = {
+	difficulty: DifficultyOption;
+	customSettings: DifficultySettings;
+};
+
 export type DataIndicatorVariant =
 	| "online-snapshot"
 	| "online-api"

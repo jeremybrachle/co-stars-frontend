@@ -5,6 +5,7 @@ import type { GameNode, NodeType } from "../../types";
 import "./GameRightPanel.css";
 
 const WRITE_IN_TEMPORARILY_DISABLED = true;
+const SUGGESTION_SLOT_COUNT = 6;
 
 type Props = {
   currentSelection: GameNode;
@@ -12,16 +13,14 @@ type Props = {
   turns: number;
   rewinds: number;
   shuffles: number;
-  optimalHops: number | null;
-  currentHops: number;
   isDisabled: boolean;
   isComplete: boolean;
   isLoading: boolean;
   errorMessage: string | null;
   onBack: () => void;
   onCompletePanelClick: () => void;
-  onSuggestion: (choice: GameNode) => void;
   onReverse: () => void;
+  onSuggestion: (choice: GameNode) => void;
   onShuffle: () => void;
   onWriteIn: (value: string, type: NodeType) => Promise<void>;
 };
@@ -48,16 +47,14 @@ function GameRightPanel({
   turns,
   rewinds,
   shuffles,
-  optimalHops,
-  currentHops,
   isDisabled,
   isComplete,
   isLoading,
   errorMessage,
   onBack,
   onCompletePanelClick,
-  onSuggestion,
   onReverse,
+  onSuggestion,
   onShuffle,
   onWriteIn,
 }: Props) {
@@ -66,20 +63,11 @@ function GameRightPanel({
   const [isSubmittingWriteIn, setIsSubmittingWriteIn] = useState(false);
   const selectionContext = getSuggestionContextLabel(currentSelection);
   const isCycleWarning = errorMessage?.startsWith("Cycle detected:") ?? false;
-  const visibleSuggestions = suggestions.slice(0, 6);
-  const visibleChoiceCount = visibleSuggestions.length + 1;
-  const choiceDensityClass = useMemo(() => {
-    if (visibleChoiceCount >= 6) {
-      return "game-right-panel__choices--compact";
-    }
-
-    if (visibleChoiceCount >= 4) {
-      return "game-right-panel__choices--balanced";
-    }
-
-    return "game-right-panel__choices--spacious";
-  }, [visibleChoiceCount]);
-  const isToolbarDisabled = isLoading || isComplete;
+  const visibleSuggestions = suggestions.slice(0, SUGGESTION_SLOT_COUNT);
+  const suggestionSlots = useMemo(
+    () => Array.from({ length: SUGGESTION_SLOT_COUNT }, (_, index) => visibleSuggestions[index] ?? null),
+    [visibleSuggestions],
+  );
 
   useEffect(() => {
     if (WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isComplete) {
@@ -116,19 +104,37 @@ function GameRightPanel({
 
   return (
     <aside className={`game-right-panel${isCycleWarning ? " game-right-panel--cycle-warning" : ""}`}>
-      <div className={`game-right-panel__content${isDisabled ? " game-right-panel__content--disabled" : ""}${isComplete ? " game-right-panel__content--complete" : ""}`}>
-        <div className="game-right-panel__toolbar">
-          <button type="button" className="game-right-panel__toolbar-button" onClick={onBack} aria-label="Back" disabled={isToolbarDisabled}>
-            <span className="game-right-panel__toolbar-icon" aria-hidden="true">↶</span>
-          </button>
-          <button type="button" className="game-right-panel__toolbar-button" onClick={onShuffle} aria-label="Shuffle" disabled={isToolbarDisabled}>
-            <span className="game-right-panel__toolbar-icon" aria-hidden="true">⟳</span>
-          </button>
-          <button type="button" className="game-right-panel__toolbar-button" onClick={onReverse} aria-label="Reverse" disabled={isToolbarDisabled}>
-            <span className="game-right-panel__toolbar-icon" aria-hidden="true">⇅</span>
-          </button>
-        </div>
+      <div className="game-right-panel__toolbar-row" aria-label="Game controls">
+        <button
+          type="button"
+          className="game-right-panel__toolbar-button"
+          onClick={onBack}
+          aria-label="Rewind"
+          title="Rewind"
+        >
+          <span className="game-right-panel__toolbar-icon" aria-hidden="true">↶</span>
+        </button>
+        <button
+          type="button"
+          className="game-right-panel__toolbar-button"
+          onClick={onShuffle}
+          aria-label="Shuffle"
+          title="Shuffle"
+        >
+          <span className="game-right-panel__toolbar-icon" aria-hidden="true">⟳</span>
+        </button>
+        <button
+          type="button"
+          className="game-right-panel__toolbar-button"
+          onClick={onReverse}
+          aria-label="Swap"
+          title="Swap"
+        >
+          <span className="game-right-panel__toolbar-icon" aria-hidden="true">⇅</span>
+        </button>
+      </div>
 
+      <div className={`game-right-panel__content${isDisabled ? " game-right-panel__content--disabled" : ""}${isComplete ? " game-right-panel__content--complete" : ""}`}>
         <div className="game-right-panel__label">
           <span className="game-right-panel__label-prefix">{selectionContext.prefix}</span>
           <span className="game-right-panel__label-selection">{currentSelection.label}</span>
@@ -141,7 +147,7 @@ function GameRightPanel({
         {errorMessage ? <div className="game-right-panel__message game-right-panel__message--error">{errorMessage}</div> : null}
         {isLoading ? <div className="game-right-panel__message">Refreshing live suggestions…</div> : null}
 
-        <div className={`game-right-panel__choices ${choiceDensityClass}${isComplete ? " game-right-panel__choices--complete" : ""}`}>
+        <div className={`game-right-panel__choices${isComplete ? " game-right-panel__choices--complete" : ""}`}>
           {isComplete ? (
             <button type="button" className="game-right-panel__completion-review" onClick={onCompletePanelClick}>
               <span className="game-right-panel__completion-review-title">Game complete</span>
@@ -149,49 +155,58 @@ function GameRightPanel({
             </button>
           ) : (
             <>
+              <div className="game-right-panel__choices-spacer" aria-hidden="true" />
               <div className="game-right-panel__grid">
-                {visibleSuggestions.map((suggestion, idx) => (
-                  <button
-                    key={`${suggestion.type}-${suggestion.label}-${idx}`}
-                    className={`game-right-panel__suggestion-button${suggestion.highlight ? ` game-right-panel__suggestion-button--${suggestion.highlight.kind}` : ""}`}
-                    disabled={isDisabled || isLoading}
-                    onClick={() => onSuggestion(suggestion)}
-                    title={suggestion.highlight?.description}
-                  >
-                    <div className="game-right-panel__suggestion-art-row">
-                      <EntityArtwork
-                        type={suggestion.type}
-                        label={suggestion.label}
-                        imageUrl={suggestion.imageUrl}
-                        className="game-right-panel__suggestion-artwork"
-                        imageClassName="game-right-panel__suggestion-artwork-image"
-                        placeholderClassName="game-right-panel__suggestion-artwork-emoji"
-                      />
-                      <span className="game-right-panel__suggestion-label">{suggestion.label}</span>
-                    </div>
-                    {suggestion.type === "movie" ? (
-                      <span className="game-right-panel__suggestion-meta">
-                        {[formatYear(suggestion.releaseDate ?? null), suggestion.contentRating].filter(Boolean).join(" • ") || "Movie"}
-                      </span>
-                    ) : null}
-                    {suggestion.type === "movie" && suggestion.genres?.length ? (
-                      <span className="game-right-panel__suggestion-tags">
-                        {getMovieBadges({
-                          genres: suggestion.genres ?? [],
-                          contentRating: null,
-                          originalLanguage: null,
-                        }).slice(0, 2).map((badge) => (
-                          <span key={badge} className="game-right-panel__suggestion-tag">{badge}</span>
-                        ))}
-                      </span>
-                    ) : null}
-                    {suggestion.highlight ? (
-                      <span className={`game-right-panel__suggestion-badge game-right-panel__suggestion-badge--${suggestion.highlight.kind}`}>
-                        {suggestion.highlight.label}
-                      </span>
-                    ) : null}
-                  </button>
-                ))}
+                {suggestionSlots.map((suggestion, idx) => {
+                  if (!suggestion) {
+                    return <div key={`empty-slot-${idx}`} className="game-right-panel__suggestion-placeholder" aria-hidden="true" />;
+                  }
+
+                  return (
+                    <button
+                      key={`${suggestion.type}-${suggestion.label}-${idx}`}
+                      className={`game-right-panel__suggestion-button${suggestion.highlight ? ` game-right-panel__suggestion-button--${suggestion.highlight.kind}` : ""}`}
+                      disabled={isDisabled || isLoading}
+                      onClick={() => onSuggestion(suggestion)}
+                      title={suggestion.highlight?.description}
+                    >
+                      <div className="game-right-panel__suggestion-main">
+                        <EntityArtwork
+                          type={suggestion.type}
+                          label={suggestion.label}
+                          imageUrl={suggestion.imageUrl}
+                          className="game-right-panel__suggestion-artwork"
+                          imageClassName="game-right-panel__suggestion-artwork-image"
+                          placeholderClassName="game-right-panel__suggestion-artwork-emoji"
+                        />
+                        <div className="game-right-panel__suggestion-content">
+                          <span className="game-right-panel__suggestion-label">{suggestion.label}</span>
+                          <span className={`game-right-panel__suggestion-meta${suggestion.type === "actor" ? " game-right-panel__suggestion-meta--actor" : ""}`}>
+                            {suggestion.type === "movie"
+                              ? ([formatYear(suggestion.releaseDate ?? null), suggestion.contentRating].filter(Boolean).join(" • ") || "Movie")
+                              : "Actor"}
+                          </span>
+                          {suggestion.type === "movie" && suggestion.genres?.length ? (
+                            <span className="game-right-panel__suggestion-tags">
+                              {getMovieBadges({
+                                genres: suggestion.genres ?? [],
+                                contentRating: null,
+                                originalLanguage: null,
+                              }).slice(0, 1).map((badge) => (
+                                <span key={badge} className="game-right-panel__suggestion-tag">{badge}</span>
+                              ))}
+                            </span>
+                          ) : null}
+                          {suggestion.highlight ? (
+                            <span className={`game-right-panel__suggestion-badge game-right-panel__suggestion-badge--${suggestion.highlight.kind}`}>
+                              {suggestion.highlight.label}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
               {isWriteInOpen ? (
@@ -242,31 +257,24 @@ function GameRightPanel({
                   </button>
                 </div>
               )}
+              <div className="game-right-panel__choices-spacer" aria-hidden="true" />
             </>
           )}
         </div>
-      </div>
 
-      <div className="game-right-panel__score-panel">
-        <div className="game-right-panel__score-item">
-          <span className="game-right-panel__score-label">Turns:</span>
-          <span className="game-right-panel__score-value">{turns}</span>
-        </div>
-        <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
-          <span className="game-right-panel__score-label">Hops:</span>
-          <span className="game-right-panel__score-value">{currentHops}</span>
-        </div>
-        <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
-          <span className="game-right-panel__score-label">Shuffles:</span>
-          <span className="game-right-panel__score-value">{shuffles}</span>
-        </div>
-        <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
-          <span className="game-right-panel__score-label">Optimal:</span>
-          <span className="game-right-panel__score-value">{optimalHops ?? "--"}</span>
-        </div>
-        <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
-          <span className="game-right-panel__score-label">Rewinds:</span>
-          <span className="game-right-panel__score-value">{rewinds}</span>
+        <div className="game-right-panel__score-panel">
+          <div className="game-right-panel__score-item">
+            <span className="game-right-panel__score-label">Turns:</span>
+            <span className="game-right-panel__score-value">{turns}</span>
+          </div>
+          <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
+            <span className="game-right-panel__score-label">Shuffles:</span>
+            <span className="game-right-panel__score-value">{shuffles}</span>
+          </div>
+          <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
+            <span className="game-right-panel__score-label">Rewinds:</span>
+            <span className="game-right-panel__score-value">{rewinds}</span>
+          </div>
         </div>
       </div>
     </aside>
