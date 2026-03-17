@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HomeButton from "../components/HomeButton";
 import EntityArtwork from "../components/EntityArtwork";
+import FullDataWaitingMessage from "../components/FullDataWaitingMessage";
 import { fetchActors, fetchLevels, generatePath } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
-import { isOfflineDemoMode, isOnlineApiMode, isOnlineSnapshotMode, shouldAutoSwitchToOfflineDemo } from "../data/dataSourcePreferences";
+import { isOfflineDemoMode, isOnlineApiMode, isOnlineSnapshotMode } from "../data/dataSourcePreferences";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
 import type { Actor, Level, SnapshotIndexes } from "../types";
@@ -53,13 +54,14 @@ function AdventurePage() {
 	const [levels, setLevels] = useState<Level[]>([]);
 	const [actorImages, setActorImages] = useState<Record<string, string | null>>({});
 	const [loadError, setLoadError] = useState<string | null>(null);
-	const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
-	const { snapshot, indexes, isLoading: isSnapshotLoading, errorMessage } = useSnapshotData();
+	const { mode, setMode } = useDataSourceMode();
+	const { snapshot, indexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData();
+	const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !indexes);
 
 	useEffect(() => {
 		let isMounted = true;
 
-		const applyDemoLevels = (shouldPersistDemoMode: boolean) => {
+		const applyDemoLevels = () => {
 			if (!isMounted) {
 				return;
 			}
@@ -67,11 +69,6 @@ function AdventurePage() {
 			setLevels(hydrateSnapshotLevels(DEMO_BUNDLE.snapshot.levels, DEMO_BUNDLE.indexes));
 			setActorImages(buildActorImageMapFromIndexes(DEMO_BUNDLE.indexes));
 			setLoadError(null);
-
-			if (shouldPersistDemoMode && shouldAutoSwitchToOfflineDemo(mode)) {
-				setConnectionMode("offline");
-				setOfflineSource("demo");
-			}
 		};
 
 		const trySnapshotLevels = async () => {
@@ -103,13 +100,15 @@ function AdventurePage() {
 		const loadLevels = async () => {
 			setLoadError(null);
 
-			if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+			if (isWaitingForFullData) {
+				setLevels([]);
+				setActorImages({});
 				return;
 			}
 
 			try {
 				if (isOfflineDemoMode(mode)) {
-					applyDemoLevels(false);
+					applyDemoLevels();
 					return;
 				}
 
@@ -135,9 +134,9 @@ function AdventurePage() {
 					return;
 				}
 
-				applyDemoLevels(isOnlineSnapshotMode(mode));
-			} catch {
-				applyDemoLevels(isOnlineSnapshotMode(mode));
+				setLoadError("Full data could not be loaded in the selected mode. Try Demo Data or check Advanced data settings.");
+			} catch (error) {
+				setLoadError(error instanceof Error ? error.message : "Level data could not be loaded.");
 			}
 		};
 
@@ -146,7 +145,7 @@ function AdventurePage() {
 		return () => {
 			isMounted = false;
 		};
-	}, [indexes, isSnapshotLoading, mode, setConnectionMode, setOfflineSource, snapshot]);
+	}, [indexes, isWaitingForFullData, mode, snapshot]);
 
 	const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
 	const startIdx = page * LEVELS_PER_PAGE;
@@ -166,9 +165,10 @@ function AdventurePage() {
 			<div className={styles.adventureContent}>
 				<h1 className={styles.adventureTitle}>🎭 Adventure Mode</h1>
 				<div className={styles.adventureSubtitle}>Choose a level</div>
+				{isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 				<div className={styles.levelsListWrapper}>
-					{isSnapshotLoading ? <div className={styles.stateMessage}>Loading Adventure Mode data…</div> : null}
-					{loadError ?? (errorMessage && isOnlineSnapshotMode(mode) ? errorMessage : null) ? <div className={styles.errorMessage}>{loadError ?? errorMessage}</div> : null}
+					{isSnapshotLoading && !isWaitingForFullData ? <div className={styles.stateMessage}>Loading Adventure Mode data…</div> : null}
+					{loadError ? <div className={styles.errorMessage}>{loadError}</div> : null}
 					{pageLevels.map((level, idx) => {
 						const globalIdx = startIdx + idx;
 						return (
@@ -183,7 +183,7 @@ function AdventurePage() {
 								</div>
 								<button
 									className={styles.levelButton}
-									disabled={isSnapshotLoading}
+									disabled={isSnapshotLoading || isWaitingForFullData}
 									onClick={() =>
 										navigate("/game", {
 											state: {
@@ -233,7 +233,7 @@ function AdventurePage() {
             className={styles.paginationArrow}
             onClick={handlePrev}
             aria-label="Previous page"
-						disabled={isSnapshotLoading || levels.length === 0}
+						disabled={isSnapshotLoading || isWaitingForFullData || levels.length === 0}
           >
             ←
           </button>
@@ -244,7 +244,7 @@ function AdventurePage() {
             className={styles.paginationArrow}
             onClick={handleNext}
             aria-label="Next page"
-						disabled={isSnapshotLoading || levels.length === 0}
+						disabled={isSnapshotLoading || isWaitingForFullData || levels.length === 0}
           >
             →
           </button>

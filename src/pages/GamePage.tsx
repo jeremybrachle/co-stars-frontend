@@ -163,6 +163,14 @@ const PLACEHOLDER_START_B = createNode("Reconnect later", "actor");
 const DEMO_BUNDLE = getDemoSnapshotBundle();
 const CYCLE_RISK_CACHE_ENABLED = true;
 
+function suppressNetworkUnavailableMessage(errorMessage: string | null) {
+  if (!errorMessage) {
+    return null;
+  }
+
+  return errorMessage.startsWith("Network connection couldn't be established") ? null : errorMessage;
+}
+
 function createPlaceholderSuggestions(selectionType: NodeType): GameNode[] {
   const nextType = selectionType === "actor" ? "movie" : "actor";
 
@@ -726,6 +734,8 @@ function GamePage() {
   const isRiskAnalysisEnabled = helperSettings["show-hint-color"] && hasPlacedSelections && (showCastLockRiskHighlight || showFullCastLockHighlight);
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
   const currentHops = totalSelections;
+  const displayedSetupError = suppressNetworkUnavailableMessage(setupError ?? (activeDataSource === "snapshot" ? snapshotError : null));
+  const displayedSuggestionError = suppressNetworkUnavailableMessage(suggestionError);
 
   const currentSelection = useMemo(() => {
     if (!actorA || !actorB) {
@@ -1797,7 +1807,7 @@ function GamePage() {
             </div>
           ) : null}
 
-          {setupError || (activeDataSource === "snapshot" ? snapshotError : null) ? <div className="gamePageStatus gamePageStatus--error">{setupError ?? snapshotError}</div> : null}
+          {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
 
           <GameRightPanel
             currentSelection={currentSelection ?? createNode("Loading…", "actor")}
@@ -1814,7 +1824,7 @@ function GamePage() {
             isComplete={isGameComplete}
             isLoading={isSuggestionsLoading}
             isRiskAnalysisEnabled={isRiskAnalysisEnabled}
-            errorMessage={suggestionError}
+            errorMessage={displayedSuggestionError}
             onBack={handleBackCurrentPathItem}
             onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
             onReverse={handleReverseSides}

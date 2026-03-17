@@ -14,7 +14,7 @@ const PLAY_NOW_ITEMS = [
   {
     to: "/speed-round",
     label: "Speed Round",
-    icon: "⚡",
+    icon: "✨",
     description: "Placeholder screen for the timed challenge flow.",
   },
   {

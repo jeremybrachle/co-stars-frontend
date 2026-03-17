@@ -7,6 +7,7 @@ import EntityDetailsDialog, {
 import { generatePath } from "../api/costars"
 import EntityArtwork from "../components/EntityArtwork"
 import PageBackButton from "../components/PageBackButton"
+import FullDataWaitingMessage from "../components/FullDataWaitingMessage"
 import {
   buildCatalogDetailDialogData,
   type CatalogDetailEntry,
@@ -174,8 +175,9 @@ function compareSearchOptions(left: SearchOption, right: SearchOption) {
 }
 
 function FindPathPage() {
-  const { mode } = useDataSourceMode()
-  const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading } = useSnapshotData()
+  const { mode, setMode } = useDataSourceMode()
+  const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData()
+  const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !snapshotIndexes)
   const [actors, setActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
   const [activeSource, setActiveSource] = useState<EffectiveDataSource>("demo")
@@ -202,8 +204,9 @@ function FindPathPage() {
     let isMounted = true
 
     const loadCatalog = async () => {
-      if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+      if (isWaitingForFullData) {
         setIsLoading(true)
+        setLoadError(null)
         return
       }
 
@@ -239,7 +242,7 @@ function FindPathPage() {
     return () => {
       isMounted = false
     }
-  }, [isSnapshotLoading, mode, snapshot, snapshotIndexes])
+  }, [isSnapshotLoading, isWaitingForFullData, mode, snapshot, snapshotIndexes])
 
   useEffect(() => {
     let isMounted = true
@@ -496,6 +499,8 @@ function FindPathPage() {
         <div className="pageEyebrow">Find Path</div>
         <h1>Let the system solve it</h1>
         <p className="pageLead">Choose any two actors or movies from the currently available game data and Co-Stars will generate the shortest path it can find between them.</p>
+
+        {isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 
         {isLoading ? <div className="pageStatus">Loading actor and movie data…</div> : null}
         {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}

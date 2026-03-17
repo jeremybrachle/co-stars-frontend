@@ -1,4 +1,4 @@
-import type { GameNode, NodeSummary } from "./types";
+import type { GameNode, NodeSummary, SnapshotIndexes } from "./types";
 
 export const MAX_PATH_LENGTH = 19;
 export const SUGGESTION_LIMIT = 8;
@@ -138,6 +138,8 @@ export function buildSuggestionSet(
 	target: GameNode,
 	blockedLoopNodeKeys: ReadonlySet<string> = new Set(),
 	options: SuggestionBuildOptions = {},
+	indexes?: SnapshotIndexes,
+	popularityCutoff?: number | null,
 ) {
 	const shouldShuffle = options.shouldShuffle ?? true;
 	const shouldGuaranteeBestPath = options.shouldGuaranteeBestPath ?? false;
@@ -187,6 +189,28 @@ export function buildSuggestionSet(
 	const bestReachableSteps = reachableSuggestions[0]?.pathHint?.stepsToTarget ?? null;
 
 	return selected.map((suggestion) => {
+		const status = indexes ? getSuggestionStatusRecursive(suggestion, target, blockedLoopNodeKeys, popularityCutoff ?? null, indexes) : "valid";
+		if (status === "warning" || status === "blocked") {
+			return {
+				...suggestion,
+				highlight: {
+					kind: "blocked" as const,
+					label: status === "warning" ? "Cycle risk or dead end" : "Possible path",
+					description: status === "warning" ? "All child nodes are dead ends or cycle risks." : "Grandchild nodes have valid paths.",
+				},
+			};
+		}
+		if (status === "deadend") {
+			return {
+				...suggestion,
+				highlight: {
+					kind: "blocked" as const,
+					label: "Dead end",
+					description: "No valid paths from this node.",
+				},
+			};
+		}
+
 		if (blockedLoopNodeKeys.has(getNodeKey(suggestion))) {
 			return {
 				...suggestion,
@@ -242,4 +266,64 @@ export function combineMeetingPath(startA: GameNode, topPath: GameNode[], startB
 	}
 
 	return [...topFullPath, ...bottomFullPath.slice(0, -1).reverse()];
+}
+
+function getSuggestionStatusRecursive(
+	node: GameNode,
+	target: GameNode,
+	blockedLoopNodeKeys: ReadonlySet<string>,
+	popularityCutoff: number | null,
+	indexes: SnapshotIndexes,
+	depth = 1,
+): "valid" | "warning" | "blocked" | "deadend" {
+	if (depth > 3) return "blocked";
+	if (!node.pathHint?.reachable) return "deadend";
+	if (blockedLoopNodeKeys.has(getNodeKey(node))) return "warning";
+	if (isDirectConnectionSuggestion(node, target)) return "valid";
+
+	const children: GameNode[] = [];
+	if (node.type === "actor" && node.id != null) {
+		const movieIds = indexes.actorToMovies[node.id ?? ""] ?? [];
+		for (const movieId of movieIds) {
+			const movie = indexes.moviesById.get(movieId);
+			if (movie) children.push({
+				id: movie.id,
+				label: movie.title,
+				type: "movie",
+				releaseDate: movie.releaseDate,
+				genres: movie.genres,
+				contentRating: movie.contentRating,
+				originalLanguage: movie.originalLanguage,
+				overview: movie.overview,
+				imageUrl: movie.posterUrl,
+			});
+		}
+	} else if (node.type === "movie" && node.id != null) {
+		const actorIds = indexes.movieToActors[node.id ?? ""] ?? [];
+		for (const actorId of actorIds) {
+			const actor = indexes.actorsById.get(actorId);
+			if (actor && (popularityCutoff == null || actor.popularity! >= popularityCutoff)) {
+				children.push({
+					id: actor.id,
+					label: actor.name,
+					type: "actor",
+					popularity: actor.popularity,
+					imageUrl: actor.profileUrl,
+					knownForDepartment: actor.knownForDepartment,
+					placeOfBirth: actor.placeOfBirth,
+				});
+			}
+		}
+	}
+	if (children.length === 0) return "deadend";
+	let allDeadOrWarning = true;
+	let hasValidGrandchild = false;
+	for (const child of children) {
+		const status = getSuggestionStatusRecursive(child, target, blockedLoopNodeKeys, popularityCutoff, indexes, depth + 1);
+		if (status === "valid") allDeadOrWarning = false;
+		if (status === "blocked") hasValidGrandchild = true;
+	}
+	if (allDeadOrWarning) return "warning";
+	if (hasValidGrandchild) return "blocked";
+	return "valid";
 }

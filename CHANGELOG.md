@@ -10,6 +10,14 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-03-17
+
+Data refresh logic
+
+### Changed
+
+- Looping logic for full data to to refresh from s3 by default so the user doesn't manually have to pull data
+
 ## [2.0.6] - 2026-03-14
 
 UI updates for displaying new meta data

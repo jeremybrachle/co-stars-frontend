@@ -6,7 +6,6 @@ import {
 	getDataIndicatorLabel,
 	getDataIndicatorVariant,
 	isOfflineDemoMode,
-	isOfflineSnapshotMode,
 	isOnlineApiMode,
 	isOnlineSnapshotMode,
 } from "../data/dataSourcePreferences";
@@ -21,7 +20,8 @@ type DataSettingsPanelProps = {
 
 type ModeChoice = {
 	id: string;
-	group: "online" | "offline";
+	group: string;
+	emoji: string;
 	label: string;
 	hint: string;
 	checked: boolean;
@@ -81,6 +81,16 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	} = useSnapshotData();
 	const isBrowserOnline = useBrowserOnlineStatus();
 	const hasSnapshot = !!snapshot;
+	const hasFullData = !!snapshot && !!manifest;
+	const isFullDataLoading = isOnlineSnapshotMode(mode) && (!hasFullData || isLoading);
+	const isApiLoading = isOnlineApiMode(mode) && isLoading;
+	const apiError = isOnlineApiMode(mode) && errorMessage ? errorMessage : null;
+	const snapshotVersion = snapshot?.meta.version ?? null;
+	const manifestVersion = manifest?.version ?? null;
+	const shouldSplitVersionDisplay = !isOfflineDemoMode(mode) && !!snapshotVersion && !!manifestVersion && snapshotVersion !== manifestVersion;
+	const dataVersionLabel = isOfflineDemoMode(mode)
+		? "Demo"
+		: snapshotVersion ?? manifestVersion ?? "none loaded yet";
 	const variant = useMemo(
 		() => getDataIndicatorVariant({
 			mode,
@@ -93,45 +103,36 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	const hostedManifestUrl = getHostedSnapshotManifestUrl();
 	const apiManifestUrl = getApiSnapshotManifestUrl();
 	const isCompact = layout === "popover";
-	const modeChoices = useMemo<Record<"online" | "offline", ModeChoice[]>>(
-		() => ({
-			online: [
-				{
-					id: `online-snapshot-${layout}`,
-					group: "online",
-					label: "Snapshot",
-					hint: "Default online path.",
-					checked: isOnlineSnapshotMode(mode),
-					onSelect: () => setMode({ ...mode, connectionMode: "online", onlineSource: "snapshot" }),
-				},
-				{
-					id: `online-api-${layout}`,
-					group: "online",
-					label: "API",
-					hint: "Secondary live-call path.",
-					checked: isOnlineApiMode(mode),
-					onSelect: () => setMode({ ...mode, connectionMode: "online", onlineSource: "api" }),
-				},
-			],
-			offline: [
-				{
-					id: `offline-snapshot-${layout}`,
-					group: "offline",
-					label: "Snapshot",
-					hint: "Default cached offline path.",
-					checked: isOfflineSnapshotMode(mode),
-					onSelect: () => setMode({ ...mode, connectionMode: "offline", offlineSource: "snapshot" }),
-				},
-				{
-					id: `offline-demo-${layout}`,
-					group: "offline",
-					label: "Demo",
-					hint: "Built-in fallback dataset.",
-					checked: isOfflineDemoMode(mode),
-					onSelect: () => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" }),
-				},
-			],
-		}),
+	const mainModeChoices = useMemo<ModeChoice[]>(
+		() => [
+			{
+				id: `mode-full-${layout}`,
+				group: "main",
+				emoji: "⚡",
+				label: "Full Data",
+				hint: "Default mode. Loads hosted S3 snapshot data, retrying for up to 3 minutes before falling back to demo.",
+				checked: isOnlineSnapshotMode(mode),
+				onSelect: () => setMode({ ...mode, connectionMode: "online", onlineSource: "snapshot" }),
+			},
+			{
+				id: `mode-api-${layout}`,
+				group: "main",
+				emoji: "📡",
+				label: "API Mode",
+				hint: "Connects directly to the backend API. Shows a message if the connection fails.",
+				checked: isOnlineApiMode(mode),
+				onSelect: () => setMode({ ...mode, connectionMode: "online", onlineSource: "api" }),
+			},
+			{
+				id: `mode-demo-${layout}`,
+				group: "main",
+				emoji: "🎭",
+				label: "Demo",
+				hint: "Built-in offline dataset. No network required — works immediately.",
+				checked: isOfflineDemoMode(mode),
+				onSelect: () => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" }),
+			},
+		],
 		[layout, mode, setMode],
 	);
 
@@ -140,10 +141,10 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			key={choice.id}
 			className={`settingsOption settingsOption--radio settingsOption--radio-${layout}${choice.checked ? " settingsOption--active" : ""}`}
 		>
-			<input type="radio" name={`${choice.group}-source-${layout}`} checked={choice.checked} onChange={choice.onSelect} />
+			<input type="radio" name={`main-mode-${layout}`} checked={choice.checked} onChange={choice.onSelect} />
 			<span className="settingsOptionControl" aria-hidden="true" />
 			<span>
-				<strong>{choice.label}</strong>
+				<strong><span className="settingsOptionEmoji" aria-hidden="true">{choice.emoji}</span> {choice.label}</strong>
 				{isCompact ? null : <span className="settingsHint">{choice.hint}</span>}
 			</span>
 		</label>
@@ -168,28 +169,59 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			) : null}
 
 			<section className="settingsSection dataSettingsSection">
-				<h3>{isCompact ? "Online" : "Online source"}</h3>
-				<div className={`dataModeGrid dataModeGrid--${layout}`}>
-					{modeChoices.online.map(renderModeChoice)}
-				</div>
-			</section>
-
-			<section className="settingsSection dataSettingsSection">
-				<h3>{isCompact ? "Offline" : "Offline source"}</h3>
-				<div className={`dataModeGrid dataModeGrid--${layout}`}>
-					{modeChoices.offline.map(renderModeChoice)}
-				</div>
-			</section>
-
-			{isCompact ? (
-				<section className="settingsSection dataSettingsSection dataSettingsSection--compactStatus">
-					<h3>Versions</h3>
-					<div className="dataSettingsStats dataSettingsStats--compact">
-						<p className="settingsHint">Snapshot: {snapshot?.meta.version ?? "none loaded"}</p>
-						<p className="settingsHint">Manifest: {manifest?.version ?? "none loaded"}</p>
-					</div>
-				</section>
+				<h3>{isCompact ? "Mode" : "Main data mode"}</h3>
+			<div className={`dataModeGrid dataModeGrid--${layout} dataModeGrid--three`}>
+				{mainModeChoices.map(renderModeChoice)}
+			</div>
+			{isOnlineSnapshotMode(mode) ? (
+				<>
+					{isFullDataLoading ? (
+						<div className="dataSettingsInlineStatus">
+							<DataIndicatorGlyph variant="online-snapshot" pulse />
+							<span className="settingsHint">Loading full game data from hosted S3 snapshot files.</span>
+						</div>
+					) : null}
+					<br></br>
+					<p className="settingsHint">
+						{isFullDataLoading
+							? "The app will keep checking hosted data until everything is ready."
+							: "Full data is active and ready."}
+					</p>
+				</>
+			) : isOnlineApiMode(mode) ? (
+				<>
+				<br></br>
+					{isApiLoading ? (
+						<div className="dataSettingsInlineStatus">
+							<DataIndicatorGlyph variant="online-api" pulse />
+							<span className="settingsHint">Connecting to API...</span>
+						</div>
+					) : apiError ? (
+						<p className="settingsError">Connection unsuccessful: {apiError}</p>
+					) : hasFullData ? (
+						
+						<p className="settingsHint">API data is active and ready.</p>
+					) : (
+						<p className="settingsHint">API mode selected. Waiting for data.</p>
+					)}
+				</>
 			) : (
+				<p className="settingsHint"></p>
+			)}
+{shouldSplitVersionDisplay ? (
+				<>
+					<p className="settingsHint">Snapshot version: {snapshotVersion ?? "none loaded yet"}</p>
+					<p className="settingsHint">Manifest version: {manifestVersion ?? "none loaded yet"}</p>
+				</>
+			) : (
+				<p className="settingsHint">Data version: {isOfflineDemoMode(mode) ? "Demo" : `v${dataVersionLabel}`}</p>
+			)}
+			{isCompact ? (
+				<a href="/settings" className="dataSettingsAdvancedLink">Advanced data settings →</a>
+			) : null}
+		</section>
+
+			{isCompact ? null : (
 				<details className="settingsSection dataSettingsSection dataSettingsDisclosure">
 					<summary className="dataSettingsDisclosureSummary">
 						<span>Current data status</span>
@@ -201,8 +233,6 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 						<p className="settingsHint">Current snapshot source: {formatSnapshotLoadSource(loadedFrom)}</p>
 						<p className="settingsHint">Last snapshot refresh: {lastRefreshAt ?? "not refreshed yet"}</p>
 						<p className="settingsHint">Refresh cadence: every {formatRefreshHours(recommendedRefreshMs)} hours</p>
-						<p className="settingsHint">Snapshot version: {snapshot?.meta.version ?? "none loaded yet"}</p>
-						<p className="settingsHint">Manifest version: {manifest?.version ?? "none loaded yet"}</p>
 						<p className="settingsHint">Hosted manifest: {hostedManifestUrl ?? "not configured"}</p>
 						<p className="settingsHint">API manifest: {apiManifestUrl}</p>
 						<p className="settingsHint">Snapshot endpoint: {manifest?.snapshotEndpoint ?? "none loaded yet"}</p>
@@ -210,16 +240,27 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 				</details>
 			)}
 
-			<section className="settingsSection dataSettingsSection">
-				<h3>Snapshot controls</h3>
-				<div className={`settingsActions settingsActions--${layout}`}>
-					<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromApi()} disabled={isLoading}>{isCompact ? "Fetch API" : "Fetch API"}</button>
-					<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromS3()} disabled={isLoading}>{isCompact ? "Fetch hosted" : "Fetch hosted"}</button>
-					<button type="button" className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={clearSnapshotCache}>Clear cache</button>
-				</div>
-				{isCompact ? null : <p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>}
-				{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
-			</section>
+			{isCompact ? null : (
+				<details className="settingsSection dataSettingsSection dataSettingsDisclosure">
+					<summary className="dataSettingsDisclosureSummary">
+						<span>Advanced data settings</span>
+						<span className="dataSettingsDisclosureValue">Optional</span>
+					</summary>
+					<div className="dataSettingsAdvancedBody">
+						<section className="dataSettingsAdvancedSection">
+
+							<h3>Snapshot controls</h3>
+							<div className={`settingsActions settingsActions--${layout}`}>
+								<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromApi()} disabled={isLoading}>Fetch API</button>
+								<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromS3()} disabled={isLoading}>Fetch hosted</button>
+								<button type="button" className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={clearSnapshotCache}>Clear cache</button>
+							</div>
+							<p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>
+							{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
+						</section>
+					</div>
+				</details>
+			)}
 		</div>
 	);
 }

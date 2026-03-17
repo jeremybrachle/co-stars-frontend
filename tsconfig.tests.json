@@ -15,5 +15,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["tests/**/*.ts", "src/data/localGraph.ts", "src/data/entityDetails.ts", "src/context/gameSettings.ts", "src/types.ts"]
+  "include": ["tests/**/*.ts", "src/data/localGraph.ts", "src/data/entityDetails.ts", "src/context/gameSettings.ts", "src/context/snapshotRefreshPolicy.ts", "src/types.ts"]
 }

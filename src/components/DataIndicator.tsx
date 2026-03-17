@@ -3,8 +3,23 @@ import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
 import { getDataIndicatorLabel, getDataIndicatorVariant } from "../data/dataSourcePreferences";
 import { useBrowserOnlineStatus } from "../hooks/useBrowserOnlineStatus";
-import DataIndicatorGlyph from "./DataIndicatorGlyph";
 import DataSettingsPanel from "./DataSettingsPanel";
+import type { DataIndicatorVariant } from "../types";
+
+const VARIANT_ICONS: Record<DataIndicatorVariant, string> = {
+	"online-snapshot": "⚡",
+	"online-api": "📡",
+	"offline-snapshot": "💾",
+	"offline-demo": "🎭",
+};
+
+function DataIndicatorIcon({ variant, loading }: { variant: DataIndicatorVariant; loading: boolean }) {
+	return (
+		<span className={`dataIndicatorIcon${loading ? " dataIndicatorIcon--pulse" : ""}`} aria-hidden="true">
+			{VARIANT_ICONS[variant]}
+		</span>
+	);
+}
 
 function DataIndicator() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -58,13 +73,16 @@ function DataIndicator() {
 				aria-expanded={isOpen}
 				aria-label={summary}
 			>
-				<DataIndicatorGlyph variant={variant} pulse={isLoading && mode.connectionMode === "online" && mode.onlineSource === "snapshot"} />
+				<DataIndicatorIcon variant={variant} loading={isLoading && mode.connectionMode === "online" && mode.onlineSource === "snapshot"} />
 				<span className="dataIndicatorButtonText">Data</span>
 			</button>
 			{isOpen ? (
 				<div className="footerPopover footerPopover--compactData">
 					<div className="footerPopoverHeader">
-						<h3>Data controls</h3>
+						<a href="/settings" className="footerPopoverHeaderLink" title="Open advanced data settings">
+							<h3>Data Controls</h3>
+							
+						</a>
 						<button type="button" className="footerPopoverClose" onClick={() => setIsOpen(false)} aria-label="Close data controls">×</button>
 					</div>
 					<DataSettingsPanel layout="popover" showHeading={false} />
