@@ -1,4 +1,15 @@
 import { useMemo } from "react";
+import { useCountdownTimer } from "../context/useCountdownTimer";
+// Timer component for showing countdown from context
+function S3LoadingTimer({ active }: { active: boolean }) {
+	const { secondsLeft, isRunning, start } = useCountdownTimer();
+	// Start the timer if active and not already running
+	if (active && !isRunning) start();
+	if (!active) return null;
+	const min = Math.floor(secondsLeft / 60);
+	const sec = secondsLeft % 60;
+	return <span className="s3LoadingTimer">Waiting for S3 upload: {min}:{sec.toString().padStart(2, "0")}</span>;
+}
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
 import {
@@ -9,7 +20,6 @@ import {
 	isOnlineApiMode,
 	isOnlineSnapshotMode,
 } from "../data/dataSourcePreferences";
-import { getApiSnapshotManifestUrl, getHostedSnapshotManifestUrl } from "../data/frontendSnapshot";
 import { useBrowserOnlineStatus } from "../hooks/useBrowserOnlineStatus";
 import DataIndicatorGlyph from "./DataIndicatorGlyph";
 
@@ -28,29 +38,6 @@ type ModeChoice = {
 	onSelect: () => void;
 };
 
-function formatRefreshHours(milliseconds: number) {
-	return Math.max(1, Math.round(milliseconds / (1000 * 60 * 60)));
-}
-
-function formatSnapshotLoadSource(loadedFrom: string | null) {
-	if (loadedFrom === "s3-snapshot") {
-		return "Hosted snapshot download";
-	}
-
-	if (loadedFrom === "api-snapshot") {
-		return "API snapshot endpoint";
-	}
-
-	if (loadedFrom === "cache") {
-		return "Browser cache";
-	}
-
-	if (loadedFrom === "demo") {
-		return "Built-in demo dataset";
-	}
-
-	return "No snapshot loaded yet";
-}
 
 function formatSnapshotErrorLabel(errorSource: "api" | "s3" | null) {
 	if (errorSource === "api") {
@@ -72,9 +59,6 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 		errorMessage,
 		errorSource,
 		isLoading,
-		loadedFrom,
-		lastRefreshAt,
-		recommendedRefreshMs,
 		fetchSnapshotFromApi,
 		fetchSnapshotFromS3,
 		clearSnapshotCache,
@@ -100,8 +84,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 		}),
 		[hasSnapshot, isBrowserOnline, isLoading, mode],
 	);
-	const hostedManifestUrl = getHostedSnapshotManifestUrl();
-	const apiManifestUrl = getApiSnapshotManifestUrl();
+	// Removed unused hostedManifestUrl and apiManifestUrl
 	const isCompact = layout === "popover";
 	const mainModeChoices = useMemo<ModeChoice[]>(
 		() => [
@@ -177,11 +160,12 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 				<>
 					{isFullDataLoading ? (
 						<div className="dataSettingsInlineStatus">
-							<DataIndicatorGlyph variant="online-snapshot" pulse />
+							{/* <DataIndicatorGlyph variant="online-snapshot" pulse /> */}
 							<span className="settingsHint">Loading full game data from hosted S3 snapshot files.</span>
+							<S3LoadingTimer key={isFullDataLoading ? 'active' : 'inactive'} active={true} />
 						</div>
 					) : null}
-					<br></br>
+					<br />
 					<p className="settingsHint">
 						{isFullDataLoading
 							? "The app will keep checking hosted data until everything is ready."
@@ -190,7 +174,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 				</>
 			) : isOnlineApiMode(mode) ? (
 				<>
-				<br></br>
+					<br />
 					{isApiLoading ? (
 						<div className="dataSettingsInlineStatus">
 							<DataIndicatorGlyph variant="online-api" pulse />
@@ -199,7 +183,6 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 					) : apiError ? (
 						<p className="settingsError">Connection unsuccessful: {apiError}</p>
 					) : hasFullData ? (
-						
 						<p className="settingsHint">API data is active and ready.</p>
 					) : (
 						<p className="settingsHint">API mode selected. Waiting for data.</p>
@@ -208,7 +191,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			) : (
 				<p className="settingsHint"></p>
 			)}
-{shouldSplitVersionDisplay ? (
+			{shouldSplitVersionDisplay ? (
 				<>
 					<p className="settingsHint">Snapshot version: {snapshotVersion ?? "none loaded yet"}</p>
 					<p className="settingsHint">Manifest version: {manifestVersion ?? "none loaded yet"}</p>
@@ -216,53 +199,77 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			) : (
 				<p className="settingsHint">Data version: {isOfflineDemoMode(mode) ? "Demo" : `v${dataVersionLabel}`}</p>
 			)}
-			{isCompact ? (
-				<a href="/settings" className="dataSettingsAdvancedLink">Advanced data settings →</a>
-			) : null}
 		</section>
 
-			{isCompact ? null : (
-				<details className="settingsSection dataSettingsSection dataSettingsDisclosure">
-					<summary className="dataSettingsDisclosureSummary">
-						<span>Current data status</span>
-						<span className="dataSettingsDisclosureValue">{getDataIndicatorLabel(variant)}</span>
-					</summary>
-					<div className="dataSettingsStats dataSettingsStats--expanded">
-						<p className="settingsHint">Browser connection: {isBrowserOnline ? "online" : "offline"}</p>
-						<p className="settingsHint">Indicator state: {getDataIndicatorLabel(variant)}</p>
-						<p className="settingsHint">Current snapshot source: {formatSnapshotLoadSource(loadedFrom)}</p>
-						<p className="settingsHint">Last snapshot refresh: {lastRefreshAt ?? "not refreshed yet"}</p>
-						<p className="settingsHint">Refresh cadence: every {formatRefreshHours(recommendedRefreshMs)} hours</p>
-						<p className="settingsHint">Hosted manifest: {hostedManifestUrl ?? "not configured"}</p>
-						<p className="settingsHint">API manifest: {apiManifestUrl}</p>
-						<p className="settingsHint">Snapshot endpoint: {manifest?.snapshotEndpoint ?? "none loaded yet"}</p>
-					</div>
-				</details>
-			)}
+		{isCompact || isOfflineDemoMode(mode) ? null : (
+			<details className="settingsSection dataSettingsSection dataSettingsDisclosure">
+				<summary className="dataSettingsDisclosureSummary">
+					<span>Advanced data settings</span>
+					<span className="dataSettingsDisclosureValue">Optional</span>
+				</summary>
+				<div className="dataSettingsAdvancedBody">
+					<section className="dataSettingsAdvancedSection">
+						<h3>Snapshot controls</h3>
+						<div className={`settingsActions settingsActions--${layout}`}>
+							{isOnlineApiMode(mode) && (
+								<button
+									type="button"
+									className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`}
+									onClick={() => void fetchSnapshotFromApi()}
+									disabled={isLoading}
+								>
+									Fetch API
+								</button>
+							)}
+							{!isOnlineApiMode(mode) && (
+								<button
+									type="button"
+									className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`}
+									onClick={() => void fetchSnapshotFromS3()}
+									disabled={isLoading}
+								>
+									Fetch hosted
+								</button>
+							)}
+							<button
+								type="button"
+								className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`}
+								onClick={clearSnapshotCache}
+								disabled={!hasSnapshot}
+							>
+								Clear cache
+							</button>
+						</div>
+						<p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>
+						{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
+					</section>
+				</div>
+			</details>
+		)}
 
-			{isCompact ? null : (
-				<details className="settingsSection dataSettingsSection dataSettingsDisclosure">
-					<summary className="dataSettingsDisclosureSummary">
-						<span>Advanced data settings</span>
-						<span className="dataSettingsDisclosureValue">Optional</span>
-					</summary>
-					<div className="dataSettingsAdvancedBody">
-						<section className="dataSettingsAdvancedSection">
-
-							<h3>Snapshot controls</h3>
-							<div className={`settingsActions settingsActions--${layout}`}>
-								<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromApi()} disabled={isLoading}>Fetch API</button>
-								<button type="button" className={`settingsActionButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={() => void fetchSnapshotFromS3()} disabled={isLoading}>Fetch hosted</button>
-								<button type="button" className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`} onClick={clearSnapshotCache}>Clear cache</button>
-							</div>
-							<p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>
-							{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
-						</section>
-					</div>
-				</details>
-			)}
-		</div>
-	);
+		{/* Bottom-right timer overlay and style */}
+		<style>{`
+			.s3LoadingTimer {
+				display: inline-block;
+				margin-left: 1em;
+				font-weight: bold;
+				color: #e67e22;
+			}
+			.s3LoadingTimer.s3-timer-overlay {
+				position: fixed;
+				right: 24px;
+				bottom: 24px;
+				background: rgba(255,255,255,0.95);
+				border: 1px solid #e67e22;
+				border-radius: 8px;
+				padding: 10px 18px;
+				z-index: 9999;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+				font-size: 1.1em;
+			}
+		`}</style>
+	</div>
+);
 }
 
 export default DataSettingsPanel;

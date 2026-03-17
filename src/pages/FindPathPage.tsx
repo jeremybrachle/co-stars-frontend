@@ -1,3 +1,4 @@
+import { useCountdownTimer } from "../context/useCountdownTimer";
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import EntityDetailsDialog, {
@@ -175,6 +176,13 @@ function compareSearchOptions(left: SearchOption, right: SearchOption) {
 }
 
 function FindPathPage() {
+    const { secondsLeft, isRunning, start } = useCountdownTimer();
+    // Start timer on mount if not running
+    useEffect(() => {
+      if (!isRunning) start();
+      // Only run on mount
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
   const { mode, setMode } = useDataSourceMode()
   const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData()
   const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !snapshotIndexes)
@@ -492,8 +500,14 @@ function FindPathPage() {
     }
   }
 
+  const min = Math.floor(secondsLeft / 60);
+  const sec = secondsLeft % 60;
   return (
     <div className="utilityPage">
+      {/* Countdown timer display, style as needed */}
+      <div style={{ position: "fixed", right: 24, bottom: 80, background: "#fffbe6", border: "1px solid #e67e22", borderRadius: 8, padding: "8px 16px", zIndex: 9999, fontWeight: "bold", color: "#e67e22" }}>
+        Time remaining: {min}:{sec.toString().padStart(2, "0")}
+      </div>
       <PageBackButton to="/" label="Back" />
       <div className="utilityPanel utilityPanel--wide">
         <div className="pageEyebrow">Find Path</div>

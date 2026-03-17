@@ -1,3 +1,4 @@
+import { useCountdownTimer } from "../context/useCountdownTimer";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import HomeButton from "../components/HomeButton";
@@ -50,6 +51,13 @@ function buildActorImageMapFromIndexes(snapshotIndexes: SnapshotIndexes) {
 }
 
 function AdventurePage() {
+		const { isRunning, start } = useCountdownTimer();
+		// Start timer on mount if not running
+		useEffect(() => {
+			if (!isRunning) start();
+			// Only run on mount
+			// eslint-disable-next-line react-hooks/exhaustive-deps
+		}, []);
 	const [page, setPage] = useState(0);
 	const [levels, setLevels] = useState<Level[]>([]);
 	const [actorImages, setActorImages] = useState<Record<string, string | null>>({});
