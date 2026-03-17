@@ -11,6 +11,7 @@ export type SnapshotDataContextValue = {
 	errorSource: "api" | "s3" | null;
 	loadedFrom: SnapshotBundle["loadedFrom"] | null;
 	lastRefreshAt: string | null;
+	waitTimeoutRemainingMs: number | null;
 	recommendedRefreshMs: number;
 	fetchSnapshotFromApi: () => Promise<SnapshotBundle | null>;
 	fetchSnapshotFromS3: () => Promise<SnapshotBundle | null>;

@@ -7,6 +7,7 @@ import EntityDetailsDialog, {
 } from "../components/EntityDetailsDialog"
 import EntityArtwork from "../components/EntityArtwork"
 import PageBackButton from "../components/PageBackButton"
+import FullDataWaitingMessage from "../components/FullDataWaitingMessage"
 import {
   buildCatalogDetailDialogData,
   type CatalogDetailEntry,
@@ -63,8 +64,9 @@ function formatMovieMeta(movie: Movie) {
 }
 
 function GameDataPage() {
-  const { mode } = useDataSourceMode()
-  const { snapshot, indexes, isLoading: isSnapshotLoading } = useSnapshotData()
+  const { mode, setMode } = useDataSourceMode()
+  const { snapshot, indexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData()
+  const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !indexes)
   const [actors, setActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
   const [activeSource, setActiveSource] = useState<EffectiveDataSource>("demo")
@@ -85,8 +87,9 @@ function GameDataPage() {
     let isMounted = true
 
     const loadCatalog = async () => {
-      if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+      if (isWaitingForFullData) {
         setIsLoading(true)
+        setLoadError(null)
         return
       }
 
@@ -122,7 +125,7 @@ function GameDataPage() {
     return () => {
       isMounted = false
     }
-  }, [indexes, isSnapshotLoading, mode, snapshot])
+  }, [indexes, isSnapshotLoading, isWaitingForFullData, mode, snapshot])
 
   useEffect(() => {
     let isMounted = true
@@ -278,6 +281,8 @@ function GameDataPage() {
         <div className="pageEyebrow">Game Data</div>
         <h1>Browse the game catalog</h1>
         <p className="pageLead">Select any actor or movie to inspect its details, browse connected entries, and preview the future add-to-list workflow.</p>
+
+        {isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 
         {isLoading ? <div className="pageStatus">Loading game data…</div> : null}
         {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}

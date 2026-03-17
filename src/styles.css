@@ -375,6 +375,48 @@ button:hover {
   color: rgba(255, 255, 255, 0.84);
 }
 
+.settingsIntro--tab {
+  margin-bottom: 12px;
+}
+
+.settingsTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+
+.settingsTabButton {
+  min-width: 0;
+  padding: 0.46em 0.82em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.settingsTabButton:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.settingsTabButton--active {
+  background: rgba(59, 130, 246, 0.28);
+  border-color: rgba(191, 219, 254, 0.55);
+}
+
+.settingsTabPanel {
+  margin-top: 10px;
+}
+
+.settingsTabHint {
+  margin-bottom: 12px;
+}
+
 .settingsSection {
   margin-top: 14px;
   padding-top: 14px;
@@ -868,6 +910,40 @@ button:hover {
   font-size: 1rem;
 }
 
+.footerPopoverHeaderLink {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-decoration: none;
+  color: white;
+  cursor: pointer;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.footerPopoverHeaderLink:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.footerPopoverHeaderLink > :first-child {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.footerPopoverHeaderLinkHint {
+  display: none;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(147, 197, 253, 0.85);
+  letter-spacing: 0.01em;
+}
+
+.footerPopoverHeaderLink:hover .footerPopoverHeaderLinkHint {
+  display: block;
+}
+
 .footerPopoverClose {
   padding: 0;
   min-width: 28px;
@@ -911,6 +987,23 @@ button:hover {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dataIndicatorButton--online-snapshot {
+  border-color: rgba(125, 211, 252, 0.45);
+}
+
+.dataIndicatorButton--online-api {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.dataIndicatorButton--offline-snapshot {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.dataIndicatorButton--offline-demo {
+  border-color: rgba(248, 113, 113, 0.45);
 }
 
 .dataIndicatorButton:hover {
@@ -919,6 +1012,22 @@ button:hover {
 
 .dataIndicatorButtonText {
   color: white;
+}
+
+.dataIndicatorIcon {
+  font-size: 1rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dataIndicatorIcon--pulse {
+  animation: data-icon-pulse 1.35s ease-in-out infinite;
+}
+
+@keyframes data-icon-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
 .dataIndicatorGlyph {
@@ -1035,6 +1144,17 @@ button:hover {
   line-height: 1.45;
 }
 
+.dataSettingsInlineStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.dataSettingsInlineStatus .settingsHint {
+  margin: 0;
+}
+
 .dataModeGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1043,6 +1163,15 @@ button:hover {
 
 .dataModeGrid--popover {
   gap: 10px;
+}
+
+.dataModeGrid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dataModeGrid--popover.dataModeGrid--three {
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 
 .settingsOption--card {
@@ -1123,6 +1252,12 @@ button:hover {
   margin-top: 5px;
 }
 
+.settingsOptionEmoji {
+  display: inline-block;
+  margin-right: 2px;
+  font-style: normal;
+}
+
 .dataSettingsStats {
   display: grid;
   gap: 4px;
@@ -1190,6 +1325,78 @@ button:hover {
   padding: 0 14px;
 }
 
+.dataSettingsAdvancedBody {
+  padding: 0 14px 14px;
+}
+
+.dataSettingsAdvancedSection + .dataSettingsAdvancedSection {
+  margin-top: 14px;
+}
+
+.fullDataWaitingMessage {
+  margin: 12px 0 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.44);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.fullDataWaitingHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fullDataWaitingHeader strong {
+  font-size: 0.98rem;
+}
+
+.fullDataWaitingCopy {
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.42;
+}
+
+.fullDataWaitingTimer {
+  margin: 8px 0 0;
+  color: rgba(253, 224, 71, 0.95);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.fullDataWaitingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.fullDataWaitingActions button {
+  padding: 0.58em 0.92em;
+  font-size: 0.85rem;
+}
+
+.fullDataWaitingLink {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.dataSettingsAdvancedLink {
+  display: inline-block;
+  margin-top: 12px;
+  color: rgba(147, 197, 253, 0.85);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.dataSettingsAdvancedLink:hover {
+  color: rgba(191, 219, 254, 1);
+  text-decoration: underline;
+}
+
 @media (max-height: 860px) {
   .settingsPage {
     padding-top: 18px;
@@ -1211,6 +1418,14 @@ button:hover {
 }
 
 @media (max-width: 960px) {
+  .settingsTabs {
+    gap: 6px;
+  }
+
+  .settingsTabButton {
+    font-size: 0.76rem;
+  }
+
   .settingsDifficultyGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

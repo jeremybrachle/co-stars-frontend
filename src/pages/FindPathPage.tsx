@@ -1,3 +1,4 @@
+import { useCountdownTimer } from "../context/useCountdownTimer";
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import EntityDetailsDialog, {
@@ -7,6 +8,7 @@ import EntityDetailsDialog, {
 import { generatePath } from "../api/costars"
 import EntityArtwork from "../components/EntityArtwork"
 import PageBackButton from "../components/PageBackButton"
+import FullDataWaitingMessage from "../components/FullDataWaitingMessage"
 import {
   buildCatalogDetailDialogData,
   type CatalogDetailEntry,
@@ -174,8 +176,16 @@ function compareSearchOptions(left: SearchOption, right: SearchOption) {
 }
 
 function FindPathPage() {
-  const { mode } = useDataSourceMode()
-  const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading } = useSnapshotData()
+    const { secondsLeft, isRunning, start } = useCountdownTimer();
+    // Start timer on mount if not running
+    useEffect(() => {
+      if (!isRunning) start();
+      // Only run on mount
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+  const { mode, setMode } = useDataSourceMode()
+  const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData()
+  const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !snapshotIndexes)
   const [actors, setActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
   const [activeSource, setActiveSource] = useState<EffectiveDataSource>("demo")
@@ -202,8 +212,9 @@ function FindPathPage() {
     let isMounted = true
 
     const loadCatalog = async () => {
-      if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+      if (isWaitingForFullData) {
         setIsLoading(true)
+        setLoadError(null)
         return
       }
 
@@ -239,7 +250,7 @@ function FindPathPage() {
     return () => {
       isMounted = false
     }
-  }, [isSnapshotLoading, mode, snapshot, snapshotIndexes])
+  }, [isSnapshotLoading, isWaitingForFullData, mode, snapshot, snapshotIndexes])
 
   useEffect(() => {
     let isMounted = true
@@ -489,13 +500,21 @@ function FindPathPage() {
     }
   }
 
+  const min = Math.floor(secondsLeft / 60);
+  const sec = secondsLeft % 60;
   return (
     <div className="utilityPage">
+      {/* Countdown timer display, style as needed */}
+      <div style={{ position: "fixed", right: 24, bottom: 80, background: "#fffbe6", border: "1px solid #e67e22", borderRadius: 8, padding: "8px 16px", zIndex: 9999, fontWeight: "bold", color: "#e67e22" }}>
+        Time remaining: {min}:{sec.toString().padStart(2, "0")}
+      </div>
       <PageBackButton to="/" label="Back" />
       <div className="utilityPanel utilityPanel--wide">
         <div className="pageEyebrow">Find Path</div>
         <h1>Let the system solve it</h1>
         <p className="pageLead">Choose any two actors or movies from the currently available game data and Co-Stars will generate the shortest path it can find between them.</p>
+
+        {isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 
         {isLoading ? <div className="pageStatus">Loading actor and movie data…</div> : null}
         {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}
