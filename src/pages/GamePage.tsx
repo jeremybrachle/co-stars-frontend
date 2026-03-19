@@ -541,6 +541,7 @@ function GamePage() {
   const [completion, setCompletion] = useState<CompletionState | null>(null);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [isCompletionHistoryOpen, setIsCompletionHistoryOpen] = useState(false);
+  const [isSavedHistoryDialogOpen, setIsSavedHistoryDialogOpen] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
   const [currentLevelIdentity, setCurrentLevelIdentity] = useState<{ startLabel: string; endLabel: string } | null>(null);
   const [levelHistory, setLevelHistory] = useState<LevelHistoryRecord | null>(null);
@@ -567,6 +568,37 @@ function GamePage() {
 
     return isLevelCompleted(currentLevelIdentity.startLabel, currentLevelIdentity.endLabel, completedLevels);
   }, [completedLevels, currentLevelIdentity]);
+  const levelHistoryContent = leaderboardGroups.length === 0 ? (
+    <div className="gameCompletionHistoryEmpty">This level does not have any saved history yet.</div>
+  ) : (
+    <div className="gameCompletionLeaderboardGroups">
+      {leaderboardGroups.map((group: NonNullable<typeof leaderboardGroups>[number]) => (
+        <div key={group.hops} className="gameCompletionLeaderboardGroup">
+          <div className="gameCompletionLeaderboardGroupTitle">
+            <span>{group.hops} hops</span>
+            <span>{group.attempts.length} route{group.attempts.length === 1 ? "" : "s"}</span>
+          </div>
+          <ol className="gameCompletionLeaderboardList">
+            {group.attempts.map((attempt: NonNullable<typeof group.attempts>[number], attemptIndex: number) => (
+              <li key={attempt.id} className="gameCompletionLeaderboardItem">
+                <div className="gameCompletionLeaderboardTopRow">
+                  <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
+                  <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
+                  <span className="gameCompletionLeaderboardMeta">
+                    shuffles {attempt.shuffles} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
+                  </span>
+                </div>
+                <div className="gameCompletionLeaderboardPath">
+                  {attempt.path.map((node: NonNullable<typeof attempt.path>[number]) => node.label).join(" → ")}
+                </div>
+                <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </div>
+  );
 
   const resolveSnapshotResources = useCallback(
     async (allowDemoFallback = false) => {
@@ -1661,6 +1693,7 @@ function GamePage() {
     setCompletion(null);
     setIsCompletionDialogOpen(false);
     setIsCompletionHistoryOpen(false);
+    setIsSavedHistoryDialogOpen(false);
   };
 
   const handleShuffle = () => {
@@ -2009,9 +2042,20 @@ function GamePage() {
           ) : null}
 
           {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
-          <div className={`gamePageStatus ${currentLevelCompleted ? "gamePageStatus--success" : "gamePageStatus--neutral"}`}>
-            {currentLevelCompleted ? "☑ This level is completed." : "☐ This level is not completed yet."}
-          </div>
+          {currentLevelCompleted ? (
+            <button
+              type="button"
+              className="gamePageStatus gamePageStatus--success gamePageStatusButton"
+              onClick={() => setIsSavedHistoryDialogOpen(true)}
+            >
+              <span>☑ This level is completed.</span>
+              <span className="gamePageStatusDetail">
+                View saved history{levelHistory?.attempts.length ? ` • ${levelHistory.attempts.length} route${levelHistory.attempts.length === 1 ? "" : "s"}` : ""}
+              </span>
+            </button>
+          ) : (
+            <div className="gamePageStatus gamePageStatus--neutral">☐ This level is not completed yet.</div>
+          )}
 
           <GameRightPanel
             currentSelection={currentSelection ?? createNode("Loading…", "actor")}
@@ -2225,39 +2269,7 @@ function GamePage() {
                 </span>
               </button>
 
-              {isCompletionHistoryOpen ? (
-                leaderboardGroups.length === 0 ? (
-                  <div className="gameCompletionHistoryEmpty">This level does not have any saved history yet.</div>
-                ) : (
-                  <div className="gameCompletionLeaderboardGroups">
-                    {leaderboardGroups.map((group: NonNullable<typeof leaderboardGroups>[number]) => (
-                      <div key={group.hops} className="gameCompletionLeaderboardGroup">
-                        <div className="gameCompletionLeaderboardGroupTitle">
-                          <span>{group.hops} hops</span>
-                          <span>{group.attempts.length} route{group.attempts.length === 1 ? "" : "s"}</span>
-                        </div>
-                        <ol className="gameCompletionLeaderboardList">
-                          {group.attempts.map((attempt: NonNullable<typeof group.attempts>[number], attemptIndex: number) => (
-                            <li key={attempt.id} className="gameCompletionLeaderboardItem">
-                              <div className="gameCompletionLeaderboardTopRow">
-                                <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
-                                <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
-                                <span className="gameCompletionLeaderboardMeta">
-                                  shuffles {attempt.shuffles} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
-                                </span>
-                              </div>
-                              <div className="gameCompletionLeaderboardPath">
-                                {attempt.path.map((node: NonNullable<typeof attempt.path>[number]) => node.label).join(" → ")}
-                              </div>
-                              <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    ))}
-                  </div>
-                )
-              ) : null}
+              {isCompletionHistoryOpen ? levelHistoryContent : null}
             </div>
 
             <div className="gameCompletionActions">
@@ -2284,6 +2296,32 @@ function GamePage() {
               <span className="gameCompletionFooterScoreText">
                 Final score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
               </span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isSavedHistoryDialogOpen ? (
+        <div className="gameCompletionOverlay" onClick={() => setIsSavedHistoryDialogOpen(false)}>
+          <div className="gameCompletionDialog gameSavedHistoryDialog" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="gameRulesCloseButton" onClick={() => setIsSavedHistoryDialogOpen(false)} aria-label="Close saved history dialog">
+              ×
+            </button>
+            <h2 className="gameRulesTitle">Previous Game History</h2>
+            <p className="gameRulesText gameCompletionLead">
+              Ranked by hops first, then score within each hop count. Equal scores with equal hop counts can appear in any order.
+            </p>
+            <div className="gameCompletionHistory">
+              <div className="gameCompletionHistoryHeader">
+                <div>
+                  <div className="gameCompletionHistoryTitle">Saved history for this level</div>
+                  <div className="gameCompletionHistoryMeta">
+                    {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
+                    {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
+                  </div>
+                </div>
+              </div>
+              {levelHistoryContent}
             </div>
           </div>
         </div>

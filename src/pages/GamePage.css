@@ -188,6 +188,19 @@
   text-align: center;
 }
 
+.gamePageStatusButton {
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.gamePageStatusDetail {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.86rem;
+  color: rgba(255, 255, 255, 0.82);
+}
+
 .gamePageStatus--error {
   background: rgba(127, 29, 29, 0.56);
 }
@@ -373,6 +386,10 @@
     rgba(15, 23, 42, 0.95);
   color: white;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.36);
+}
+
+.gameSavedHistoryDialog {
+  width: min(100%, 920px);
 }
 
 .gameCompletionLead {

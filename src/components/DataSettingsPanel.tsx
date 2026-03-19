@@ -12,6 +12,7 @@ function S3LoadingTimer({ active }: { active: boolean }) {
 }
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
+import { getCachedSnapshotStorageStats } from "../data/frontendSnapshot";
 import {
 	getDataIndicatorDescription,
 	getDataIndicatorLabel,
@@ -58,6 +59,12 @@ type GameDataStorageStats = {
 	totalBytes: number;
 };
 
+type SnapshotCacheStorageStats = {
+	manifestBytes: number;
+	snapshotBytes: number;
+	totalBytes: number;
+};
+
 const GAME_DATA_STORAGE_SOFT_LIMIT_BYTES = 1024 * 1024;
 
 function formatStorageSize(bytes: number) {
@@ -88,6 +95,10 @@ function getGameDataStorageStats(): GameDataStorageStats {
 		completionBytes,
 		totalBytes: historyBytes + completionBytes,
 	};
+}
+
+function getSnapshotCacheStorageStats(): SnapshotCacheStorageStats {
+	return getCachedSnapshotStorageStats();
 }
 
 
@@ -128,6 +139,10 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	const dataVersionLabel = isOfflineDemoMode(mode)
 		? "Demo"
 		: snapshotVersion ?? manifestVersion ?? "none loaded yet";
+	const snapshotCacheStats = useMemo(
+		() => getSnapshotCacheStorageStats(),
+		[manifest, snapshot],
+	);
 	const gameDataUsagePercent = Math.min(100, (gameDataStats.totalBytes / GAME_DATA_STORAGE_SOFT_LIMIT_BYTES) * 100);
 	const variant = useMemo(
 		() => getDataIndicatorVariant({
@@ -315,6 +330,20 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 							>
 								Clear cache
 							</button>
+						</div>
+						<div className="dataSettingsStorageCard">
+							<div className="dataSettingsStorageRow">
+								<span>Snapshot cache total</span>
+								<strong>{formatStorageSize(snapshotCacheStats.totalBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Manifest cache</span>
+								<strong>{formatStorageSize(snapshotCacheStats.manifestBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Snapshot cache</span>
+								<strong>{formatStorageSize(snapshotCacheStats.snapshotBytes)}</strong>
+							</div>
 						</div>
 						<p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>
 						{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
