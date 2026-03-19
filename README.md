@@ -2,9 +2,18 @@
 
 Co-Stars is a movie-connection game where you build a path between two endpoints by alternating between actors and movies. Pick a movie for an actor, then pick a co-star from that movie, and keep going until the two sides connect.
 
+## Game Modes
+
+| Mode | Description |
+|------|-------------|
+| **Adventure Mode** | Curated levels with tracked optimal hop counts and difficulty ratings |
+| **Speed Round** | Timed challenge flow *(in development)* |
+| **Custom Level** | Pick your own start and end actors *(in development)* |
+| **Find Path** | Ask the system to auto-generate a connection between any two actors |
+
 ## How To Play
 
-1. Start with the two nodes shown on the board.
+1. Start with the two actor nodes shown on the board.
 2. If your current node is an actor, choose one of their movies.
 3. If your current node is a movie, choose one of its actors.
 4. Keep alternating actor → movie → actor until the path connects.
@@ -18,13 +27,43 @@ Current gameplay rules:
 - Some suggestions are highlighted when they reveal an immediate or highly optimal connection.
 - On a win, the game shows your completed path, hop count, turns, shuffles, rewinds, and the optimal comparison.
 
-## Technical Overview
+## Architecture Overview
 
-This is a React + TypeScript + Vite frontend. It now treats the backend as a periodic data source instead of the gameplay engine.
+```
+src/
+├── pages/          # Route-level page components (HomePage, GamePage, AdventurePage, …)
+├── components/     # Reusable UI components (NavigationMenu, EntityArtwork, Footer, …)
+│   └── game/       # Core game board components (GameLeftPanel, GameRightPanel)
+├── context/        # React context providers for app-wide state
+│   ├── DataSourceModeContext  – Auto / Snapshot / API / Demo data source selection
+│   ├── GameSettingsContext    – Gameplay helpers, filters, and display preferences
+│   ├── SnapshotDataContext    – Graph snapshot loading and cache management
+│   └── CountdownTimerContext  – Countdown timer for timed game modes
+├── data/           # Graph logic and data helpers
+│   ├── localGraph.ts      – BFS path-finding, suggestion generation, path validation
+│   ├── frontendSnapshot.ts – Snapshot caching and refresh policy
+│   └── demoSnapshot.ts    – Bundled offline demo dataset
+├── api/            # Backend API client (costars.ts)
+├── hooks/          # Custom React hooks (useBrowserOnlineStatus)
+├── router/         # React Router configuration (AppRouter.tsx)
+└── types.ts        # Shared TypeScript types
+```
 
-The app caches a frontend graph snapshot in browser storage and uses it for normal play. The backend is only needed to refresh that snapshot when the cached copy becomes stale.
+**Data Flow:**
+1. On startup, `SnapshotDataProvider` loads the graph from `localStorage` or bundled `/public/data/` files.
+2. During gameplay, all suggestion and path-finding calls run locally against the in-memory graph (`localGraph.ts`).
+3. The backend is only contacted to refresh the snapshot when the cache expires, or when `API` mode is selected explicitly.
 
-You can switch between `Auto`, `Snapshot`, and `API` modes from the Settings page.
+## Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| Framework | React 19 |
+| Language | TypeScript 5 |
+| Build Tool | Vite 7 |
+| Routing | React Router DOM 7 |
+| Testing | Node.js native `test` module |
+| Linting | ESLint 9 + TypeScript-ESLint |
 
 ## Run Locally
 
@@ -47,4 +86,17 @@ Current refresh approach:
 
 To manually pull a fresh bundled snapshot into this frontend project, run `npm run data:refresh`.
 
+## Scripts
+
+```bash
+npm run dev          # Start Vite dev server
+npm run build        # TypeScript compile + production build
+npm run lint         # ESLint check
+npm run typecheck    # TypeScript type check
+npm test             # Lint + typecheck + unit tests
+npm run test:unit    # Unit tests only
+npm run data:refresh # Pull a fresh graph snapshot from the backend
+```
+
 For a more detailed technical overview, see [TECHNICAL_README.md](TECHNICAL_README.md). For command-line refresh and recovery steps, see [DATA_REFRESH_USAGE.md](DATA_REFRESH_USAGE.md).
+
