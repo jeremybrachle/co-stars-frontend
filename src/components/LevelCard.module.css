@@ -1,0 +1,288 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cardCompleted {
+  padding: 1rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(15, 23, 42, 0.12));
+  border: 1px solid rgba(167, 243, 208, 0.4);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.levelLabel {
+  font-size: 1.08em;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.01em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.starRow {
+  display: inline-flex;
+  gap: 0.1rem;
+}
+
+.levelStar {
+  color: #ffe066;
+  font-size: 1.1em;
+}
+
+.levelHops {
+  padding: 0.18em 0.72em;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.32);
+  font-size: 0.84em;
+  font-weight: 700;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.completionBadge {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.28);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.completionBadgeDone {
+  background: rgba(16, 185, 129, 0.2);
+  color: #d1fae5;
+}
+
+.levelButton {
+  width: 100%;
+  min-height: 80px;
+  font-size: 1.25em;
+  padding: 1.1em 2.2em;
+  background: #ff5252;
+  border: none;
+  border-radius: 16px;
+  color: #fff;
+  font-weight: 600;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
+  outline: none;
+}
+
+.cardCompleted .levelButton {
+  background: linear-gradient(135deg, #0f766e, #16a34a);
+}
+
+.levelButton:hover,
+.levelButton:focus-visible {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  transform: translateY(-2px) scale(1.01);
+}
+
+.levelButton:disabled {
+  opacity: 0.7;
+  cursor: wait;
+  transform: none;
+}
+
+.levelActorLeft {
+  text-align: left;
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.levelActorRight {
+  text-align: right;
+  justify-self: end;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.levelActorIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.levelActorIdentityRight {
+  flex-direction: row-reverse;
+}
+
+.levelActorArtwork {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.levelActorArtworkImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.levelActorArtworkEmoji {
+  font-size: 1.25rem;
+}
+
+.levelVs {
+  justify-self: center;
+  font-size: 1.15em;
+  font-weight: 600;
+  color: #fbfbf9;
+  letter-spacing: 0.03em;
+}
+
+.summaryRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1rem;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.95rem;
+}
+
+.leaderboardSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leaderboardToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.24);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.leaderboardEmpty {
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.24);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.leaderboardGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.leaderboardGroup {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.leaderboardGroupHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.leaderboardList {
+  margin: 0;
+  padding: 0.9rem 1rem 1rem 2.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.leaderboardItem {
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.leaderboardTopRow {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.leaderboardRank {
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.leaderboardScore {
+  font-weight: 800;
+  color: #bbf7d0;
+}
+
+.leaderboardPath {
+  margin-top: 0.45rem;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .levelButton {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+    text-align: left;
+  }
+
+  .levelActorRight,
+  .levelActorLeft,
+  .levelVs {
+    justify-self: start;
+    text-align: left;
+  }
+
+  .levelActorIdentityRight {
+    flex-direction: row;
+  }
+
+  .leaderboardToggle,
+  .leaderboardGroupHeader,
+  .leaderboardTopRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

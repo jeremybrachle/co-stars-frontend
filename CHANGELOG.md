@@ -10,6 +10,14 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.8] - 2026-03-19
+
+Scoring
+
+### Added
+
+- Calculation, display, and stored local history of player scores for each level
+
 ## [2.0.7] - 2026-03-17
 
 Data refresh logic

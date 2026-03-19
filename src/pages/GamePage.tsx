@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import CustomGameSettingsPanel from "../components/CustomGameSettingsPanel";
 import EntityDetailsDialog, {
@@ -53,6 +53,21 @@ import {
   validateLocalPath,
 } from "../data/localGraph";
 import { formatActorInlineMeta, formatActorLifespan, formatGameNodeMeta, formatMovieInlineMeta, getMovieBadges } from "../data/presentation";
+import { calculateLevelScore } from "../utils/calculateLevelScore.ts";
+import {
+  isLevelCompleted,
+  markLevelCompleted,
+  readCompletedLevels,
+  subscribeToLevelCompletionUpdates,
+  type CompletedLevelsCollection,
+} from "../utils/levelCompletionStorage.ts";
+import {
+  buildHopLeaderboardGroups,
+  getLevelHistory,
+  saveLevelAttempt,
+  subscribeToLevelHistoryUpdates,
+  type LevelHistoryRecord,
+} from "../utils/levelHistoryStorage.ts";
 import type { Actor, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
@@ -83,18 +98,21 @@ type GamePageRouteState = {
   movieB?: string;
   optimalHops?: number | null;
   optimalPath?: NodeSummary[];
+  levelIndex?: number;
+  totalLevels?: number;
 };
 
 type SelectedSide = "top" | "bottom";
 
-type CompletionState = {
+interface CompletionState {
   fullPath: GameNode[];
   usedHops: number;
   winningSide: SelectedSide;
   source: string;
   isValidated: boolean | null;
   validationMessage?: string;
-};
+  score?: number;
+}
 
 type NodeInspectorState = {
   detail: EntityDetailsDialogData;
@@ -342,12 +360,54 @@ function hydrateCompletionPath(path: GameNode[], referenceNodes: GameNode[]) {
   return path.map((node) => referenceNodes.find((referenceNode) => isSameNode(node, referenceNode)) ?? node);
 }
 
-function formatPathPreview(path: GameNode[]) {
-  return path.map((node) => node.label).join(" → ");
-}
+
 
 function uniqueText(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim()))));
+}
+
+function formatTimestamp(timestamp: number) {
+  return new Date(timestamp).toLocaleString();
+}
+
+function getCompletionScoreSymbol(score: number | undefined) {
+  if (typeof score !== "number") {
+    return "✅";
+  }
+
+  if (score >= 90) {
+    return "🏆";
+  }
+
+  if (score >= 75) {
+    return "⭐";
+  }
+
+  if (score >= 50) {
+    return "🎉";
+  }
+
+  return "✅";
+}
+
+function getDisplayedCompletionScore(
+  completion: CompletionState | null,
+  optimalHops: number | null,
+  shuffles: number,
+  rewinds: number,
+  deadEndPenalties: number,
+) {
+  if (!completion) {
+    return null;
+  }
+
+  return calculateLevelScore({
+    hops: completion.usedHops,
+    optimalHops: optimalHops ?? completion.usedHops,
+    shuffles,
+    rewinds,
+    deadEnds: deadEndPenalties,
+  });
 }
 
 function toInspectorDetail(node: GameNode, relatedCount: number, detailLines: string[], description: string | null): EntityDetailsDialogData {
@@ -471,7 +531,7 @@ function GamePage() {
   const [isRulesOpen, setIsRulesOpen] = useState(false);
 
   const [optimalHops, setOptimalHops] = useState<number | null>(routeState?.optimalHops ?? null);
-  const [optimalPath, setOptimalPath] = useState<GameNode[]>(routeState?.optimalPath?.map(nodeFromSummary) ?? []);
+
 
   const [suggestions, setSuggestions] = useState<GameNode[]>([]);
   const [isSetupLoading, setIsSetupLoading] = useState(true);
@@ -480,15 +540,33 @@ function GamePage() {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [completion, setCompletion] = useState<CompletionState | null>(null);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
+  const [isCompletionHistoryOpen, setIsCompletionHistoryOpen] = useState(false);
+  const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
+  const [currentLevelIdentity, setCurrentLevelIdentity] = useState<{ startLabel: string; endLabel: string } | null>(null);
+  const [levelHistory, setLevelHistory] = useState<LevelHistoryRecord | null>(null);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
   const [inspectorTrail, setInspectorTrail] = useState<GameNode[]>([]);
   const [nodeInspector, setNodeInspector] = useState<NodeInspectorState | null>(null);
   const [inspectorRelationSearch, setInspectorRelationSearch] = useState("");
   const cycleRiskChildCacheRef = useRef<Map<string, GameNode[]>>(new Map());
+  const levelIdentityRef = useRef<{ startLabel: string; endLabel: string } | null>(null);
 
   const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
+  const leaderboardGroups = useMemo(() => buildHopLeaderboardGroups(levelHistory?.attempts ?? []), [levelHistory]);
+  const latestAttempt = levelHistory?.attempts[0] ?? null;
+  const displayedCompletionScore = useMemo(
+    () => getDisplayedCompletionScore(completion, optimalHops, shuffles, rewinds, deadEndPenalties),
+    [completion, deadEndPenalties, optimalHops, rewinds, shuffles],
+  );
+  const currentLevelCompleted = useMemo(() => {
+    if (!currentLevelIdentity) {
+      return false;
+    }
+
+    return isLevelCompleted(currentLevelIdentity.startLabel, currentLevelIdentity.endLabel, completedLevels);
+  }, [completedLevels, currentLevelIdentity]);
 
   const resolveSnapshotResources = useCallback(
     async (allowDemoFallback = false) => {
@@ -512,6 +590,27 @@ function GamePage() {
     },
     [indexes, snapshot],
   );
+
+  useEffect(() => {
+    setCompletedLevels(readCompletedLevels());
+    return subscribeToLevelCompletionUpdates(() => {
+      setCompletedLevels(readCompletedLevels());
+    });
+  }, []);
+
+  useEffect(() => {
+    const syncLevelHistory = () => {
+      const levelIdentity = levelIdentityRef.current;
+      if (!levelIdentity) {
+        return;
+      }
+
+      setLevelHistory(getLevelHistory(levelIdentity.startLabel, levelIdentity.endLabel));
+    };
+
+    syncLevelHistory();
+    return subscribeToLevelHistoryUpdates(syncLevelHistory);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -599,7 +698,7 @@ function GamePage() {
       setActorB(PLACEHOLDER_START_B);
       setMoviesCatalog([]);
       setOptimalHops(null);
-      setOptimalPath([]);
+      // setOptimalPath removed
       setSuggestions(createPlaceholderSuggestions("actor"));
       setResolvedDataSource(null);
       setIsNetworkUnavailable(true);
@@ -613,12 +712,22 @@ function GamePage() {
       return;
     }
 
+    levelIdentityRef.current = {
+      startLabel: demoSetup.actorA.label,
+      endLabel: demoSetup.actorB.label,
+    };
+    setCurrentLevelIdentity({
+      startLabel: demoSetup.actorA.label,
+      endLabel: demoSetup.actorB.label,
+    });
+    setLevelHistory(getLevelHistory(demoSetup.actorA.label, demoSetup.actorB.label));
+
     setActorA(demoSetup.actorA);
     setActorB(demoSetup.actorB);
   	setActorsCatalog([]);
     setMoviesCatalog([]);
     setOptimalHops(demoSetup.optimalHops);
-    setOptimalPath(demoSetup.optimalPath);
+    // setOptimalPath removed
     setResolvedDataSource("demo");
     setSetupError(null);
     setIsNetworkUnavailable(false);
@@ -642,6 +751,7 @@ function GamePage() {
       setLockedSide(null);
       setTurns(0);
       setRewinds(0);
+      setDeadEndPenalties(0);
       setShuffles(0);
       setShuffleSeed(0);
       setIsNetworkUnavailable(false);
@@ -664,12 +774,22 @@ function GamePage() {
               return;
             }
 
+            levelIdentityRef.current = {
+              startLabel: apiSetup.actorA.label,
+              endLabel: apiSetup.actorB.label,
+            };
+            setCurrentLevelIdentity({
+              startLabel: apiSetup.actorA.label,
+              endLabel: apiSetup.actorB.label,
+            });
+            setLevelHistory(getLevelHistory(apiSetup.actorA.label, apiSetup.actorB.label));
+
             setActorA(apiSetup.actorA);
             setActorB(apiSetup.actorB);
       			setActorsCatalog(apiSetup.actors);
             setMoviesCatalog(apiSetup.movies);
             setOptimalHops(apiSetup.optimalHops);
-            setOptimalPath(apiSetup.optimalPath);
+            // setOptimalPath removed
             setResolvedDataSource("api");
             return;
           } catch {
@@ -679,12 +799,21 @@ function GamePage() {
             }
 
             if (snapshotSetup) {
+              levelIdentityRef.current = {
+                startLabel: snapshotSetup.actorA.label,
+                endLabel: snapshotSetup.actorB.label,
+              };
+              setCurrentLevelIdentity({
+                startLabel: snapshotSetup.actorA.label,
+                endLabel: snapshotSetup.actorB.label,
+              });
+              setLevelHistory(getLevelHistory(snapshotSetup.actorA.label, snapshotSetup.actorB.label));
               setActorA(snapshotSetup.actorA);
               setActorB(snapshotSetup.actorB);
 				setActorsCatalog([]);
               setMoviesCatalog([]);
               setOptimalHops(snapshotSetup.optimalHops);
-              setOptimalPath(snapshotSetup.optimalPath);
+              // setOptimalPath removed
               setResolvedDataSource("snapshot");
               return;
             }
@@ -700,12 +829,22 @@ function GamePage() {
             return;
           }
 
+          levelIdentityRef.current = {
+            startLabel: snapshotSetup.actorA.label,
+            endLabel: snapshotSetup.actorB.label,
+          };
+          setCurrentLevelIdentity({
+            startLabel: snapshotSetup.actorA.label,
+            endLabel: snapshotSetup.actorB.label,
+          });
+          setLevelHistory(getLevelHistory(snapshotSetup.actorA.label, snapshotSetup.actorB.label));
+
           setActorA(snapshotSetup.actorA);
           setActorB(snapshotSetup.actorB);
 		  setActorsCatalog([]);
           setMoviesCatalog([]);
           setOptimalHops(snapshotSetup.optimalHops);
-          setOptimalPath(snapshotSetup.optimalPath);
+          // setOptimalPath removed
           setResolvedDataSource("snapshot");
           return;
         }
@@ -1316,23 +1455,55 @@ function GamePage() {
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
+    const hops = hydratedFullPath.length - 1;
+    const shufflesCount = shuffles;
+    const rewindsCount = rewinds;
+    const deadEndsCount = deadEndPenalties;
+    const optimalHopsValue = optimalHops ?? hops;
+    const score = calculateLevelScore({
+      hops,
+      optimalHops: optimalHopsValue,
+      shuffles: shufflesCount,
+      rewinds: rewindsCount,
+      deadEnds: deadEndsCount,
+    });
+
+    // Only save if actorA and actorB are not null and have label or are strings
+    const actorALabel = levelIdentityRef.current?.startLabel;
+    const actorBLabel = levelIdentityRef.current?.endLabel;
+    if (actorALabel && actorBLabel) {
+      setCompletedLevels(markLevelCompleted(actorALabel, actorBLabel));
+      const savedHistory = saveLevelAttempt(actorALabel, actorBLabel, {
+        path: hydratedFullPath.filter(n => typeof n.id === "number").map(({ id, type, label }) => ({ id: id as number, type, label })),
+        score,
+        hops,
+        shuffles: shufflesCount,
+        rewinds: rewindsCount,
+        deadEnds: deadEndsCount,
+        timestamp: Date.now(),
+      });
+      setLevelHistory(savedHistory);
+    }
+
     const provisionalCompletion: CompletionState = {
       fullPath: hydratedFullPath,
-      usedHops: hydratedFullPath.length - 1,
+      usedHops: hops,
       winningSide,
       source,
       isValidated: null,
+      score,
     };
 
     setCompletion(provisionalCompletion);
     setIsCompletionDialogOpen(true);
+    setIsCompletionHistoryOpen(false);
     setIsRulesOpen(false);
 
     try {
       let validation;
 
       if (activeDataSource === "snapshot" || activeDataSource === "demo") {
-  		const resources = await resolveSnapshotResources(activeDataSource === "demo");
+		const resources = await resolveSnapshotResources(activeDataSource === "demo");
         if (!resources) {
           throw new Error(NETWORK_UNAVAILABLE_MESSAGE);
         }
@@ -1352,17 +1523,17 @@ function GamePage() {
         }
       }
 
-      setCompletion({
-        ...provisionalCompletion,
+      setCompletion((prev) => prev && typeof prev === "object" ? {
+        ...prev,
         isValidated: validation.valid,
         validationMessage: validation.message,
-      });
+      } : prev);
     } catch (error) {
-      setCompletion({
-        ...provisionalCompletion,
+      setCompletion((prev) => prev && typeof prev === "object" ? {
+        ...prev,
         isValidated: null,
         validationMessage: error instanceof Error ? error.message : "Path validation could not be completed.",
-      });
+      } : prev);
     }
   };
 
@@ -1462,7 +1633,7 @@ function GamePage() {
     setActorB(actorA);
     setTopPath(bottomPath);
     setBottomPath(topPath);
-    setOptimalPath((currentPath) => [...currentPath].reverse());
+    // setOptimalPath removed
     setLockedSide((currentLockedSide) => {
       if (currentLockedSide === "top") {
         return "bottom";
@@ -1489,6 +1660,7 @@ function GamePage() {
     setSuggestionError(null);
     setCompletion(null);
     setIsCompletionDialogOpen(false);
+    setIsCompletionHistoryOpen(false);
   };
 
   const handleShuffle = () => {
@@ -1498,6 +1670,30 @@ function GamePage() {
 
     setShuffles((count) => count + 1);
     setShuffleSeed((currentSeed) => currentSeed + 1);
+  };
+
+  const handleRetryCompletedLevel = () => {
+    handleResetBoard();
+  };
+
+  const handleReturnToLevelList = () => {
+    navigate("/adventure", {
+      state: {
+        focusLevelIndex: routeState?.levelIndex,
+      },
+    });
+  };
+
+  const handleNextLevel = () => {
+    if (typeof routeState?.levelIndex !== "number") {
+      return;
+    }
+
+    navigate("/adventure", {
+      state: {
+        autoStartLevelIndex: routeState.levelIndex + 1,
+      },
+    });
   };
 
   const loadInspectorNode = useCallback(async (node: GameNode) => {
@@ -1752,8 +1948,13 @@ function GamePage() {
     }
   };
 
-  const completionPreviewPath = completion?.fullPath ?? optimalPath;
+
   const backDestination = routeState?.returnTo ?? "/play-now";
+  const canOpenLevelList = backDestination === "/adventure" || typeof routeState?.levelIndex === "number";
+  const hasNextLevel = typeof routeState?.levelIndex === "number"
+    && typeof routeState?.totalLevels === "number"
+    && routeState.levelIndex < routeState.totalLevels - 1;
+  const completionScoreSymbol = getCompletionScoreSymbol(displayedCompletionScore ?? undefined);
   const inspectorHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
     return inspectorTrail.map((node) => ({
       key: `${node.type}-${node.id ?? node.label}`,
@@ -1808,6 +2009,9 @@ function GamePage() {
           ) : null}
 
           {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
+          <div className={`gamePageStatus ${currentLevelCompleted ? "gamePageStatus--success" : "gamePageStatus--neutral"}`}>
+            {currentLevelCompleted ? "☑ This level is completed." : "☐ This level is not completed yet."}
+          </div>
 
           <GameRightPanel
             currentSelection={currentSelection ?? createNode("Loading…", "actor")}
@@ -1836,6 +2040,28 @@ function GamePage() {
           />
         </div>
       </div>
+
+      {completion && !isCompletionDialogOpen ? (
+        <div className="gameCompletionPinnedScore" role="status" aria-live="polite">
+          <div className="gameCompletionPinnedScoreIcon" aria-hidden="true">{completionScoreSymbol}</div>
+          <div className="gameCompletionPinnedScoreContent">
+            <div className="gameCompletionPinnedScoreTitle">Level completed</div>
+            <div className="gameCompletionPinnedScoreValue">
+              Score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+            </div>
+            <div className="gameCompletionPinnedScoreMeta">
+              {completion.usedHops} hops used{optimalHops !== null ? ` • optimal ${optimalHops}` : ""}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="gameCompletionPinnedScoreButton"
+            onClick={() => setIsCompletionDialogOpen(true)}
+          >
+            View summary
+          </button>
+        </div>
+      ) : null}
 
       <button type="button" className="gameInfoButton" onClick={() => setIsRulesOpen(true)} aria-label="Open game rules">
         i
@@ -1901,6 +2127,10 @@ function GamePage() {
 
             <div className="gameCompletionStats">
               <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Score</span>
+                <span className="gameCompletionStatValue">{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+              </div>
+              <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Completed hops</span>
                 <span className="gameCompletionStatValue">{completion.usedHops}</span>
               </div>
@@ -1920,26 +2150,140 @@ function GamePage() {
                 <span className="gameCompletionStatLabel">Rewinds</span>
                 <span className="gameCompletionStatValue">{rewinds}</span>
               </div>
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Dead ends</span>
+                <span className="gameCompletionStatValue">{deadEndPenalties}</span>
+              </div>
+            </div>
+
+            <p className="gameCompletionFormula">
+              This level is now marked completed and will show as completed on the Adventure level list.
+            </p>
+
+            <div className="gameCompletionScoreBreakdown">
+              <div className="gameCompletionScoreBreakdownTitle">Score breakdown</div>
+              <div className="gameCompletionScoreBreakdownRow">
+                <span>Hop efficiency</span>
+                <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
+              </div>
+              <div className="gameCompletionScoreBreakdownRow">
+                <span>Shuffle penalties</span>
+                <span>-{shuffles * 3}</span>
+              </div>
+              <div className="gameCompletionScoreBreakdownRow">
+                <span>Rewind penalties</span>
+                <span>-{rewinds * 4}</span>
+              </div>
+              <div className="gameCompletionScoreBreakdownRow">
+                <span>Dead-end penalties</span>
+                <span>-{deadEndPenalties * 6}</span>
+              </div>
+              <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
+                <span>Final score</span>
+                <span>{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+              </div>
             </div>
 
             <div className="gameCompletionPreview">
               <div className="gameCompletionPreviewTitle">Completed path preview</div>
-              <div className="gameCompletionTrack">
-                {completionPreviewPath.map((node, index) => (
-                  <Fragment key={`${node.type}-${node.label}-${index}`}>
-                    <div key={`${node.type}-${node.label}-${index}`} className="gameCompletionTrackSegment">
-                      <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
-                    </div>
-                    {index < completionPreviewPath.length - 1 ? <span key={`arrow-${node.type}-${node.label}-${index}`} className="gameCompletionArrow">→</span> : null}
-                  </Fragment>
+              <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
+                {completion.fullPath.map((node, idx) => (
+                  <li key={idx} style={{ display: "inline" }}>
+                    <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
+                    {idx < completion.fullPath.length - 1 ? <span className="gameCompletionArrow">→</span> : null}
+                  </li>
                 ))}
-              </div>
-              <div className="gameCompletionPreviewText">{formatPathPreview(completion.fullPath)}</div>
+              </ul>
+              <div className="gameCompletionPreviewText">{completion.fullPath.map(n => n.label).join(" → ")}</div>
             </div>
 
             <div className="gameCompletionValidation">
-              {completion.isValidated === true ? "Path validated successfully." : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
+              {completion.isValidated === true ? `Path validated successfully. ${displayedCompletionScore !== null ? `Score: ${displayedCompletionScore.toFixed(1)}%` : ""}` : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
               {completion.validationMessage ? ` ${completion.validationMessage}` : ""}
+            </div>
+
+            <div className="gameCompletionValidationScore">
+              Score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+            </div>
+
+            <div className="gameCompletionHistory">
+              <button
+                type="button"
+                className="gameCompletionHistoryToggle"
+                onClick={() => setIsCompletionHistoryOpen((currentValue) => !currentValue)}
+                aria-expanded={isCompletionHistoryOpen}
+              >
+                <div>
+                  <div className="gameCompletionHistoryTitle">Saved history for this level</div>
+                  <div className="gameCompletionHistoryMeta">
+                    {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
+                    {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
+                  </div>
+                </div>
+                <span className="gameCompletionHistoryToggleLabel">
+                  {isCompletionHistoryOpen ? "Hide leaderboard" : "Show leaderboard"}
+                </span>
+              </button>
+
+              {isCompletionHistoryOpen ? (
+                leaderboardGroups.length === 0 ? (
+                  <div className="gameCompletionHistoryEmpty">This level does not have any saved history yet.</div>
+                ) : (
+                  <div className="gameCompletionLeaderboardGroups">
+                    {leaderboardGroups.map((group: NonNullable<typeof leaderboardGroups>[number]) => (
+                      <div key={group.hops} className="gameCompletionLeaderboardGroup">
+                        <div className="gameCompletionLeaderboardGroupTitle">
+                          <span>{group.hops} hops</span>
+                          <span>{group.attempts.length} route{group.attempts.length === 1 ? "" : "s"}</span>
+                        </div>
+                        <ol className="gameCompletionLeaderboardList">
+                          {group.attempts.map((attempt: NonNullable<typeof group.attempts>[number], attemptIndex: number) => (
+                            <li key={attempt.id} className="gameCompletionLeaderboardItem">
+                              <div className="gameCompletionLeaderboardTopRow">
+                                <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
+                                <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
+                                <span className="gameCompletionLeaderboardMeta">
+                                  shuffles {attempt.shuffles} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
+                                </span>
+                              </div>
+                              <div className="gameCompletionLeaderboardPath">
+                                {attempt.path.map((node: NonNullable<typeof attempt.path>[number]) => node.label).join(" → ")}
+                              </div>
+                              <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : null}
+            </div>
+
+            <div className="gameCompletionActions">
+              <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary" onClick={handleRetryCompletedLevel}>
+                Retry level
+              </button>
+              {canOpenLevelList ? (
+                <button type="button" className="gameCompletionActionButton" onClick={handleReturnToLevelList}>
+                  Main level list
+                </button>
+              ) : null}
+              {hasNextLevel ? (
+                <button type="button" className="gameCompletionActionButton" onClick={handleNextLevel}>
+                  Next level
+                </button>
+              ) : null}
+              <button type="button" className="gameCompletionActionButton gameCompletionActionButtonGhost" onClick={() => setIsCompletionDialogOpen(false)}>
+                Close and stay here
+              </button>
+            </div>
+
+            <div className="gameCompletionFooterScore" role="status" aria-live="polite">
+              <span className="gameCompletionFooterScoreIcon" aria-hidden="true">{completionScoreSymbol}</span>
+              <span className="gameCompletionFooterScoreText">
+                Final score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+              </span>
             </div>
           </div>
         </div>
