@@ -161,24 +161,6 @@ function createNode(label: string, type: NodeType, partial?: Partial<GameNode>):
   };
 }
 
-function getSuggestionPriorityScore(node: GameNode) {
-  if (node.highlight?.kind === "optimal") return 0;
-  if (node.highlight?.kind === "connection") return 0;
-  if (!node.highlight && node.pathHint?.reachable) return 1;
-
-  if (
-    node.highlight?.kind === "deep-loop"
-    || node.highlight?.kind === "cast-lock"
-    || node.highlight?.kind === "full-cast-lock"
-  ) {
-    return 2;
-  }
-
-  if (node.highlight?.kind === "loop") return 3;
-  if (node.highlight?.kind === "blocked") return 5;
-  return 4;
-}
-
 const NETWORK_UNAVAILABLE_MESSAGE = "Network connection couldn't be established. Offline demo mode is being used instead.";
 const PLACEHOLDER_START_A = createNode("Network unavailable", "actor");
 const PLACEHOLDER_START_B = createNode("Reconnect later", "actor");
@@ -528,14 +510,12 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
-  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSubsetCount, setSuggestionOrderMode } = useGameSettings();
+  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
   const dataFilters = settings.dataFilters;
-  const isSortedResultsEnabled = dataFilters.movieSortMode === "releaseYear" && dataFilters.actorSortMode === "popularity";
   const shouldGuaranteeBestPathSuggestion = helperSettings["guarantee-best-path-suggestion"];
   const showVisitedSuggestions = helperSettings["show-visited-suggestions"];
-  const sortSuggestionsByRiskPriority = helperSettings["sort-suggestions-by-risk-priority"];
   const cycleRiskClickAddsPenalty = helperSettings["cycle-risk-click-adds-penalty"];
   const showCastLockRiskHighlight = helperSettings["show-cast-lock-risk"];
   const showFullCastLockHighlight = helperSettings["show-full-cast-lock"];
@@ -966,9 +946,10 @@ function GamePage() {
     shouldShuffle: shouldRandomizeSuggestions,
     shouldGuaranteeBestPath: shouldGuaranteeBestPathSuggestion,
     suggestionLimit: shouldRandomizeSuggestions ? suggestionDisplay.subsetCount : null,
+    sortMode: suggestionDisplay.sortMode,
     movieSortMode: dataFilters.movieSortMode,
     actorSortMode: dataFilters.actorSortMode,
-  }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.subsetCount]);
+  }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.sortMode, suggestionDisplay.subsetCount]);
 
   const oppositeFrontierNode = useMemo(() => {
     if (!actorA || !actorB) {
@@ -1021,16 +1002,10 @@ function GamePage() {
   };
 
   const visibleSuggestions = useMemo(() => {
-    const filtered = showVisitedSuggestions
+    return showVisitedSuggestions
       ? [...suggestions]
       : suggestions.filter((suggestion) => suggestion.highlight?.kind !== "blocked");
-
-    if (!sortSuggestionsByRiskPriority) {
-      return filtered;
-    }
-
-    return [...filtered].sort((a, b) => getSuggestionPriorityScore(a) - getSuggestionPriorityScore(b));
-  }, [showVisitedSuggestions, sortSuggestionsByRiskPriority, suggestions]);
+  }, [showVisitedSuggestions, suggestions]);
 
   const applyActorPopularityFilter = useCallback((nextSuggestions: GameNode[]) => {
     return nextSuggestions.filter((suggestion) => {
@@ -2193,11 +2168,6 @@ function GamePage() {
                 />
                 <GameDataFilterPanel
                   dataFilters={dataFilters}
-                  isSortedResultsEnabled={isSortedResultsEnabled}
-                  onSortedResultsChange={(enabled) => {
-                    setMovieSortMode(enabled ? "releaseYear" : "random");
-                    setActorSortMode(enabled ? "popularity" : "random");
-                  }}
                   onActorPopularityCutoffChange={setActorPopularityCutoff}
                   onReleaseYearCutoffChange={setReleaseYearCutoff}
                   className="gameRulesCustomPanel"
@@ -2206,6 +2176,7 @@ function GamePage() {
                   suggestionDisplay={suggestionDisplay}
                   onSubsetCountChange={setSubsetCount}
                   onOrderModeChange={setSuggestionOrderMode}
+                  onSortModeChange={setSuggestionSortMode}
                   className="gameRulesCustomPanel"
                 />
               </div>

@@ -4,11 +4,13 @@ export default function SuggestionDisplaySettingsPanel({
   suggestionDisplay,
   onSubsetCountChange,
   onOrderModeChange,
+  onSortModeChange,
   className = "",
 }: {
   suggestionDisplay: SuggestionDisplaySettings
   onSubsetCountChange: (count: number) => void
   onOrderModeChange: (mode: SuggestionDisplaySettings["orderMode"]) => void
+  onSortModeChange: (mode: SuggestionDisplaySettings["sortMode"]) => void
   className?: string
 }) {
   const isShuffleMode = suggestionDisplay.orderMode === "shuffled"
@@ -21,6 +23,48 @@ export default function SuggestionDisplaySettingsPanel({
       </div>
 
       <div className="settingsToggleList">
+        <label className="settingsDataFilterField">
+          <span>Suggestion sorting</span>
+          <div className="settingsChoiceList" role="radiogroup" aria-label="Suggestion sorting mode">
+            <label className="settingsChoiceRow">
+              <input
+                type="radio"
+                name="suggestion-sort-mode"
+                checked={suggestionDisplay.sortMode === "default"}
+                onChange={() => onSortModeChange("default")}
+              />
+              <span>
+                <strong>Default setting</strong>
+                <span className="settingsHint">Actors use popularity and movies use release year.</span>
+              </span>
+            </label>
+            <label className="settingsChoiceRow">
+              <input
+                type="radio"
+                name="suggestion-sort-mode"
+                checked={suggestionDisplay.sortMode === "best-path"}
+                onChange={() => onSortModeChange("best-path")}
+              />
+              <span>
+                <strong>Best path</strong>
+                <span className="settingsHint">Prefer the suggestions that get closest to the optimal route first.</span>
+              </span>
+            </label>
+            <label className="settingsChoiceRow">
+              <input
+                type="radio"
+                name="suggestion-sort-mode"
+                checked={suggestionDisplay.sortMode === "random"}
+                onChange={() => onSortModeChange("random")}
+              />
+              <span>
+                <strong>Unsorted</strong>
+                <span className="settingsHint">Keep suggestions in a randomized order.</span>
+              </span>
+            </label>
+          </div>
+        </label>
+
         <label className="settingsToggleRow">
           <span className="settingsToggleText">
             <strong>Shuffle suggestion list</strong>

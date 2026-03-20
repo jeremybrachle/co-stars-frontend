@@ -113,6 +113,15 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					},
 				});
 			},
+			setSuggestionSortMode: (mode: "default" | "best-path" | "random") => {
+				persistSettings({
+					...settings,
+					suggestionDisplay: {
+						...settings.suggestionDisplay,
+						sortMode: mode,
+					},
+				});
+			},
 		}),
 		[settings],
 	);

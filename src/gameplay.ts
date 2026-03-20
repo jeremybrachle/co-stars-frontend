@@ -7,6 +7,7 @@ type SuggestionBuildOptions = {
 	shouldShuffle?: boolean;
 	shouldGuaranteeBestPath?: boolean;
 	suggestionLimit?: number | null;
+	sortMode?: "default" | "best-path" | "random";
 	movieSortMode?: "releaseYear" | "random";
 	actorSortMode?: "popularity" | "random";
 	nodeType?: "actor" | "movie";
@@ -144,6 +145,7 @@ export function buildSuggestionSet(
 	const shouldShuffle = options.shouldShuffle ?? true;
 	const shouldGuaranteeBestPath = options.shouldGuaranteeBestPath ?? false;
 	const suggestionLimit = options.suggestionLimit === undefined ? SUGGESTION_LIMIT : options.suggestionLimit;
+	const sortMode = options.sortMode ?? "default";
 	const movieSortMode = options.movieSortMode ?? "releaseYear";
 	const actorSortMode = options.actorSortMode ?? "popularity";
 	const comparator = createComparatorBySort(movieSortMode, actorSortMode);
@@ -158,7 +160,16 @@ export function buildSuggestionSet(
 
 	const reachableSuggestions = uniqueSuggestions
 		.filter((suggestion) => suggestion.pathHint?.reachable)
-		.sort(comparator);
+		.sort((left, right) => {
+			const leftSteps = left.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+			const rightSteps = right.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+
+			if (leftSteps !== rightSteps) {
+				return leftSteps - rightSteps;
+			}
+
+			return comparator(left, right);
+		});
 
 	const featured = new Map<string, GameNode>();
 
@@ -172,11 +183,24 @@ export function buildSuggestionSet(
 		.filter((suggestion) => !featured.has(getNodeKey(suggestion)))
 		.map((suggestion) => ({
 			suggestion,
-			score: getHintScore(suggestion)
-				+ (suggestion.type === "actor" && actorSortMode === "popularity" ? getPopularityScore(suggestion) : 0)
-				+ (suggestion.type === "movie" && movieSortMode === "releaseYear" ? getRecencyScore(suggestion) : 0),
+			score: sortMode === "best-path"
+				? getHintScore(suggestion)
+				: sortMode === "default"
+					? getHintScore(suggestion)
+						+ (suggestion.type === "actor" && actorSortMode === "popularity" ? getPopularityScore(suggestion) : 0)
+						+ (suggestion.type === "movie" && movieSortMode === "releaseYear" ? getRecencyScore(suggestion) : 0)
+					: 0,
 		}))
 		.sort((a, b) => {
+			if (sortMode === "best-path") {
+				const leftSteps = a.suggestion.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+				const rightSteps = b.suggestion.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+
+				if (leftSteps !== rightSteps) {
+					return leftSteps - rightSteps;
+				}
+			}
+
 			if (b.score !== a.score) {
 				return b.score - a.score;
 			}
@@ -186,7 +210,9 @@ export function buildSuggestionSet(
 		.map((entry) => entry.suggestion);
 
 	const featuredSuggestions = [...featured.values()];
-	const orderedRemainder = shouldShuffle ? shuffleSuggestions(rankedRemainder) : rankedRemainder;
+	const orderedRemainder = sortMode === "random" || shouldShuffle
+		? shuffleSuggestions(rankedRemainder)
+		: rankedRemainder;
 	const allRanked = [...featuredSuggestions, ...orderedRemainder];
 	const selected = suggestionLimit === null ? allRanked : allRanked.slice(0, suggestionLimit);
 	const bestReachableSteps = reachableSuggestions[0]?.pathHint?.stepsToTarget ?? null;

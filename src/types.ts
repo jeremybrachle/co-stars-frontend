@@ -176,7 +176,6 @@ export type DifficultyToggleId =
 	| "show-optimal-tracking"
 	| "guarantee-best-path-suggestion"
 	| "show-visited-suggestions"
-	| "sort-suggestions-by-risk-priority"
 	| "cycle-risk-click-adds-penalty"
 	| "show-cast-lock-risk"
 	| "show-full-cast-lock";
@@ -186,12 +185,14 @@ export type DifficultySettings = Record<DifficultyToggleId, boolean>;
 export type SuggestionViewMode = "all" | "subset";
 export type SuggestionWindowMode = "pagination" | "scroll";
 export type SuggestionOrderMode = "ranked" | "shuffled";
+export type SuggestionSortMode = "default" | "best-path" | "random";
 
 export type SuggestionDisplaySettings = {
 	viewMode: SuggestionViewMode;
 	subsetCount: number;
 	allWindowMode: SuggestionWindowMode;
 	orderMode: SuggestionOrderMode;
+	sortMode: SuggestionSortMode;
 };
 
 export type GameDataFilters = {

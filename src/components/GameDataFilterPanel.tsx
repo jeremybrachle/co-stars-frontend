@@ -2,15 +2,11 @@ import type { GameDataFilters } from "../types"
 
 export default function GameDataFilterPanel({
   dataFilters,
-  isSortedResultsEnabled,
-  onSortedResultsChange,
   onActorPopularityCutoffChange,
   onReleaseYearCutoffChange,
   className = "",
 }: {
   dataFilters: GameDataFilters
-  isSortedResultsEnabled: boolean
-  onSortedResultsChange: (enabled: boolean) => void
   onActorPopularityCutoffChange: (value: number | null) => void
   onReleaseYearCutoffChange: (year: number | null) => void
   className?: string
@@ -19,24 +15,7 @@ export default function GameDataFilterPanel({
     <div className={`settingsCustomPanel${className ? ` ${className}` : ""}`}>
       <div className="settingsCustomHeader">
         <h3>Data Filter & Sort</h3>
-        <p className="settingsHint">Control which actors and movies are eligible, and whether equal-quality results are sorted by popularity or release year.</p>
-      </div>
-
-      <div className="settingsToggleList">
-        <label className="settingsToggleRow">
-          <span className="settingsToggleText">
-            <strong>Sort equal-quality results</strong>
-            <span className="settingsHint">When on, actors prefer higher popularity and movies prefer newer release years. This is separate from shuffle mode.</span>
-          </span>
-          <button
-            type="button"
-            className={`settingsToggleSwitch${isSortedResultsEnabled ? " settingsToggleSwitch--on" : ""}`}
-            onClick={() => onSortedResultsChange(!isSortedResultsEnabled)}
-            aria-pressed={isSortedResultsEnabled}
-          >
-            <span className="settingsToggleThumb" aria-hidden="true" />
-          </button>
-        </label>
+        <p className="settingsHint">Control which actors and movies are eligible before the current suggestion sorting mode is applied.</p>
       </div>
 
       <div className="settingsDataFilterRow">
@@ -99,7 +78,7 @@ export default function GameDataFilterPanel({
       </div>
     <p className="settingsHint">Leave empty or remove to disable. When set, movies released before that year are hidden from suggestions.</p>
 
-  	  <p className="settingsHint">{isSortedResultsEnabled ? "Equal-quality movie results currently prefer newer releases, and actor results prefer higher popularity." : "Equal-quality results currently keep their source ordering instead of popularity or release-year sorting."}</p>
+  	  <p className="settingsHint">Default suggestion sorting uses actor popularity and movie release year when the Suggestion Display sorting mode is set to Default setting.</p>
     </div>
   )
 }

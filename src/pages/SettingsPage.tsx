@@ -18,10 +18,9 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 function SettingsPage() {
-  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSubsetCount, setSuggestionOrderMode } = useGameSettings()
+  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings()
   const [activeTab, setActiveTab] = useState<SettingsTabId>("info")
   const { customSettings, dataFilters, suggestionDisplay } = settings
-  const isSortedResultsEnabled = dataFilters.movieSortMode === "releaseYear" && dataFilters.actorSortMode === "popularity"
   const activeCustomLabel = useMemo(
     () => CUSTOM_SETTING_DEFINITIONS.filter((setting) => customSettings[setting.id]).map((setting) => setting.label).join(" • "),
     [customSettings],
@@ -96,11 +95,6 @@ function SettingsPage() {
 
             <GameDataFilterPanel
               dataFilters={dataFilters}
-              isSortedResultsEnabled={isSortedResultsEnabled}
-              onSortedResultsChange={(enabled) => {
-                setMovieSortMode(enabled ? "releaseYear" : "random")
-                setActorSortMode(enabled ? "popularity" : "random")
-              }}
               onActorPopularityCutoffChange={setActorPopularityCutoff}
               onReleaseYearCutoffChange={setReleaseYearCutoff}
             />
@@ -109,6 +103,7 @@ function SettingsPage() {
               suggestionDisplay={suggestionDisplay}
               onSubsetCountChange={setSubsetCount}
               onOrderModeChange={setSuggestionOrderMode}
+              onSortModeChange={setSuggestionSortMode}
             />
           </section>
         ) : null}

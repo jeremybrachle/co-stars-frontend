@@ -44,12 +44,6 @@ export const CUSTOM_SETTING_DEFINITIONS: CustomSettingDefinition[] = [
 		section: "suggestion-list",
 	},
 	{
-		id: "sort-suggestions-by-risk-priority",
-		label: "Sort suggestions by risk priority",
-		hint: "Order cards as best-path, reachable neutral, risk overlays, then red dead-end cards.",
-		section: "suggestion-list",
-	},
-	{
 		id: "cycle-risk-click-adds-penalty",
 		label: "Cycle risk click adds penalty",
 		hint: "Clicking a cycle-risk card adds a dead-end penalty instead of extending the path.",
@@ -78,7 +72,6 @@ export const DEFAULT_CUSTOM_SETTINGS: DifficultySettings = {
 	"show-optimal-tracking": true,
 	"guarantee-best-path-suggestion": false,
 	"show-visited-suggestions": true,
-	"sort-suggestions-by-risk-priority": false,
 	"cycle-risk-click-adds-penalty": false,
 	"show-cast-lock-risk": true,
 	"show-full-cast-lock": true,
@@ -96,6 +89,7 @@ export const DEFAULT_SUGGESTION_DISPLAY: SuggestionDisplaySettings = {
 	subsetCount: 10,
 	allWindowMode: "scroll",
 	orderMode: "ranked",
+	sortMode: "default",
 };
 
 export const DEFAULT_GAME_SETTINGS: GameDifficultySettings = {
@@ -117,6 +111,7 @@ export type GameSettingsContextValue = {
 	setSubsetCount: (count: number) => void;
 	setAllWindowMode: (mode: SuggestionDisplaySettings["allWindowMode"]) => void;
 	setSuggestionOrderMode: (mode: SuggestionDisplaySettings["orderMode"]) => void;
+	setSuggestionSortMode: (mode: SuggestionDisplaySettings["sortMode"]) => void;
 };
 
 export const GameSettingsContext = createContext<GameSettingsContextValue | null>(null);
@@ -165,7 +160,8 @@ function isSuggestionDisplaySettings(value: unknown): value is SuggestionDisplay
 		obj.subsetCount >= 2 &&
 		obj.subsetCount <= 10 &&
 		(obj.allWindowMode === "pagination" || obj.allWindowMode === "scroll") &&
-		(obj.orderMode === "ranked" || obj.orderMode === "shuffled")
+		(obj.orderMode === "ranked" || obj.orderMode === "shuffled") &&
+		(obj.sortMode === "default" || obj.sortMode === "best-path" || obj.sortMode === "random")
 	);
 }
 
