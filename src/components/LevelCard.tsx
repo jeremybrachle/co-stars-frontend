@@ -47,7 +47,7 @@ function getToneClassSuffix(tone: StarTone) {
 	return tone === "gold" ? "Gold" : tone === "silver" ? "Silver" : "Bronze";
 }
 
-function getCompletionSegmentCount(tone: StarTone | null) {
+function getCompletionTrophyCount(tone: StarTone | null) {
 	if (tone === "gold") {
 		return 3;
 	}
@@ -92,8 +92,7 @@ function LevelCard({
 	const levelStars = buildDisplayedStars(displayedStarCount, level.optimalHops);
 	const bestAttemptTone = bestAttempt ? getStarTone(bestAttempt.hops, level.optimalHops) : null;
 	const bestAttemptToneClass = getToneClassSuffix(bestAttemptTone ?? "bronze");
-	const completionSegmentCount = getCompletionSegmentCount(bestAttemptTone);
-	const hasPerfectScore = (bestAttempt?.score ?? 0) >= 100;
+	const completionTrophyCount = getCompletionTrophyCount(bestAttemptTone);
 
 	return (
 		<div className={`${styles.card} ${isCompleted ? styles.cardCompleted : ""}`}>
@@ -123,23 +122,28 @@ function LevelCard({
 							aria-label={`Open leaderboard for level ${levelIndex + 1}`}
 						>
 							<span
-								className={`${styles.completionBadgeIndicator} ${styles[`completionBadgeIndicatorTone${bestAttemptToneClass}`]}`}
+								className={styles.completionBadgeTrophyRow}
 								aria-hidden="true"
 							>
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentTop} ${completionSegmentCount >= 3 ? styles.completionBadgeSegmentFilled : ""}`} />
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentLeft} ${completionSegmentCount >= 1 ? styles.completionBadgeSegmentFilled : ""}`} />
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentRight} ${completionSegmentCount >= 2 ? styles.completionBadgeSegmentFilled : ""}`} />
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentCore} ${hasPerfectScore ? styles.completionBadgeSegmentFilled : ""}`} />
+								{Array.from({ length: 3 }, (_, trophyIndex) => (
+									<span
+										key={trophyIndex}
+										className={`${styles.completionBadgeTrophy} ${trophyIndex < completionTrophyCount ? styles.completionBadgeTrophyFilled : styles.completionBadgeTrophyEmpty}`}
+									>
+										🏆
+									</span>
+								))}
 							</span>
 							<span>Completed</span>
 						</button>
 					) : (
 						<span className={styles.completionBadge}>
-							<span className={styles.completionBadgeIndicator} aria-hidden="true">
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentTop}`} />
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentLeft}`} />
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentRight}`} />
-								<span className={`${styles.completionBadgeSegment} ${styles.completionBadgeSegmentCore}`} />
+							<span className={styles.completionBadgeTrophyRow} aria-hidden="true">
+								{Array.from({ length: 3 }, (_, trophyIndex) => (
+									<span key={trophyIndex} className={`${styles.completionBadgeTrophy} ${styles.completionBadgeTrophyEmpty}`}>
+										🏆
+									</span>
+								))}
 							</span>
 							<span>Not completed</span>
 						</span>

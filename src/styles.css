@@ -799,19 +799,20 @@ button:hover {
   background: rgba(30, 64, 175, 0.18);
 }
 
-.settingsChoiceRow--recommended {
-  border-color: rgba(34, 197, 94, 0.28);
-  background:
-    radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 42%),
-    rgba(20, 83, 45, 0.2);
-}
-
-.settingsChoiceRow--recommended-selected {
+.settingsChoiceRow--shuffle-off-selected {
   border-color: rgba(134, 239, 172, 0.52);
   background:
     radial-gradient(circle at top left, rgba(74, 222, 128, 0.2), transparent 42%),
     rgba(20, 83, 45, 0.34);
 }
+
+.settingsChoiceRow--shuffle-on-selected {
+  border-color: rgba(251, 191, 36, 0.48);
+  background:
+    radial-gradient(circle at top left, rgba(251, 191, 36, 0.18), transparent 42%),
+    rgba(120, 53, 15, 0.3);
+}
+
 
 .settingsChoiceRadio {
   position: relative;
@@ -839,23 +840,28 @@ button:hover {
   background: rgba(14, 165, 233, 0.2);
 }
 
-.settingsChoiceRow--recommended .settingsChoiceRadio {
-  border-color: rgba(134, 239, 172, 0.62);
-  background: rgba(34, 197, 94, 0.12);
-}
-
-.settingsChoiceRow--recommended-selected .settingsChoiceRadio {
+.settingsChoiceRow--shuffle-off-selected .settingsChoiceRadio {
   border-color: rgba(134, 239, 172, 0.96);
   background: rgba(34, 197, 94, 0.22);
 }
+
+.settingsChoiceRow--shuffle-on-selected .settingsChoiceRadio {
+  border-color: rgba(251, 191, 36, 0.92);
+  background: rgba(217, 119, 6, 0.2);
+}
+
 
 .settingsChoiceRow--selected .settingsChoiceRadio::after {
   background: rgba(186, 230, 253, 0.98);
   transform: scale(1);
 }
 
-.settingsChoiceRow--recommended-selected .settingsChoiceRadio::after {
+.settingsChoiceRow--shuffle-off-selected .settingsChoiceRadio::after {
   background: rgba(220, 252, 231, 1);
+}
+
+.settingsChoiceRow--shuffle-on-selected .settingsChoiceRadio::after {
+  background: rgba(254, 243, 199, 1);
 }
 
 .settingsChoiceText {

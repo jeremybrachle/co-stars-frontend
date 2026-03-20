@@ -93,7 +93,7 @@ export default function SuggestionDisplaySettingsPanel({
             <label className="settingsDataFilterField">
               <span>Shuffling</span>
               <div className="settingsChoiceList" role="radiogroup" aria-label="Suggestion list shuffling mode">
-                <label className={`settingsChoiceRow settingsChoiceRow--recommended${!isShuffleMode ? " settingsChoiceRow--selected settingsChoiceRow--recommended-selected" : ""}`}>
+                <label className={`settingsChoiceRow${!isShuffleMode ? " settingsChoiceRow--selected settingsChoiceRow--shuffle-off-selected" : ""}`}>
                   <input
                     type="radio"
                     name="suggestion-order-mode"
@@ -107,7 +107,7 @@ export default function SuggestionDisplaySettingsPanel({
                   </span>
                 </label>
 
-                <label className={`settingsChoiceRow${isShuffleMode ? " settingsChoiceRow--selected" : ""}`}>
+                <label className={`settingsChoiceRow${isShuffleMode ? " settingsChoiceRow--selected settingsChoiceRow--shuffle-on-selected" : ""}`}>
                   <input
                     type="radio"
                     name="suggestion-order-mode"
