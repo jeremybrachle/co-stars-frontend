@@ -10,6 +10,7 @@
     "typecheck": "tsc -b --pretty false",
     "test:unit:build": "tsc -p tsconfig.tests.json --pretty false",
     "test:unit": "node scripts/run-unit-tests.mjs",
+    "verify": "npm run build && npm run test",
     "test": "node scripts/run-test-summary.mjs",
     "preview": "vite preview",
     "data:refresh": "node scripts/refresh-frontend-snapshot.mjs",

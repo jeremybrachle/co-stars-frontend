@@ -351,22 +351,60 @@ button:hover {
 }
 
 .settingsPage {
+  --settings-footer-clearance: 118px;
+  --settings-panel-gap: 40px;
   position: relative;
   min-height: 100vh;
+  height: 100vh;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 24px 20px 76px;
+  padding: 24px 20px var(--settings-footer-clearance);
+  overflow: hidden;
   box-sizing: border-box;
 }
 
 .settingsPanel {
   width: min(100%, 980px);
-  padding: 24px 26px 22px;
+  height: calc(100vh - var(--settings-footer-clearance) - var(--settings-panel-gap));
+  max-height: calc(100vh - var(--settings-footer-clearance) - var(--settings-panel-gap));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 24px 26px 18px;
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.settingsPanelHeader {
+  flex: 0 0 auto;
+}
+
+.settingsPanelScrollArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  margin-right: -8px;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settingsPanelScrollArea::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.settingsPanelFooter {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .settingsIntro {
@@ -690,6 +728,201 @@ button:hover {
   line-height: 1.35;
 }
 
+.settingsCountSummary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  background: rgba(8, 47, 73, 0.28);
+}
+
+.settingsCountSummaryLabel {
+  color: rgba(186, 230, 253, 0.92);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settingsCountSummaryValue {
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.settingsCountSummaryMeta {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.settingsWarning {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(120, 53, 15, 0.22);
+  color: #fde68a;
+  line-height: 1.4;
+}
+
+.settingsChoiceList {
+  display: grid;
+  gap: 10px;
+}
+
+.settingsChoiceRow {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.28);
+  cursor: pointer;
+}
+
+.settingsChoiceRow input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settingsChoiceRow--selected {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(30, 64, 175, 0.18);
+}
+
+.settingsChoiceRow--recommended {
+  border-color: rgba(34, 197, 94, 0.28);
+  background:
+    radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 42%),
+    rgba(20, 83, 45, 0.2);
+}
+
+.settingsChoiceRow--recommended-selected {
+  border-color: rgba(134, 239, 172, 0.52);
+  background:
+    radial-gradient(circle at top left, rgba(74, 222, 128, 0.2), transparent 42%),
+    rgba(20, 83, 45, 0.34);
+}
+
+.settingsChoiceRadio {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  box-sizing: border-box;
+}
+
+.settingsChoiceRadio::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(0.8);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.settingsChoiceRow--selected .settingsChoiceRadio {
+  border-color: rgba(125, 211, 252, 0.92);
+  background: rgba(14, 165, 233, 0.2);
+}
+
+.settingsChoiceRow--recommended .settingsChoiceRadio {
+  border-color: rgba(134, 239, 172, 0.62);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.settingsChoiceRow--recommended-selected .settingsChoiceRadio {
+  border-color: rgba(134, 239, 172, 0.96);
+  background: rgba(34, 197, 94, 0.22);
+}
+
+.settingsChoiceRow--selected .settingsChoiceRadio::after {
+  background: rgba(186, 230, 253, 0.98);
+  transform: scale(1);
+}
+
+.settingsChoiceRow--recommended-selected .settingsChoiceRadio::after {
+  background: rgba(220, 252, 231, 1);
+}
+
+.settingsChoiceText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settingsChoiceLabel {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.settingsGameplayLayout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.settingsGameplayNav {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.24);
+}
+
+.settingsGameplayNavButton {
+  width: 100%;
+  padding: 0.72em 0.9em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: left;
+  box-shadow: none;
+}
+
+.settingsGameplayNavButton:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.settingsGameplayNavButton--active {
+  border-color: rgba(125, 211, 252, 0.36);
+  background: rgba(37, 99, 235, 0.2);
+}
+
+.settingsGameplayContent {
+  min-width: 0;
+}
+
+.settingsToggleSectionAddon {
+  margin-top: 12px;
+}
+
+.settingsSuggestionListAddon {
+  margin-top: 0;
+}
+
 .settingsError {
   margin: 12px 0 0;
   padding: 12px 14px;
@@ -726,7 +959,7 @@ button:hover {
 
 .settingsBackLink {
   display: inline-block;
-  margin-top: 24px;
+  margin-top: 0;
   color: white;
   font-weight: 700;
 }
@@ -1435,11 +1668,15 @@ button:hover {
 
 @media (max-height: 860px) {
   .settingsPage {
+    --settings-footer-clearance: 100px;
+    --settings-panel-gap: 32px;
     padding-top: 18px;
-    padding-bottom: 58px;
+    padding-bottom: var(--settings-footer-clearance);
   }
 
   .settingsPanel {
+    height: calc(100vh - var(--settings-footer-clearance) - var(--settings-panel-gap));
+    max-height: calc(100vh - var(--settings-footer-clearance) - var(--settings-panel-gap));
     padding: 20px 22px 18px;
   }
 
@@ -1464,6 +1701,15 @@ button:hover {
 
   .settingsDifficultyGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settingsGameplayLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .settingsGameplayNav {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2475,5 +2721,35 @@ button:hover {
     top: 24px;
     left: 24px;
     padding: 0.72em 0.9em;
+  }
+}
+
+@media (max-width: 760px) {
+  .settingsPage {
+    --settings-footer-clearance: 132px;
+    --settings-panel-gap: 24px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .settingsPanel {
+    height: calc(100vh - var(--settings-footer-clearance) - var(--settings-panel-gap));
+    max-height: calc(100vh - var(--settings-footer-clearance) - var(--settings-panel-gap));
+    padding: 18px 18px 14px;
+    border-radius: 18px;
+  }
+
+  .settingsPanelScrollArea {
+    padding-right: 4px;
+    margin-right: -4px;
+  }
+
+  .settingsPanelFooter {
+    margin-top: 18px;
+    padding-top: 14px;
+  }
+
+  .settingsGameplayNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

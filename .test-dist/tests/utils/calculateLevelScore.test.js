@@ -10,6 +10,7 @@ const calculateLevelScore_1 = require("../../src/utils/calculateLevelScore");
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 3,
         optimalHops: 3,
+        suggestionAssists: 0,
         shuffles: 0,
         rewinds: 0,
         deadEnds: 0,
@@ -19,17 +20,29 @@ const calculateLevelScore_1 = require("../../src/utils/calculateLevelScore");
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 5,
         optimalHops: 3,
+        suggestionAssists: 1,
         shuffles: 1,
         rewinds: 2,
         deadEnds: 1,
-    }), 43);
+    }), 38);
 });
 (0, node_test_1.default)("calculateLevelScore never drops below zero", () => {
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 10,
         optimalHops: 2,
+        suggestionAssists: 1,
         shuffles: 10,
         rewinds: 10,
         deadEnds: 10,
     }), 0);
+});
+(0, node_test_1.default)("calculateLevelScore applies a flat suggestion-assist penalty", () => {
+    strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
+        hops: 3,
+        optimalHops: 3,
+        suggestionAssists: 1,
+        shuffles: 0,
+        rewinds: 0,
+        deadEnds: 0,
+    }), 95);
 });

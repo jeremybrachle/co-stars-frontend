@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { DifficultyOption, DifficultySettings, GameDifficultySettings } from "../types";
-import { GAME_SETTINGS_KEY, GameSettingsContext, readStoredGameSettings } from "./gameSettings";
+import { applyDifficultyToSuggestionDisplay, GAME_SETTINGS_KEY, GameSettingsContext, getDifficultyPresetSettings, inferDifficultyPreset, readStoredGameSettings } from "./gameSettings";
 
 export function GameSettingsProvider({ children }: { children: React.ReactNode }) {
 	const [settings, setSettings] = useState<GameDifficultySettings>(() => readStoredGameSettings());
@@ -14,9 +14,12 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 		() => ({
 			settings,
 			setDifficulty: (difficulty: DifficultyOption) => {
+				const presetSettings = getDifficultyPresetSettings(difficulty);
 				persistSettings({
 					...settings,
 					difficulty,
+					customSettings: presetSettings ?? settings.customSettings,
+					suggestionDisplay: applyDifficultyToSuggestionDisplay(difficulty, settings.suggestionDisplay),
 				});
 			},
 			setCustomSetting: (settingId: keyof DifficultySettings, enabled: boolean) => {
@@ -25,16 +28,9 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					[settingId]: enabled,
 				};
 
-				if (settingId === "show-cast-lock-risk" && !enabled) {
-					nextCustomSettings["show-full-cast-lock"] = false;
-				}
-
-				if (settingId === "show-full-cast-lock" && enabled) {
-					nextCustomSettings["show-cast-lock-risk"] = true;
-				}
-
 				persistSettings({
 					...settings,
+					difficulty: inferDifficultyPreset(nextCustomSettings),
 					customSettings: nextCustomSettings,
 				});
 			},

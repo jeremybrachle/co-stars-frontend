@@ -333,8 +333,10 @@
 .gameRulesDialog {
   position: relative;
   width: min(100%, 980px);
-  min-height: 260px;
-  max-height: min(90vh, 950px);
+  min-height: 70%;
+  /* height: min(96vh, 1250px); */
+  height: 85%;
+  max-height: min(96vh, 1250px);
   padding: 30px 34px 28px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 18px;
@@ -342,6 +344,24 @@
   color: white;
   box-sizing: border-box;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.gameRulesDialog::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.gameRulesDifficultySection {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.gameRulesCustomPanel {
+  min-width: 0;
 }
 
 .gameRulesCloseButton {

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ALL_OFF_CUSTOM_SETTINGS,
+  ALL_ON_CUSTOM_SETTINGS,
   CUSTOM_SETTING_DEFINITIONS,
   DEFAULT_CUSTOM_SETTINGS,
   DEFAULT_GAME_SETTINGS,
@@ -44,10 +46,14 @@ function withMockWindow(storedValue: string | null, callback: () => void) {
 
 test("default custom settings include the new suggestion-list and penalty toggles", () => {
   assert.equal(DEFAULT_CUSTOM_SETTINGS["show-visited-suggestions"], true);
-  assert.equal(DEFAULT_CUSTOM_SETTINGS["cycle-risk-click-adds-penalty"], false);
+  assert.equal(DEFAULT_CUSTOM_SETTINGS["shuffle-adds-penalty"], true);
+  assert.equal(DEFAULT_CUSTOM_SETTINGS["rewind-adds-penalty"], true);
+  assert.equal(DEFAULT_CUSTOM_SETTINGS["cycle-risk-click-adds-penalty"], true);
 
   const ids = CUSTOM_SETTING_DEFINITIONS.map((setting) => setting.id);
   assert.ok(ids.includes("show-visited-suggestions"));
+  assert.ok(ids.includes("shuffle-adds-penalty"));
+  assert.ok(ids.includes("rewind-adds-penalty"));
   assert.ok(ids.includes("cycle-risk-click-adds-penalty"));
   assert.ok(!ids.includes("sort-suggestions-by-risk-priority" as never));
 });
@@ -59,6 +65,7 @@ test("readStoredGameSettings restores persisted values for toggles and suggestio
       customSettings: {
         ...DEFAULT_CUSTOM_SETTINGS,
         "show-visited-suggestions": false,
+        "shuffle-adds-penalty": false,
         "cycle-risk-click-adds-penalty": true,
       },
       dataFilters: DEFAULT_GAME_SETTINGS.dataFilters,
@@ -74,7 +81,9 @@ test("readStoredGameSettings restores persisted values for toggles and suggestio
       const settings = readStoredGameSettings();
 
       assert.equal(settings.customSettings["show-visited-suggestions"], false);
+      assert.equal(settings.customSettings["shuffle-adds-penalty"], false);
       assert.equal(settings.customSettings["cycle-risk-click-adds-penalty"], true);
+      assert.equal(settings.difficulty, "custom");
       assert.equal(settings.suggestionDisplay.orderMode, "shuffled");
       assert.equal(settings.suggestionDisplay.sortMode, "best-path");
       assert.equal(settings.suggestionDisplay.subsetCount, 6);
@@ -92,7 +101,6 @@ test("readStoredGameSettings falls back to defaults when new toggle keys are mis
         "show-optimal-tracking": true,
         "guarantee-best-path-suggestion": false,
         "show-cast-lock-risk": true,
-        "show-full-cast-lock": true,
       },
     }),
     () => {
@@ -122,6 +130,52 @@ test("readStoredGameSettings preserves random sort preferences", () => {
       assert.equal(settings.dataFilters.movieSortMode, "random");
       assert.equal(settings.dataFilters.actorSortMode, "random");
       assert.equal(settings.suggestionDisplay.sortMode, "random");
+    },
+  );
+});
+
+test("readStoredGameSettings infers the all-on preset from stored settings", () => {
+  withMockWindow(
+    JSON.stringify({
+      difficulty: "custom",
+      customSettings: ALL_ON_CUSTOM_SETTINGS,
+      dataFilters: DEFAULT_GAME_SETTINGS.dataFilters,
+      suggestionDisplay: DEFAULT_GAME_SETTINGS.suggestionDisplay,
+    }),
+    () => {
+      const settings = readStoredGameSettings();
+      assert.equal(settings.difficulty, "all-on");
+    },
+  );
+});
+
+test("readStoredGameSettings preserves the all-off preset", () => {
+  withMockWindow(
+    JSON.stringify({
+      difficulty: "all-off",
+      customSettings: ALL_OFF_CUSTOM_SETTINGS,
+      dataFilters: DEFAULT_GAME_SETTINGS.dataFilters,
+      suggestionDisplay: DEFAULT_GAME_SETTINGS.suggestionDisplay,
+    }),
+    () => {
+      const settings = readStoredGameSettings();
+      assert.equal(settings.difficulty, "all-off");
+      assert.deepEqual(settings.customSettings, ALL_OFF_CUSTOM_SETTINGS);
+    },
+  );
+});
+
+test("readStoredGameSettings maps legacy hard difficulty to all-on", () => {
+  withMockWindow(
+    JSON.stringify({
+      difficulty: "hard",
+      customSettings: ALL_ON_CUSTOM_SETTINGS,
+      dataFilters: DEFAULT_GAME_SETTINGS.dataFilters,
+      suggestionDisplay: DEFAULT_GAME_SETTINGS.suggestionDisplay,
+    }),
+    () => {
+      const settings = readStoredGameSettings();
+      assert.equal(settings.difficulty, "all-on");
     },
   );
 });

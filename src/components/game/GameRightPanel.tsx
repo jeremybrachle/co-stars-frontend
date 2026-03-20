@@ -6,6 +6,7 @@ import type { GameNode, NodeType, SuggestionDisplaySettings } from "../../types"
 import "./GameRightPanel.css";
 
 const WRITE_IN_TEMPORARILY_DISABLED = true;
+const RANKED_VISIBLE_SLOT_COUNT = 6;
 
 type Props = {
   currentSelection: GameNode;
@@ -19,6 +20,7 @@ type Props = {
   deadEndPenalties: number;
   shuffles: number;
   shuffleSeed: number;
+  canGoBackOnCurrentSide: boolean;
   isDisabled: boolean;
   isComplete: boolean;
   isLoading: boolean;
@@ -76,6 +78,7 @@ function GameRightPanel({
   deadEndPenalties,
   shuffles,
   shuffleSeed,
+  canGoBackOnCurrentSide,
   isDisabled,
   isComplete,
   isLoading,
@@ -104,6 +107,7 @@ function GameRightPanel({
 
     return shuffleSuggestionsWithSeed(suggestions, shuffleSeed);
   }, [isShuffleModeEnabled, shuffleSeed, suggestions]);
+  const isRankedScrollable = isScrollMode && orderedSuggestions.length > RANKED_VISIBLE_SLOT_COUNT;
   
   const visibleSuggestions = useMemo(() => {
     if (isScrollMode) {
@@ -114,11 +118,14 @@ function GameRightPanel({
   }, [isScrollMode, orderedSuggestions, windowSize]);
   
   const suggestionSlots = useMemo(
-    () => Array.from({ length: isScrollMode ? visibleSuggestions.length : windowSize }, (_, index) => visibleSuggestions[index] ?? null),
+    () => Array.from(
+      { length: isScrollMode ? Math.max(RANKED_VISIBLE_SLOT_COUNT, visibleSuggestions.length) : windowSize },
+      (_, index) => visibleSuggestions[index] ?? null,
+    ),
     [isScrollMode, visibleSuggestions, windowSize],
   );
 
-  const renderedSuggestions = isScrollMode ? visibleSuggestions : suggestionSlots;
+  const renderedSuggestions = suggestionSlots;
   const hasBlueSuggestionInCurrentList = useMemo(
     () => renderedSuggestions.some((suggestion) => suggestion?.highlight?.kind === "optimal"),
     [renderedSuggestions],
@@ -165,7 +172,7 @@ function GameRightPanel({
             type="button"
             className={`game-right-panel__toolbar-button${isCycleWarning ? " game-right-panel__toolbar-button--highlighted" : ""}`}
             onClick={onBack}
-            disabled={isDisabled || isLoading || isComplete}
+            disabled={!canGoBackOnCurrentSide || isDisabled || isLoading || isComplete}
             aria-label="Rewind"
             title="Rewind"
           >
@@ -224,9 +231,11 @@ function GameRightPanel({
             <>
               <div className="game-right-panel__choices-spacer" aria-hidden="true" />
               <div
-                className={`game-right-panel__grid${isScrollMode ? " game-right-panel__grid--scroll" : ""}`}
+                className={`game-right-panel__grid${isRankedScrollable ? " game-right-panel__grid--scroll" : ""}`}
                 style={isScrollMode
-				  ? { maxHeight: `calc(var(--game-right-panel-card-height) * ${Math.max(1, Math.ceil(windowSize / 2))} + ${(Math.max(1, Math.ceil(windowSize / 2)) - 1) * 8}px)` }
+				  ? isRankedScrollable
+				    ? { maxHeight: `calc(var(--game-right-panel-card-height) * 3 + 16px)` }
+				    : { gridTemplateRows: `repeat(3, var(--game-right-panel-card-height))` }
                   : { gridTemplateRows: `repeat(${Math.max(1, Math.ceil(windowSize / 2))}, var(--game-right-panel-card-height))` }}
               >
                 {renderedSuggestions.map((suggestion, idx) => {
@@ -239,7 +248,7 @@ function GameRightPanel({
                   return (
                     <button
                       key={`${suggestion.type}-${suggestion.label}-${idx}`}
-                      className={`game-right-panel__suggestion-button ${getSuggestionSizeClass(suggestion)}${canShowHintState && suggestion.highlight ? ` game-right-panel__suggestion-button--${suggestion.highlight.kind}` : ""}${shouldUseFallbackBlue ? " game-right-panel__suggestion-button--fallback-blue" : ""}${showSuggestionValues ? "" : " game-right-panel__suggestion-button--concealed"}`}
+                      className={`game-right-panel__suggestion-button${canShowHintState ? ` ${getSuggestionSizeClass(suggestion)}` : ""}${canShowHintState && suggestion.highlight ? ` game-right-panel__suggestion-button--${suggestion.highlight.kind}` : ""}${shouldUseFallbackBlue ? " game-right-panel__suggestion-button--fallback-blue" : ""}${showSuggestionValues ? "" : " game-right-panel__suggestion-button--concealed"}`}
                       disabled={isDisabled || isLoading}
                       onClick={() => onSuggestion(suggestion)}
                       title={canShowHintState ? suggestion.highlight?.description : undefined}

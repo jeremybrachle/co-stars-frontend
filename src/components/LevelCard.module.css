@@ -1,12 +1,15 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.48));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
 }
 
 .cardCompleted {
-  padding: 1rem;
-  border-radius: 1.25rem;
   background: linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(15, 23, 42, 0.12));
   border: 1px solid rgba(167, 243, 208, 0.4);
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
@@ -71,6 +74,9 @@
 }
 
 .completionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.28);
@@ -84,36 +90,137 @@
   color: #d1fae5;
 }
 
-.levelButton {
-  width: 100%;
-  min-height: 80px;
-  font-size: 1.25em;
-  padding: 1.1em 2.2em;
-  background: #ff5252;
-  border: none;
-  border-radius: 16px;
-  color: #fff;
-  font-weight: 600;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+.completionBadgeButton {
+  border: 1px solid rgba(167, 243, 208, 0.35);
   cursor: pointer;
-  transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
-  outline: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.cardCompleted .levelButton {
+.completionBadgeButton:hover,
+.completionBadgeButton:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(250, 204, 21, 0.55);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.completionBadgeIndicator {
+  position: relative;
+  width: 1.55rem;
+  height: 1.45rem;
+  flex: 0 0 auto;
+  color: rgba(226, 232, 240, 0.28);
+}
+
+.completionBadgeIndicatorToneGold {
+  color: #b8860b;
+}
+
+.completionBadgeIndicatorToneSilver {
+  color: #cbd5e1;
+}
+
+.completionBadgeIndicatorToneBronze {
+  color: #d97706;
+}
+
+.completionBadgeSegment {
+  position: absolute;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 0.22rem;
+  transform: rotate(45deg);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.completionBadgeSegmentFilled {
+  background: currentColor;
+  border-color: color-mix(in srgb, currentColor 72%, white 28%);
+  box-shadow: 0 0 0.45rem color-mix(in srgb, currentColor 30%, transparent 70%);
+}
+
+.completionBadgeSegmentTop {
+  top: 0;
+  left: 50%;
+  margin-left: -0.31rem;
+}
+
+.completionBadgeSegmentLeft {
+  left: 0.12rem;
+  bottom: 0.05rem;
+}
+
+.completionBadgeSegmentRight {
+  right: 0.12rem;
+  bottom: 0.05rem;
+}
+
+.completionBadgeSegmentCore {
+  left: 50%;
+  top: 50%;
+  width: 0.44rem;
+  height: 0.44rem;
+  margin-left: -0.22rem;
+  margin-top: -0.12rem;
+  border-radius: 0.18rem;
+}
+
+.matchupPanel {
+  width: 100%;
+  padding: 0.9rem 1.15rem 0.8rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.34), rgba(15, 23, 42, 0.16));
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.matchupRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1.45rem;
+}
+
+.actionRow {
+  margin-top: 1rem;
+  min-height: 3.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+}
+
+.playNowButton {
+  min-width: 210px;
+  min-height: 3.4rem;
+  padding: 0.9rem 2rem;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow: 0 14px 28px rgba(239, 68, 68, 0.28);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.cardCompleted .playNowButton {
   background: linear-gradient(135deg, #0f766e, #16a34a);
+  box-shadow: 0 14px 28px rgba(22, 163, 74, 0.24);
 }
 
-.levelButton:hover,
-.levelButton:focus-visible {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+.playNowButton:hover,
+.playNowButton:focus-visible {
   transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.26);
 }
 
-.levelButton:disabled {
+.playNowButton:disabled {
   opacity: 0.7;
   cursor: wait;
   transform: none;
@@ -121,37 +228,35 @@
 
 .levelActorLeft {
   text-align: left;
-  justify-self: start;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  justify-self: stretch;
+  min-width: 0;
+  padding-right: 0.35rem;
 }
 
 .levelActorRight {
   text-align: right;
-  justify-self: end;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  justify-self: stretch;
+  min-width: 0;
+  padding-left: 0.35rem;
 }
 
 .levelActorIdentity {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 18px;
   min-width: 0;
+  width: 100%;
 }
 
 .levelActorIdentityRight {
   flex-direction: row-reverse;
+  justify-content: flex-start;
 }
 
 .levelActorArtwork {
-  width: 54px;
-  height: 54px;
-  border-radius: 14px;
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
   overflow: hidden;
   flex: 0 0 auto;
   background: rgba(255, 255, 255, 0.14);
@@ -166,52 +271,174 @@
 }
 
 .levelActorArtworkEmoji {
-  font-size: 1.25rem;
+  font-size: 2rem;
+}
+
+.levelActorName {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1.28rem;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .levelVs {
   justify-self: center;
-  font-size: 1.15em;
+  font-size: 1.1rem;
   font-weight: 600;
   color: #fbfbf9;
   letter-spacing: 0.03em;
+  padding-inline: 0.35rem;
 }
 
-.summaryRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem 1rem;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 0.95rem;
-}
-
-.leaderboardSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.leaderboardToggle {
-  width: 100%;
+.leaderboardOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.8rem 1rem;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(15, 23, 42, 0.24);
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 0.92rem;
-  font-weight: 700;
-  text-align: left;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(2, 6, 23, 0.74);
+  backdrop-filter: blur(8px);
+}
+
+.leaderboardDialog {
+  position: relative;
+  width: min(860px, 100%);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  padding: 1.8rem 1.5rem 1.4rem;
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.96));
+  box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.leaderboardCloseButton {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+  color: #e2e8f0;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 
+.leaderboardDialogTitle {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.leaderboardDialogSubtitle {
+  margin: -0.35rem 0 0;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.leaderboardDialogDescription {
+  margin: -0.1rem 0 0;
+  max-width: 68ch;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.leaderboardSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.leaderboardSummaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(30, 41, 59, 0.42);
+}
+
+.leaderboardSummaryLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.leaderboardSummaryValueRow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.leaderboardSummaryValue {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.leaderboardSummaryMeta {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.leaderboardSummaryTrophy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.leaderboardSummaryTrophyToneGold {
+  color: #b8860b;
+}
+
+.leaderboardSummaryTrophyToneSilver {
+  color: #d1d5db;
+}
+
+.leaderboardSummaryTrophyToneBronze {
+  color: #d97706;
+}
+
+.leaderboardSummaryTrophySizeGold {
+  font-size: 1.25rem;
+}
+
+.leaderboardSummaryTrophySizeSilver {
+  font-size: 1.08rem;
+}
+
+.leaderboardSummaryTrophySizeBronze {
+  font-size: 0.92rem;
+}
+
 .leaderboardEmpty {
-  padding: 0.95rem 1rem;
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.24);
+  padding: 0.6rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
   color: rgba(255, 255, 255, 0.78);
 }
 
@@ -220,13 +447,13 @@
   padding: 0.35rem 0;
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.9rem;
   list-style: none;
 }
 
 .leaderboardItem {
-  padding: 0.8rem 0.9rem;
-  border-radius: 12px;
+  padding: 0.95rem 1rem;
+  border-radius: 16px;
   background: rgba(15, 23, 42, 0.22);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -241,6 +468,37 @@
 .leaderboardRank {
   font-weight: 800;
   color: rgba(255, 255, 255, 0.9);
+}
+
+.leaderboardAttemptTrophy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.leaderboardAttemptTrophyToneGold {
+  color: #b8860b;
+}
+
+.leaderboardAttemptTrophyToneSilver {
+  color: #d1d5db;
+}
+
+.leaderboardAttemptTrophyToneBronze {
+  color: #d97706;
+}
+
+.leaderboardAttemptTrophySizeGold {
+  font-size: 1.15rem;
+}
+
+.leaderboardAttemptTrophySizeSilver {
+  font-size: 1rem;
+}
+
+.leaderboardAttemptTrophySizeBronze {
+  font-size: 0.86rem;
 }
 
 .leaderboardHops,
@@ -290,9 +548,9 @@
 }
 
 @media (max-width: 720px) {
-  .levelButton {
+  .matchupRow {
     grid-template-columns: 1fr;
-    gap: 0.8rem;
+    gap: 0.65rem;
     text-align: left;
   }
 
@@ -307,9 +565,32 @@
     flex-direction: row;
   }
 
-  .leaderboardToggle,
+  .actionRow,
   .leaderboardTopRow {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .playNowButton {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .levelActorArtwork {
+    width: 74px;
+    height: 74px;
+  }
+
+  .levelActorName {
+    font-size: 1.08rem;
+  }
+
+  .leaderboardSummaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboardDialog {
+    padding: 1.2rem 1rem 1rem;
+    max-height: 86vh;
   }
 }

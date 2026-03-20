@@ -26,7 +26,7 @@ function FullDataWaitingMessage({ onSwitchToDemo, waitTimeoutRemainingMs }: Full
 			) : null}
 			<div className="fullDataWaitingActions">
 				<button type="button" onClick={onSwitchToDemo}>Use Demo Data</button>
-				<Link to="/settings" className="fullDataWaitingLink">Advanced data settings</Link>
+				<Link to="/settings?tab=data-settings" className="fullDataWaitingLink">Advanced data settings</Link>
 			</div>
 		</div>
 	);

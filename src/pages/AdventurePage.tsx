@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import HomeButton from "../components/HomeButton";
 import LevelCard from "../components/LevelCard";
 import FullDataWaitingMessage from "../components/FullDataWaitingMessage";
+import PageBackButton from "../components/PageBackButton";
 import { fetchActors, fetchLevels, generatePath } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
@@ -257,19 +258,20 @@ function AdventurePage() {
 
 	return (
 		<div className={styles.adventurePageWrapper}>
-			<button
-				type="button"
-				className={styles.adventureBackBtn}
-				onClick={() => navigate(-1)}
-			>
-				← Back
-			</button>
+			<PageBackButton to="/play-now" label="Back" />
 			<div className={styles.adventureHomeBtn}>
 				<HomeButton />
 			</div>
 			<div className={styles.adventureContent}>
 				<h1 className={styles.adventureTitle}>🎭 Adventure Mode</h1>
 				<div className={styles.adventureSubtitle}>Choose a level</div>
+				<button
+					type="button"
+					className={styles.adventureSettingsButton}
+					onClick={() => navigate("/settings?tab=gameplay-settings", { state: { returnTo: "/adventure" } })}
+				>
+					Open gameplay settings
+				</button>
 				{isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 				<div className={styles.levelsListWrapper}>
 					{isSnapshotLoading && !isWaitingForFullData ? <div className={styles.stateMessage}>Loading Adventure Mode data…</div> : null}

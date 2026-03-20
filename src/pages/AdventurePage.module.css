@@ -6,11 +6,11 @@
 /* New Adventure Mode Styles */
 .levelsListWrapper {
   width: 100%;
-  max-width: 520px;
-  margin: 2.5em 0 2.5em 0;
+  max-width: 780px;
+  margin: 1.2em 0 1.35em 0;
   display: flex;
   flex-direction: column;
-  gap: 2.2em;
+  gap: 1em;
 }
 
 .levelRowWrapper {
@@ -154,11 +154,6 @@
   letter-spacing: 0.03em;
 }
 
-.levelsListWrapper {
-  width: 100%;
-  max-width: 650px;
-}
-
 .paginationNav {
   display: flex;
   align-items: center;
@@ -241,15 +236,34 @@
   align-items: center;
   justify-content: flex-start;
   min-height: 100vh;
-  padding-top: 13vh;
+  padding-top: 10vh;
 }
 
 .adventureTitle {
-  margin-bottom: 0.7em;
+  margin-bottom: 0.45em;
 }
 
 .adventureSubtitle {
-  margin-bottom: 1.2em;
+  margin-bottom: 0.75em;
+}
+
+.adventureSettingsButton {
+  margin-bottom: 0.95em;
+  padding: 0.72em 1.2em;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(15, 23, 42, 0.34);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.adventureSettingsButton:hover,
+.adventureSettingsButton:focus-visible {
+  background: rgba(30, 41, 59, 0.48);
+  transform: translateY(-1px);
 }
 
 .adventureLevelsGrid {

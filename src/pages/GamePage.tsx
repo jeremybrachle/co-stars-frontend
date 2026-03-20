@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import CustomGameSettingsPanel from "../components/CustomGameSettingsPanel";
 import EntityDetailsDialog, {
   type EntityDetailsDialogData,
   type EntityDetailsHistoryEntry,
   type EntityDetailsRelatedEntity,
 } from "../components/EntityDetailsDialog";
-import GameDataFilterPanel from "../components/GameDataFilterPanel";
-import SuggestionDisplaySettingsPanel from "../components/SuggestionDisplaySettingsPanel";
+import GameplaySettingsSectionLayout from "../components/GameplaySettingsSectionLayout";
 import HomeButton from "../components/HomeButton";
 import GameLogo from "../components/GameLogo";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
+import PageBackButton from "../components/PageBackButton";
+import type { GameplaySectionId } from "../components/gameplaySettingsSections";
 import {
   fetchActorByName,
   fetchActorMovies,
@@ -47,11 +47,13 @@ import {
 import {
   createGameNodeFromSummary,
   findNodeByLabel,
+  findShortestPathWithFilter,
   generateLocalPath,
   getActorsForMovie,
   getMoviesForActor,
   validateLocalPath,
 } from "../data/localGraph";
+import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/filterCounts";
 import { formatActorInlineMeta, formatActorLifespan, formatGameNodeMeta, formatMovieInlineMeta, getMovieBadges } from "../data/presentation";
 import { calculateLevelScore } from "../utils/calculateLevelScore.ts";
 import {
@@ -67,7 +69,7 @@ import {
   subscribeToLevelHistoryUpdates,
   type LevelHistoryRecord,
 } from "../utils/levelHistoryStorage.ts";
-import type { Actor, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
+import type { Actor, EffectiveDataSource, GameDataFilters, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
 type RouteGameNode = {
@@ -116,6 +118,8 @@ interface CompletionState {
   shuffles: number;
   shuffleModeEnabled: boolean;
   appliedShufflePenaltyCount: number;
+  appliedRewindPenaltyCount: number;
+  appliedSuggestionAssistPenaltyCount: number;
 }
 
 type NodeInspectorState = {
@@ -379,7 +383,6 @@ function getCompletionScoreSymbol(score: number | undefined) {
 function getDisplayedCompletionScore(
   completion: CompletionState | null,
   optimalHops: number | null,
-  rewinds: number,
   deadEndPenalties: number,
 ) {
   if (!completion) {
@@ -389,14 +392,43 @@ function getDisplayedCompletionScore(
   return calculateLevelScore({
     hops: completion.usedHops,
     optimalHops: optimalHops ?? completion.usedHops,
+    suggestionAssists: completion.appliedSuggestionAssistPenaltyCount,
     shuffles: completion.appliedShufflePenaltyCount,
-    rewinds,
+    rewinds: completion.appliedRewindPenaltyCount,
     deadEnds: deadEndPenalties,
   });
 }
 
+function reorderBestPathSuggestions(suggestions: GameNode[]) {
+  return suggestions
+    .map((suggestion, index) => ({ suggestion, index }))
+    .sort((left, right) => {
+      const getRiskBucket = (node: GameNode) => {
+        const kind = node.highlight?.kind;
+        return kind === "loop" || kind === "deep-loop" || kind === "cast-lock" || kind === "blocked" ? 1 : 0;
+      };
+
+      const bucketDelta = getRiskBucket(left.suggestion) - getRiskBucket(right.suggestion);
+      if (bucketDelta !== 0) {
+        return bucketDelta;
+      }
+
+      return left.index - right.index;
+    })
+    .map((entry) => entry.suggestion);
+}
+
 function formatPenaltyValue(value: number) {
   return value === 0 ? "0" : `-${value}`;
+}
+
+function getReleaseYear(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value.slice(0, 4), 10);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 type DisplayStar = {
@@ -510,15 +542,16 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
-  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
+  const { settings, setDifficulty, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
   const dataFilters = settings.dataFilters;
   const shouldGuaranteeBestPathSuggestion = helperSettings["guarantee-best-path-suggestion"];
   const showVisitedSuggestions = helperSettings["show-visited-suggestions"];
+  const shuffleAddsPenalty = helperSettings["shuffle-adds-penalty"];
+  const rewindAddsPenalty = helperSettings["rewind-adds-penalty"];
   const cycleRiskClickAddsPenalty = helperSettings["cycle-risk-click-adds-penalty"];
   const showCastLockRiskHighlight = helperSettings["show-cast-lock-risk"];
-  const showFullCastLockHighlight = helperSettings["show-full-cast-lock"];
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
@@ -536,6 +569,8 @@ function GamePage() {
   const [shuffles, setShuffles] = useState(0);
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [activeRulesGameplaySection, setActiveRulesGameplaySection] = useState<GameplaySectionId>("presets");
+  const [filterValidationMessage, setFilterValidationMessage] = useState<string | null>(null);
 
   const [optimalHops, setOptimalHops] = useState<number | null>(routeState?.optimalHops ?? null);
 
@@ -557,6 +592,7 @@ function GamePage() {
   const [inspectorTrail, setInspectorTrail] = useState<GameNode[]>([]);
   const [nodeInspector, setNodeInspector] = useState<NodeInspectorState | null>(null);
   const [inspectorRelationSearch, setInspectorRelationSearch] = useState("");
+  const rulesDialogRef = useRef<HTMLDivElement | null>(null);
   const cycleRiskChildCacheRef = useRef<Map<string, GameNode[]>>(new Map());
   const levelIdentityRef = useRef<{ startLabel: string; endLabel: string } | null>(null);
   const actorsCatalogById = useMemo(
@@ -570,12 +606,39 @@ function GamePage() {
 
   const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
+  const activeFilterIndexes = activeDataSource === "demo"
+    ? DEMO_BUNDLE.indexes
+    : activeDataSource === "snapshot"
+      ? indexes
+      : null;
+  const actorCountSummary = useMemo(() => {
+    if (activeDataSource === "api") {
+      return getActorFilterCountSummary(actorsCatalog, dataFilters.actorPopularityCutoff);
+    }
+
+    if (!activeFilterIndexes) {
+      return null;
+    }
+
+    return getActorFilterCountSummary(activeFilterIndexes.actorsById.values(), dataFilters.actorPopularityCutoff);
+  }, [activeDataSource, activeFilterIndexes, actorsCatalog, dataFilters.actorPopularityCutoff]);
+  const movieCountSummary = useMemo(() => {
+    if (activeDataSource === "api") {
+      return getMovieFilterCountSummary(moviesCatalog, dataFilters.releaseYearCutoff);
+    }
+
+    if (!activeFilterIndexes) {
+      return null;
+    }
+
+    return getMovieFilterCountSummary(activeFilterIndexes.moviesById.values(), dataFilters.releaseYearCutoff);
+  }, [activeDataSource, activeFilterIndexes, dataFilters.releaseYearCutoff, moviesCatalog]);
   const levelHistoryAttempts = levelHistory?.attempts ?? [];
   const latestAttempt = levelHistory?.attempts[0] ?? null;
   const isShuffleModeEnabled = suggestionDisplay.orderMode === "shuffled";
   const displayedCompletionScore = useMemo(
-    () => getDisplayedCompletionScore(completion, optimalHops, rewinds, deadEndPenalties),
-    [completion, deadEndPenalties, optimalHops, rewinds],
+    () => getDisplayedCompletionScore(completion, optimalHops, deadEndPenalties),
+    [completion, deadEndPenalties, optimalHops],
   );
   const isDeadEndGameOver = deadEndPenalties >= MAX_DEAD_END_PENALTIES;
   const currentLevelCompleted = useMemo(() => {
@@ -640,6 +703,106 @@ function GamePage() {
     },
     [indexes, snapshot],
   );
+
+  const validateDataFiltersForCurrentBoard = useCallback(async (nextFilters: GameDataFilters) => {
+    const topAnchor = topPath[topPath.length - 1] ?? actorA;
+    const bottomAnchor = bottomPath[bottomPath.length - 1] ?? actorB;
+
+    if (!topAnchor || !bottomAnchor) {
+      return { allowed: true as const, message: null };
+    }
+
+    const startSummary = toNodeSummary(topAnchor);
+    const targetSummary = toNodeSummary(bottomAnchor);
+    if (!startSummary || !targetSummary) {
+      return { allowed: true as const, message: null };
+    }
+
+    const resources = (await resolveSnapshotResources(activeDataSource === "demo")) ?? (await resolveSnapshotResources(true));
+    if (!resources) {
+      return { allowed: true as const, message: null };
+    }
+
+    const startKey = `${startSummary.type}:${startSummary.id}`;
+    const targetKey = `${targetSummary.type}:${targetSummary.id}`;
+    const blockedNodeKeys = new Set(
+      [actorA, ...topPath, actorB, ...bottomPath]
+        .filter((node): node is GameNode => Boolean(node && typeof node.id === "number"))
+        .map((node) => `${node.type}:${node.id as number}`)
+        .filter((nodeKey) => nodeKey !== startKey && nodeKey !== targetKey),
+    );
+
+    const path = findShortestPathWithFilter(startSummary, targetSummary, resources.indexes, (node) => {
+      const nodeKey = `${node.type}:${node.id}`;
+      if (nodeKey === startKey || nodeKey === targetKey) {
+        return true;
+      }
+
+      if (blockedNodeKeys.has(nodeKey)) {
+        return false;
+      }
+
+      if (node.type === "actor") {
+        if (nextFilters.actorPopularityCutoff === null) {
+          return true;
+        }
+
+        const actor = resources.indexes.actorsById.get(node.id);
+        return (actor?.popularity ?? Number.NEGATIVE_INFINITY) >= nextFilters.actorPopularityCutoff;
+      }
+
+      if (nextFilters.releaseYearCutoff === null) {
+        return true;
+      }
+
+      const movie = resources.indexes.moviesById.get(node.id);
+      const releaseYear = getReleaseYear(movie?.releaseDate ?? null);
+      return releaseYear !== null && releaseYear >= nextFilters.releaseYearCutoff;
+    });
+
+    if (path) {
+      return { allowed: true as const, message: null };
+    }
+
+    return {
+      allowed: false as const,
+      message: "That filter would remove every remaining valid path for the current board. Loosen the actor cutoff or release-year cutoff and try again.",
+    };
+  }, [activeDataSource, actorA, actorB, bottomPath, resolveSnapshotResources, topPath]);
+
+  const applyValidatedDataFilterChange = useCallback(async (
+    nextFilters: GameDataFilters,
+    applyChange: () => void,
+  ) => {
+    const validation = await validateDataFiltersForCurrentBoard(nextFilters);
+    if (!validation.allowed) {
+      setFilterValidationMessage(validation.message);
+      return;
+    }
+
+    setFilterValidationMessage(null);
+    applyChange();
+  }, [validateDataFiltersForCurrentBoard]);
+
+  const handleActorPopularityCutoffChange = useCallback((cutoff: number | null) => {
+    void applyValidatedDataFilterChange(
+      {
+        ...dataFilters,
+        actorPopularityCutoff: cutoff,
+      },
+      () => setActorPopularityCutoff(cutoff),
+    );
+  }, [applyValidatedDataFilterChange, dataFilters, setActorPopularityCutoff]);
+
+  const handleReleaseYearCutoffChange = useCallback((year: number | null) => {
+    void applyValidatedDataFilterChange(
+      {
+        ...dataFilters,
+        releaseYearCutoff: year,
+      },
+      () => setReleaseYearCutoff(year),
+    );
+  }, [applyValidatedDataFilterChange, dataFilters, setReleaseYearCutoff]);
 
   useEffect(() => {
     setCompletedLevels(readCompletedLevels());
@@ -920,7 +1083,7 @@ function GamePage() {
 
   const totalSelections = topPath.length + bottomPath.length;
   const hasPlacedSelections = totalSelections > 0;
-  const isRiskAnalysisEnabled = helperSettings["show-hint-color"] && hasPlacedSelections && (showCastLockRiskHighlight || showFullCastLockHighlight);
+  const isRiskAnalysisEnabled = helperSettings["show-hint-color"] && hasPlacedSelections && showCastLockRiskHighlight;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
   const currentHops = totalSelections;
   const displayedSetupError = suppressNetworkUnavailableMessage(setupError ?? (activeDataSource === "snapshot" ? snapshotError : null));
@@ -937,6 +1100,7 @@ function GamePage() {
 
     return bottomPath.length > 0 ? bottomPath[bottomPath.length - 1] : actorB;
   }, [actorA, actorB, bottomPath, selectedSide, topPath]);
+  const canGoBackOnCurrentSide = selectedSide === "top" ? topPath.length > 0 : bottomPath.length > 0;
 
   const targetNode = useMemo(() => {
     if (!actorA || !actorB) {
@@ -956,6 +1120,14 @@ function GamePage() {
     movieSortMode: dataFilters.movieSortMode,
     actorSortMode: dataFilters.actorSortMode,
   }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.sortMode, suggestionDisplay.subsetCount]);
+
+  const finalizeSuggestionOrder = useCallback((nextSuggestions: GameNode[]) => {
+    if (suggestionDisplay.sortMode !== "best-path") {
+      return nextSuggestions;
+    }
+
+    return reorderBestPathSuggestions(nextSuggestions);
+  }, [suggestionDisplay.sortMode]);
 
   const boardNodes = useMemo(() => {
     if (!actorA || !actorB) {
@@ -1310,19 +1482,7 @@ function GamePage() {
             }
 
             const analyzedCast = castLockAnalysis.filter((entry): entry is { selfOrVisitedOnly: boolean; selfOnly: boolean } => entry !== null);
-            const isFullyCastLocked = analyzedCast.every((entry) => entry.selfOnly);
             const isCastLocked = analyzedCast.every((entry) => entry.selfOrVisitedOnly);
-
-            if (showFullCastLockHighlight && isFullyCastLocked) {
-              return {
-                ...suggestion,
-                highlight: {
-                  kind: "full-cast-lock" as const,
-                  label: "Full cast lock",
-                  description: "All cast members from this movie only connect back to this same movie.",
-                },
-              };
-            }
 
             if (isCastLocked) {
               return {
@@ -1330,7 +1490,7 @@ function GamePage() {
                 highlight: {
                   kind: "cast-lock" as const,
                   label: "Cast lock risk",
-                  description: "All cast members from this movie only connect to this movie or movies already in your path.",
+                  description: "All cast members from this movie only connect back to this movie or to movies already in your path.",
                 },
               };
             }
@@ -1372,7 +1532,7 @@ function GamePage() {
     }));
 
     return annotated;
-  }, [applyActorPopularityFilter, blockedLoopNodeKeys, getCycleRiskChildrenForSuggestion, getExhaustiveChildrenForNode, hasPlacedSelections, resolveSnapshotResources, showCastLockRiskHighlight, showFullCastLockHighlight, targetNode, visitedMovieNodeKeys]);
+  }, [applyActorPopularityFilter, blockedLoopNodeKeys, getCycleRiskChildrenForSuggestion, getExhaustiveChildrenForNode, hasPlacedSelections, resolveSnapshotResources, showCastLockRiskHighlight, targetNode, visitedMovieNodeKeys]);
 
   useEffect(() => {
     if (!actorA || !actorB || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
@@ -1426,8 +1586,9 @@ function GamePage() {
             suggestionBuildOptions,
           );
           const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, activeDataSource);
-          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (cycleRiskAnnotatedSuggestions.length === 0) {
+          const finalSuggestions = finalizeSuggestionOrder(cycleRiskAnnotatedSuggestions);
+          setSuggestions(finalSuggestions.length > 0 ? finalSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (finalSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned for this node.");
           }
           return;
@@ -1484,8 +1645,9 @@ function GamePage() {
           }
 
           const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, activeDataSource);
-          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (cycleRiskAnnotatedSuggestions.length === 0) {
+          const finalSuggestions = finalizeSuggestionOrder(cycleRiskAnnotatedSuggestions);
+          setSuggestions(finalSuggestions.length > 0 ? finalSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (finalSuggestions.length === 0) {
             setSuggestionError("No API suggestions were returned for this node.");
           }
         } catch {
@@ -1512,8 +1674,9 @@ function GamePage() {
           );
           const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, resources.source);
           setResolvedDataSource(resources.source);
-          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (cycleRiskAnnotatedSuggestions.length === 0) {
+          const finalSuggestions = finalizeSuggestionOrder(cycleRiskAnnotatedSuggestions);
+          setSuggestions(finalSuggestions.length > 0 ? finalSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (finalSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned after falling back to snapshot data.");
           }
         }
@@ -1523,22 +1686,25 @@ function GamePage() {
     };
 
     void loadSuggestions();
-  }, [actorA, actorB, actorsCatalogById, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode, topPath]);
+  }, [actorA, actorB, actorsCatalogById, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, finalizeSuggestionOrder, isNetworkUnavailable, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode, topPath]);
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
     const hops = hydratedFullPath.length - 1;
     const shuffleModeEnabledAtCompletion = isShuffleModeEnabled;
     const shufflesCount = shuffles;
-    const appliedShufflePenaltyCount = shuffleModeEnabledAtCompletion ? shufflesCount : 1;
+    const appliedShufflePenaltyCount = shuffleAddsPenalty ? (shuffleModeEnabledAtCompletion ? shufflesCount : 1) : 0;
+    const appliedRewindPenaltyCount = rewindAddsPenalty ? rewinds : 0;
+    const appliedSuggestionAssistPenaltyCount = helperSettings["show-suggestions"] ? 1 : 0;
     const rewindsCount = rewinds;
     const deadEndsCount = deadEndPenalties;
     const optimalHopsValue = optimalHops ?? hops;
     const score = calculateLevelScore({
       hops,
       optimalHops: optimalHopsValue,
+      suggestionAssists: appliedSuggestionAssistPenaltyCount,
       shuffles: appliedShufflePenaltyCount,
-      rewinds: rewindsCount,
+      rewinds: appliedRewindPenaltyCount,
       deadEnds: deadEndsCount,
     });
 
@@ -1570,6 +1736,8 @@ function GamePage() {
       shuffles: shufflesCount,
       shuffleModeEnabled: shuffleModeEnabledAtCompletion,
       appliedShufflePenaltyCount,
+      appliedRewindPenaltyCount,
+      appliedSuggestionAssistPenaltyCount,
       score,
     };
 
@@ -1735,6 +1903,7 @@ function GamePage() {
     setShuffles(0);
     setShuffleSeed((currentSeed) => currentSeed + 1);
     setSuggestionError(null);
+    setFilterValidationMessage(null);
     setCompletion(null);
     setIsCompletionDialogOpen(false);
     setIsCompletionHistoryOpen(false);
@@ -1749,6 +1918,25 @@ function GamePage() {
     setShuffles((count) => count + 1);
     setShuffleSeed((currentSeed) => currentSeed + 1);
   };
+
+  const handleRulesOverlayWheelCapture = useCallback((event: WheelEvent<HTMLDivElement>) => {
+    const dialog = rulesDialogRef.current;
+    if (!dialog) {
+      return;
+    }
+
+    const target = event.target;
+    if (target instanceof Node && dialog.contains(target)) {
+      return;
+    }
+
+    if (dialog.scrollHeight <= dialog.clientHeight) {
+      return;
+    }
+
+    dialog.scrollTop += event.deltaY;
+    event.preventDefault();
+  }, []);
 
   const handleRetryCompletedLevel = () => {
     handleResetBoard();
@@ -2043,11 +2231,9 @@ function GamePage() {
 
   return (
     <div className="gamePage">
+      <PageBackButton to={backDestination} label="Back" />
       <div className="topBar">
         <div className="topBarSide topBarSideLeft">
-          <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate(backDestination)}>
-            ← Back
-          </button>
         </div>
         <div className="topBarCenter">
           <button type="button" className="gameLogoButton" onClick={handleResetBoard} aria-label="Reset board" title="Reset board">
@@ -2122,6 +2308,7 @@ function GamePage() {
             deadEndPenalties={deadEndPenalties}
             shuffles={shuffles}
             shuffleSeed={shuffleSeed}
+            canGoBackOnCurrentSide={canGoBackOnCurrentSide}
             isDisabled={isInteractionDisabled}
             isComplete={isGameComplete}
             isLoading={isSuggestionsLoading}
@@ -2166,8 +2353,8 @@ function GamePage() {
       </button>
 
       {isRulesOpen ? (
-        <div className="gameRulesOverlay" onClick={() => setIsRulesOpen(false)}>
-          <div className="gameRulesDialog" onClick={(event) => event.stopPropagation()}>
+        <div className="gameRulesOverlay" onClick={() => setIsRulesOpen(false)} onWheelCapture={handleRulesOverlayWheelCapture}>
+          <div ref={rulesDialogRef} className="gameRulesDialog" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="gameRulesCloseButton" onClick={() => setIsRulesOpen(false)} aria-label="Close rules">
               ×
             </button>
@@ -2186,26 +2373,26 @@ function GamePage() {
             </p>
 
               <div className="gameRulesDifficultySection">
-                <div className="gameRulesDifficultyTitle">Difficulty</div>
-                <CustomGameSettingsPanel
+                <div className="gameRulesDifficultyTitle">Gameplay Settings</div>
+                <GameplaySettingsSectionLayout
+                  activeSection={activeRulesGameplaySection}
+                  onSectionSelect={setActiveRulesGameplaySection}
+                  difficulty={settings.difficulty}
                   customSettings={helperSettings}
-                  onToggle={setCustomSetting}
-                  title="Gameplay Helpers"
-                  hint="These toggles are shared with the Settings page and apply immediately to the board."
-                  className="gameRulesCustomPanel"
-                />
-                <GameDataFilterPanel
-                  dataFilters={dataFilters}
-                  onActorPopularityCutoffChange={setActorPopularityCutoff}
-                  onReleaseYearCutoffChange={setReleaseYearCutoff}
-                  className="gameRulesCustomPanel"
-                />
-                <SuggestionDisplaySettingsPanel
                   suggestionDisplay={suggestionDisplay}
+                  dataFilters={dataFilters}
+                  onDifficultyChange={setDifficulty}
+                  onToggle={setCustomSetting}
                   onSubsetCountChange={setSubsetCount}
                   onOrderModeChange={setSuggestionOrderMode}
                   onSortModeChange={setSuggestionSortMode}
-                  className="gameRulesCustomPanel"
+                  onActorPopularityCutoffChange={handleActorPopularityCutoffChange}
+                  onReleaseYearCutoffChange={handleReleaseYearCutoffChange}
+                  actorCountSummary={actorCountSummary}
+                  movieCountSummary={movieCountSummary}
+                  filterValidationMessage={filterValidationMessage}
+                  customPanelClassName="gameRulesCustomPanel"
+                  dataFilterPanelClassName="gameRulesCustomPanel"
                 />
               </div>
           </div>
@@ -2248,6 +2435,10 @@ function GamePage() {
                 </span>
               </div>
               <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Suggestions</span>
+                <span className="gameCompletionStatValue">{completion.appliedSuggestionAssistPenaltyCount > 0 ? "On" : "Off"}</span>
+              </div>
+              <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Rewinds</span>
                 <span className="gameCompletionStatValue">{rewinds}</span>
               </div>
@@ -2268,12 +2459,16 @@ function GamePage() {
                 <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
+                <span>Suggestion assist penalty</span>
+                <span>{formatPenaltyValue(completion.appliedSuggestionAssistPenaltyCount * 5)}</span>
+              </div>
+              <div className="gameCompletionScoreBreakdownRow">
                 <span>{completion.shuffleModeEnabled ? "Shuffle penalties" : "Non-shuffled game penalty"}</span>
                 <span>{formatPenaltyValue(completion.appliedShufflePenaltyCount * 3)}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
                 <span>Rewind penalties</span>
-                <span>{formatPenaltyValue(rewinds * 4)}</span>
+                <span>{formatPenaltyValue(completion.appliedRewindPenaltyCount * 4)}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
                 <span>Dead-end penalties</span>
@@ -2343,9 +2538,9 @@ function GamePage() {
                   Next level
                 </button>
               ) : null}
-              <button type="button" className="gameCompletionActionButton gameCompletionActionButtonGhost" onClick={() => setIsCompletionDialogOpen(false)}>
+              {/* <button type="button" className="gameCompletionActionButton gameCompletionActionButtonGhost" onClick={() => setIsCompletionDialogOpen(false)}>
                 Close and stay here
-              </button>
+              </button> */}
             </div>
 
             <div className="gameCompletionFooterScore" role="status" aria-live="polite">

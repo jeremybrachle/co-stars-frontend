@@ -5,6 +5,7 @@ import {
   createPathHint,
   findNodeByLabel,
   findShortestPath,
+  findShortestPathWithFilter,
   generateLocalPath,
   getActorsForMovie,
   getMoviesForActor,
@@ -70,6 +71,19 @@ test("findShortestPath returns an alternating actor and movie route", () => {
     movie(11, "Ocean's Twelve"),
     actor(3, "Julia Roberts"),
   ]);
+});
+
+test("findShortestPathWithFilter rejects routes when traversal filters remove every remaining bridge", () => {
+  const indexes = createFixtureIndexes();
+
+  const path = findShortestPathWithFilter(
+    actor(1, "George Clooney"),
+    actor(3, "Julia Roberts"),
+    indexes,
+    (node) => node.type !== "movie" || (node.id !== 11 && node.id !== 12),
+  );
+
+  assert.equal(path, null);
 });
 
 test("getMoviesForActor returns connected movies with path hints toward the target actor", () => {

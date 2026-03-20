@@ -40,9 +40,13 @@ function withMockWindow(storedValue, callback) {
 }
 (0, node_test_1.default)("default custom settings include the new suggestion-list and penalty toggles", () => {
     strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["show-visited-suggestions"], true);
-    strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["cycle-risk-click-adds-penalty"], false);
+    strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["shuffle-adds-penalty"], true);
+    strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["rewind-adds-penalty"], true);
+    strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["cycle-risk-click-adds-penalty"], true);
     const ids = gameSettings_1.CUSTOM_SETTING_DEFINITIONS.map((setting) => setting.id);
     strict_1.default.ok(ids.includes("show-visited-suggestions"));
+    strict_1.default.ok(ids.includes("shuffle-adds-penalty"));
+    strict_1.default.ok(ids.includes("rewind-adds-penalty"));
     strict_1.default.ok(ids.includes("cycle-risk-click-adds-penalty"));
     strict_1.default.ok(!ids.includes("sort-suggestions-by-risk-priority"));
 });
@@ -52,6 +56,7 @@ function withMockWindow(storedValue, callback) {
         customSettings: {
             ...gameSettings_1.DEFAULT_CUSTOM_SETTINGS,
             "show-visited-suggestions": false,
+            "shuffle-adds-penalty": false,
             "cycle-risk-click-adds-penalty": true,
         },
         dataFilters: gameSettings_1.DEFAULT_GAME_SETTINGS.dataFilters,
@@ -65,7 +70,9 @@ function withMockWindow(storedValue, callback) {
     }), () => {
         const settings = (0, gameSettings_1.readStoredGameSettings)();
         strict_1.default.equal(settings.customSettings["show-visited-suggestions"], false);
+        strict_1.default.equal(settings.customSettings["shuffle-adds-penalty"], false);
         strict_1.default.equal(settings.customSettings["cycle-risk-click-adds-penalty"], true);
+        strict_1.default.equal(settings.difficulty, "custom");
         strict_1.default.equal(settings.suggestionDisplay.orderMode, "shuffled");
         strict_1.default.equal(settings.suggestionDisplay.sortMode, "best-path");
         strict_1.default.equal(settings.suggestionDisplay.subsetCount, 6);
@@ -80,7 +87,6 @@ function withMockWindow(storedValue, callback) {
             "show-optimal-tracking": true,
             "guarantee-best-path-suggestion": false,
             "show-cast-lock-risk": true,
-            "show-full-cast-lock": true,
         },
     }), () => {
         strict_1.default.deepEqual((0, gameSettings_1.readStoredGameSettings)(), gameSettings_1.DEFAULT_GAME_SETTINGS);
@@ -104,5 +110,39 @@ function withMockWindow(storedValue, callback) {
         strict_1.default.equal(settings.dataFilters.movieSortMode, "random");
         strict_1.default.equal(settings.dataFilters.actorSortMode, "random");
         strict_1.default.equal(settings.suggestionDisplay.sortMode, "random");
+    });
+});
+(0, node_test_1.default)("readStoredGameSettings infers the all-on preset from stored settings", () => {
+    withMockWindow(JSON.stringify({
+        difficulty: "custom",
+        customSettings: gameSettings_1.ALL_ON_CUSTOM_SETTINGS,
+        dataFilters: gameSettings_1.DEFAULT_GAME_SETTINGS.dataFilters,
+        suggestionDisplay: gameSettings_1.DEFAULT_GAME_SETTINGS.suggestionDisplay,
+    }), () => {
+        const settings = (0, gameSettings_1.readStoredGameSettings)();
+        strict_1.default.equal(settings.difficulty, "all-on");
+    });
+});
+(0, node_test_1.default)("readStoredGameSettings preserves the all-off preset", () => {
+    withMockWindow(JSON.stringify({
+        difficulty: "all-off",
+        customSettings: gameSettings_1.ALL_OFF_CUSTOM_SETTINGS,
+        dataFilters: gameSettings_1.DEFAULT_GAME_SETTINGS.dataFilters,
+        suggestionDisplay: gameSettings_1.DEFAULT_GAME_SETTINGS.suggestionDisplay,
+    }), () => {
+        const settings = (0, gameSettings_1.readStoredGameSettings)();
+        strict_1.default.equal(settings.difficulty, "all-off");
+        strict_1.default.deepEqual(settings.customSettings, gameSettings_1.ALL_OFF_CUSTOM_SETTINGS);
+    });
+});
+(0, node_test_1.default)("readStoredGameSettings maps legacy hard difficulty to all-on", () => {
+    withMockWindow(JSON.stringify({
+        difficulty: "hard",
+        customSettings: gameSettings_1.ALL_ON_CUSTOM_SETTINGS,
+        dataFilters: gameSettings_1.DEFAULT_GAME_SETTINGS.dataFilters,
+        suggestionDisplay: gameSettings_1.DEFAULT_GAME_SETTINGS.suggestionDisplay,
+    }), () => {
+        const settings = (0, gameSettings_1.readStoredGameSettings)();
+        strict_1.default.equal(settings.difficulty, "all-on");
     });
 });

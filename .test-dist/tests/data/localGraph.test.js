@@ -56,6 +56,11 @@ function movie(id, label) {
         actor(3, "Julia Roberts"),
     ]);
 });
+(0, node_test_1.default)("findShortestPathWithFilter rejects routes when traversal filters remove every remaining bridge", () => {
+    const indexes = createFixtureIndexes();
+    const path = (0, localGraph_1.findShortestPathWithFilter)(actor(1, "George Clooney"), actor(3, "Julia Roberts"), indexes, (node) => node.type !== "movie" || (node.id !== 11 && node.id !== 12));
+    strict_1.default.equal(path, null);
+});
 (0, node_test_1.default)("getMoviesForActor returns connected movies with path hints toward the target actor", () => {
     const indexes = createFixtureIndexes();
     const target = actor(3, "Julia Roberts");

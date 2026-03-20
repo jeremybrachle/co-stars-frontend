@@ -33,6 +33,10 @@ function getNeighborNodes(node: NodeSummary, indexes: SnapshotIndexes): NodeSumm
 		.filter((candidate): candidate is NodeSummary => candidate !== null);
 }
 
+type FindShortestPathOptions = {
+	canTraverseNode?: (node: NodeSummary) => boolean;
+};
+
 export function createGameNodeFromSummary(node: NodeSummary, indexes: SnapshotIndexes): GameNode {
 	if (node.type === "actor") {
 		const actor = indexes.actorsById.get(node.id);
@@ -73,9 +77,15 @@ export function findNodeByLabel(label: string, type: NodeType, indexes: Snapshot
 	return movieId !== undefined ? buildNodeSummary("movie", movieId, indexes) : null;
 }
 
-export function findShortestPath(start: NodeSummary, target: NodeSummary, indexes: SnapshotIndexes): NodeSummary[] | null {
+export function findShortestPath(
+	start: NodeSummary,
+	target: NodeSummary,
+	indexes: SnapshotIndexes,
+	options: FindShortestPathOptions = {},
+): NodeSummary[] | null {
 	const startKey = getNodeKey(start);
 	const targetKey = getNodeKey(target);
+	const canTraverseNode = options.canTraverseNode ?? (() => true);
 
 	if (startKey === targetKey) {
 		return [start];
@@ -97,6 +107,10 @@ export function findShortestPath(start: NodeSummary, target: NodeSummary, indexe
 			const neighborKey = getNodeKey(neighbor);
 
 			if (visited.has(neighborKey)) {
+				continue;
+			}
+
+			if (neighborKey !== targetKey && !canTraverseNode(neighbor)) {
 				continue;
 			}
 
@@ -125,6 +139,15 @@ export function findShortestPath(start: NodeSummary, target: NodeSummary, indexe
 	}
 
 	return null;
+}
+
+export function findShortestPathWithFilter(
+	start: NodeSummary,
+	target: NodeSummary,
+	indexes: SnapshotIndexes,
+	canTraverseNode: (node: NodeSummary) => boolean,
+) {
+	return findShortestPath(start, target, indexes, { canTraverseNode });
 }
 
 export function createPathHint(start: NodeSummary, target: NodeSummary, indexes: SnapshotIndexes): PathHint {

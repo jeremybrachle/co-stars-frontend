@@ -90,7 +90,7 @@ export type ValidatePathResponse = {
 };
 
 export type SuggestionHighlight = {
-	kind: "connection" | "optimal" | "loop" | "deep-loop" | "cast-lock" | "full-cast-lock" | "blocked";
+	kind: "connection" | "optimal" | "loop" | "deep-loop" | "cast-lock" | "blocked";
 	label: string;
 	description: string;
 };
@@ -168,7 +168,7 @@ export type DataSourceMode = {
 
 export type EffectiveDataSource = "snapshot" | "api" | "demo";
 
-export type DifficultyOption = "easy" | "medium" | "hard" | "custom";
+export type DifficultyOption = "all-on" | "all-off" | "custom";
 
 export type DifficultyToggleId =
 	| "show-suggestions"
@@ -176,9 +176,10 @@ export type DifficultyToggleId =
 	| "show-optimal-tracking"
 	| "guarantee-best-path-suggestion"
 	| "show-visited-suggestions"
+	| "shuffle-adds-penalty"
+	| "rewind-adds-penalty"
 	| "cycle-risk-click-adds-penalty"
-	| "show-cast-lock-risk"
-	| "show-full-cast-lock";
+	| "show-cast-lock-risk";
 
 export type DifficultySettings = Record<DifficultyToggleId, boolean>;
 
