@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import EntityArtwork from "../EntityArtwork";
 import { formatYear, getMovieBadges } from "../../data/presentation";
+import { shuffleSuggestionsWithSeed } from "../../gameplay";
 import type { GameNode, NodeType, SuggestionDisplaySettings } from "../../types";
 import "./GameRightPanel.css";
 
@@ -17,6 +18,7 @@ type Props = {
   rewinds: number;
   deadEndPenalties: number;
   shuffles: number;
+  shuffleSeed: number;
   isDisabled: boolean;
   isComplete: boolean;
   isLoading: boolean;
@@ -73,6 +75,7 @@ function GameRightPanel({
   rewinds,
   deadEndPenalties,
   shuffles,
+  shuffleSeed,
   isDisabled,
   isComplete,
   isLoading,
@@ -94,14 +97,21 @@ function GameRightPanel({
   const isShuffleDisabled = isCycleWarning || isDisabled || isLoading || isComplete;
   const canShowHintState = showSuggestionValues && showHintColors;
   const windowSize = suggestionDisplay.subsetCount;
-  
-  const visibleSuggestions = useMemo(() => {
-    if (isScrollMode) {
+  const orderedSuggestions = useMemo(() => {
+    if (!isShuffleModeEnabled) {
       return suggestions;
     }
 
-    return suggestions.slice(0, windowSize);
-  }, [isScrollMode, suggestions, windowSize]);
+    return shuffleSuggestionsWithSeed(suggestions, shuffleSeed);
+  }, [isShuffleModeEnabled, shuffleSeed, suggestions]);
+  
+  const visibleSuggestions = useMemo(() => {
+    if (isScrollMode) {
+      return orderedSuggestions;
+    }
+
+    return orderedSuggestions.slice(0, windowSize);
+  }, [isScrollMode, orderedSuggestions, windowSize]);
   
   const suggestionSlots = useMemo(
     () => Array.from({ length: isScrollMode ? visibleSuggestions.length : windowSize }, (_, index) => visibleSuggestions[index] ?? null),

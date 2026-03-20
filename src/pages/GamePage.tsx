@@ -559,6 +559,14 @@ function GamePage() {
   const [inspectorRelationSearch, setInspectorRelationSearch] = useState("");
   const cycleRiskChildCacheRef = useRef<Map<string, GameNode[]>>(new Map());
   const levelIdentityRef = useRef<{ startLabel: string; endLabel: string } | null>(null);
+  const actorsCatalogById = useMemo(
+    () => new Map(actorsCatalog.map((actor) => [actor.id, actor])),
+    [actorsCatalog],
+  );
+  const moviesCatalogById = useMemo(
+    () => new Map(moviesCatalog.map((movie) => [movie.id, movie])),
+    [moviesCatalog],
+  );
 
   const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
@@ -938,18 +946,24 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
-  const shouldRandomizeSuggestions = useMemo(() => {
-    return suggestionDisplay.orderMode === "shuffled";
-  }, [suggestionDisplay.orderMode]);
+  const shouldRandomizeSuggestions = isShuffleModeEnabled;
 
   const suggestionBuildOptions = useMemo(() => ({
-    shouldShuffle: shouldRandomizeSuggestions,
+    shouldShuffle: false,
     shouldGuaranteeBestPath: shouldGuaranteeBestPathSuggestion,
     suggestionLimit: shouldRandomizeSuggestions ? suggestionDisplay.subsetCount : null,
     sortMode: suggestionDisplay.sortMode,
     movieSortMode: dataFilters.movieSortMode,
     actorSortMode: dataFilters.actorSortMode,
   }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.sortMode, suggestionDisplay.subsetCount]);
+
+  const boardNodes = useMemo(() => {
+    if (!actorA || !actorB) {
+      return [] as GameNode[];
+    }
+
+    return [actorA, actorB, ...topPath, ...bottomPath];
+  }, [actorA, actorB, bottomPath, topPath]);
 
   const oppositeFrontierNode = useMemo(() => {
     if (!actorA || !actorB) {
@@ -969,20 +983,20 @@ function GamePage() {
     }
 
     const allowedKeys = createAllowedLoopNodeKeySet(targetNode, oppositeFrontierNode);
-    return createBlockedLoopNodeKeySet([actorA, actorB, ...topPath, ...bottomPath], allowedKeys);
-  }, [actorA, actorB, bottomPath, oppositeFrontierNode, targetNode, topPath]);
+    return createBlockedLoopNodeKeySet(boardNodes, allowedKeys);
+  }, [actorA, actorB, boardNodes, oppositeFrontierNode, targetNode]);
 
   const visitedMovieNodeKeys = useMemo(() => {
-    if (!actorA || !actorB) {
+    if (boardNodes.length === 0) {
       return new Set<string>();
     }
 
     return new Set(
-      [actorA, actorB, ...topPath, ...bottomPath]
+      boardNodes
         .filter((node) => node.type === "movie")
         .map((node) => getNodeKey(node)),
     );
-  }, [actorA, actorB, bottomPath, topPath]);
+  }, [boardNodes]);
 
   const isInteractionDisabled = isPathLimitReached || isDeadEndGameOver || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
   const isGameComplete = !!completion;
@@ -1038,7 +1052,7 @@ function GamePage() {
       return [] as GameNode[];
     }
 
-    const useCache = CYCLE_RISK_CACHE_ENABLED && source === "api";
+    const useCache = CYCLE_RISK_CACHE_ENABLED;
     const cacheKey = `${source}:${targetNode.type}:${targetNode.id ?? "none"}:${suggestion.type}:${suggestion.id}`;
     if (useCache) {
       const cached = cycleRiskChildCacheRef.current.get(cacheKey);
@@ -1094,7 +1108,7 @@ function GamePage() {
       return [] as GameNode[];
     }
 
-    const useCache = CYCLE_RISK_CACHE_ENABLED && source === "api";
+    const useCache = CYCLE_RISK_CACHE_ENABLED;
     const cacheKey = `${source}:exhaustive:${node.type}:${node.id}`;
 
     if (useCache) {
@@ -1154,29 +1168,42 @@ function GamePage() {
       ? await resolveSnapshotResources(source === "demo")
       : null;
 
+    const yellowCache = new Map<string, Promise<boolean>>();
+
     // Helper function: checks if a single node would be marked as yellow (all its children blocked)
     const wouldBeYellow = async (node: GameNode): Promise<boolean> => {
       if (node.id === undefined) {
         return false;
       }
 
-      let childNodes: GameNode[] = [];
-      try {
-        childNodes = await getCycleRiskChildrenForSuggestion(node, source, localResources, targetSummary);
-      } catch {
-        return false;
+      const nodeKey = `${source}:${getNodeKey(node)}:${targetSummary.id}`;
+      const cachedPromise = yellowCache.get(nodeKey);
+      if (cachedPromise) {
+        return cachedPromise;
       }
 
-      if (childNodes.length === 0) {
-        return false;
-      }
+      const yellowPromise = (async () => {
+        let childNodes: GameNode[] = [];
+        try {
+          childNodes = await getCycleRiskChildrenForSuggestion(node, source, localResources, targetSummary);
+        } catch {
+          return false;
+        }
 
-      const filteredChildren = applyActorPopularityFilter(childNodes);
-      if (filteredChildren.length === 0) {
-        return false;
-      }
+        if (childNodes.length === 0) {
+          return false;
+        }
 
-      return filteredChildren.every((child) => blockedLoopNodeKeys.has(getNodeKey(child)));
+        const filteredChildren = applyActorPopularityFilter(childNodes);
+        if (filteredChildren.length === 0) {
+          return false;
+        }
+
+        return filteredChildren.every((child) => blockedLoopNodeKeys.has(getNodeKey(child)));
+      })();
+
+      yellowCache.set(nodeKey, yellowPromise);
+      return yellowPromise;
     };
 
     const annotated = await Promise.all(nextSuggestions.map(async (suggestion) => {
@@ -1421,11 +1448,11 @@ function GamePage() {
               movieSuggestions.map((movie) => createNode(movie.title, "movie", {
                 id: movie.id,
                 releaseDate: movie.releaseDate,
-				imageUrl: moviesCatalog.find((entry) => entry.id === movie.id)?.posterUrl ?? null,
-				genres: moviesCatalog.find((entry) => entry.id === movie.id)?.genres ?? [],
-				contentRating: moviesCatalog.find((entry) => entry.id === movie.id)?.contentRating ?? null,
-				originalLanguage: moviesCatalog.find((entry) => entry.id === movie.id)?.originalLanguage ?? null,
-				overview: moviesCatalog.find((entry) => entry.id === movie.id)?.overview ?? null,
+        imageUrl: moviesCatalogById.get(movie.id)?.posterUrl ?? null,
+        genres: moviesCatalogById.get(movie.id)?.genres ?? [],
+        contentRating: moviesCatalogById.get(movie.id)?.contentRating ?? null,
+        originalLanguage: moviesCatalogById.get(movie.id)?.originalLanguage ?? null,
+        overview: moviesCatalogById.get(movie.id)?.overview ?? null,
                 pathHint: movie.pathHint,
               })),
               targetNode,
@@ -1444,9 +1471,9 @@ function GamePage() {
               applyActorPopularityFilter(actorSuggestions.map((actor) => createNode(actor.name, "actor", {
                 id: actor.id,
                 popularity: actor.popularity,
-				imageUrl: actorsCatalog.find((entry) => entry.id === actor.id)?.profileUrl ?? null,
-				knownForDepartment: actorsCatalog.find((entry) => entry.id === actor.id)?.knownForDepartment ?? null,
-				placeOfBirth: actorsCatalog.find((entry) => entry.id === actor.id)?.placeOfBirth ?? null,
+        				imageUrl: actorsCatalogById.get(actor.id)?.profileUrl ?? null,
+        				knownForDepartment: actorsCatalogById.get(actor.id)?.knownForDepartment ?? null,
+        				placeOfBirth: actorsCatalogById.get(actor.id)?.placeOfBirth ?? null,
                 pathHint: actor.pathHint,
                 popularityRank: actor.popularityRank,
               }))),
@@ -1496,7 +1523,7 @@ function GamePage() {
     };
 
     void loadSuggestions();
-  }, [actorA, actorB, actorsCatalog, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalog, resolveSnapshotResources, shuffleSeed, suggestionBuildOptions, targetNode, topPath]);
+  }, [actorA, actorB, actorsCatalogById, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode, topPath]);
 
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
@@ -2094,6 +2121,7 @@ function GamePage() {
             rewinds={rewinds}
             deadEndPenalties={deadEndPenalties}
             shuffles={shuffles}
+            shuffleSeed={shuffleSeed}
             isDisabled={isInteractionDisabled}
             isComplete={isGameComplete}
             isLoading={isSuggestionsLoading}

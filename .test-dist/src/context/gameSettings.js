@@ -32,12 +32,6 @@ exports.CUSTOM_SETTING_DEFINITIONS = [
         section: "suggestion-list",
     },
     {
-        id: "sort-suggestions-by-risk-priority",
-        label: "Sort suggestions by risk priority",
-        hint: "Order cards as best-path, reachable neutral, risk overlays, then red dead-end cards.",
-        section: "suggestion-list",
-    },
-    {
         id: "cycle-risk-click-adds-penalty",
         label: "Cycle risk click adds penalty",
         hint: "Clicking a cycle-risk card adds a dead-end penalty instead of extending the path.",
@@ -64,7 +58,6 @@ exports.DEFAULT_CUSTOM_SETTINGS = {
     "show-optimal-tracking": true,
     "guarantee-best-path-suggestion": false,
     "show-visited-suggestions": true,
-    "sort-suggestions-by-risk-priority": false,
     "cycle-risk-click-adds-penalty": false,
     "show-cast-lock-risk": true,
     "show-full-cast-lock": true,
@@ -76,9 +69,11 @@ exports.DEFAULT_DATA_FILTERS = {
     actorSortMode: "popularity",
 };
 exports.DEFAULT_SUGGESTION_DISPLAY = {
-    viewMode: "subset",
-    subsetCount: 8,
-    allWindowMode: "pagination",
+    viewMode: "all",
+    subsetCount: 10,
+    allWindowMode: "scroll",
+    orderMode: "ranked",
+    sortMode: "default",
 };
 exports.DEFAULT_GAME_SETTINGS = {
     difficulty: "custom",
@@ -120,7 +115,9 @@ function isSuggestionDisplaySettings(value) {
         Number.isFinite(obj.subsetCount) &&
         obj.subsetCount >= 2 &&
         obj.subsetCount <= 10 &&
-        (obj.allWindowMode === "pagination" || obj.allWindowMode === "scroll"));
+        (obj.allWindowMode === "pagination" || obj.allWindowMode === "scroll") &&
+        (obj.orderMode === "ranked" || obj.orderMode === "shuffled") &&
+        (obj.sortMode === "default" || obj.sortMode === "best-path" || obj.sortMode === "random"));
 }
 function readStoredGameSettings() {
     if (typeof window === "undefined") {
@@ -135,10 +132,13 @@ function readStoredGameSettings() {
         if (!isDifficultyOption(parsed.difficulty) || !isDifficultySettings(parsed.customSettings)) {
             return exports.DEFAULT_GAME_SETTINGS;
         }
+        const normalizedDataFilters = isGameDataFilters(parsed.dataFilters)
+            ? parsed.dataFilters
+            : { ...exports.DEFAULT_DATA_FILTERS };
         return {
             difficulty: parsed.difficulty,
             customSettings: parsed.customSettings,
-            dataFilters: isGameDataFilters(parsed.dataFilters) ? parsed.dataFilters : { ...exports.DEFAULT_DATA_FILTERS },
+            dataFilters: normalizedDataFilters,
             suggestionDisplay: isSuggestionDisplaySettings(parsed.suggestionDisplay)
                 ? parsed.suggestionDisplay
                 : { ...exports.DEFAULT_SUGGESTION_DISPLAY },

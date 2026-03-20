@@ -139,10 +139,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	const dataVersionLabel = isOfflineDemoMode(mode)
 		? "Demo"
 		: snapshotVersion ?? manifestVersion ?? "none loaded yet";
-	const snapshotCacheStats = useMemo(
-		() => getSnapshotCacheStorageStats(),
-		[manifest, snapshot],
-	);
+	const snapshotCacheStats = getSnapshotCacheStorageStats();
 	const gameDataUsagePercent = Math.min(100, (gameDataStats.totalBytes / GAME_DATA_STORAGE_SOFT_LIMIT_BYTES) * 100);
 	const variant = useMemo(
 		() => getDataIndicatorVariant({

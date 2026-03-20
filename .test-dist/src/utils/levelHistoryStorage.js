@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildLevelStorageKey = buildLevelStorageKey;
 exports.readAllLevelHistory = readAllLevelHistory;
+exports.getLevelHistoryStorageSizeBytes = getLevelHistoryStorageSizeBytes;
 exports.getLevelHistory = getLevelHistory;
 exports.saveLevelAttempt = saveLevelAttempt;
 exports.buildHopLeaderboardGroups = buildHopLeaderboardGroups;
@@ -25,6 +26,8 @@ function createAttemptSignature(input) {
         input.hops,
         input.score.toFixed(1),
         input.shuffles,
+        input.shuffleModeEnabled ? "shuffle-on" : "shuffle-off",
+        input.appliedShufflePenaltyCount,
         input.rewinds,
         input.deadEnds,
     ].join("|");
@@ -72,6 +75,8 @@ function isSavedLevelAttempt(value) {
         && typeof candidate.score === "number"
         && typeof candidate.hops === "number"
         && typeof candidate.shuffles === "number"
+        && (candidate.shuffleModeEnabled === undefined || typeof candidate.shuffleModeEnabled === "boolean")
+        && (candidate.appliedShufflePenaltyCount === undefined || typeof candidate.appliedShufflePenaltyCount === "number")
         && typeof candidate.rewinds === "number"
         && typeof candidate.deadEnds === "number"
         && typeof candidate.timestamp === "number");
@@ -116,6 +121,12 @@ function writeCollectionToStorage(collection) {
         window.dispatchEvent(new Event(LEVEL_HISTORY_UPDATED_EVENT));
     }
 }
+function estimateStringStorageBytes(value) {
+    if (typeof TextEncoder !== "undefined") {
+        return new TextEncoder().encode(value).length;
+    }
+    return value.length * 2;
+}
 function buildLevelStorageKey(endpointA, endpointB) {
     const [left, right] = [endpointA, endpointB]
         .map(normalizeKeyPart)
@@ -124,6 +135,12 @@ function buildLevelStorageKey(endpointA, endpointB) {
 }
 function readAllLevelHistory() {
     return readCollectionFromStorage();
+}
+function getLevelHistoryStorageSizeBytes(collection = readCollectionFromStorage()) {
+    if (Object.keys(collection).length === 0) {
+        return 0;
+    }
+    return estimateStringStorageBytes(JSON.stringify(collection));
 }
 function getLevelHistory(endpointA, endpointB, collection = readCollectionFromStorage()) {
     return collection[buildLevelStorageKey(endpointA, endpointB)] ?? null;
@@ -148,6 +165,8 @@ function saveLevelAttempt(endpointA, endpointB, input) {
         score: Math.round(input.score * 10) / 10,
         hops: input.hops,
         shuffles: input.shuffles,
+        shuffleModeEnabled: input.shuffleModeEnabled,
+        appliedShufflePenaltyCount: input.appliedShufflePenaltyCount,
         rewinds: input.rewinds,
         deadEnds: input.deadEnds,
         timestamp,

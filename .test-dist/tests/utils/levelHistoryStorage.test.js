@@ -62,6 +62,8 @@ function installWindowMock() {
         score: 96,
         hops: 2,
         shuffles: 0,
+        shuffleModeEnabled: true,
+        appliedShufflePenaltyCount: 0,
         rewinds: 0,
         deadEnds: 0,
         timestamp: 10,
@@ -75,6 +77,8 @@ function installWindowMock() {
         score: 96,
         hops: 2,
         shuffles: 0,
+        shuffleModeEnabled: true,
+        appliedShufflePenaltyCount: 0,
         rewinds: 0,
         deadEnds: 0,
         timestamp: 11,
@@ -90,6 +94,8 @@ function installWindowMock() {
         score: 71,
         hops: 4,
         shuffles: 1,
+        shuffleModeEnabled: false,
+        appliedShufflePenaltyCount: 1,
         rewinds: 1,
         deadEnds: 0,
         timestamp: 12,
@@ -101,6 +107,9 @@ function installWindowMock() {
     strict_1.default.equal(groups.length, 2);
     strict_1.default.equal(groups[0].hops, 2);
     strict_1.default.equal(groups[0].attempts[0].score, 96);
+    strict_1.default.equal(groups[0].attempts[0].shuffleModeEnabled, true);
     strict_1.default.equal(groups[1].hops, 4);
+    strict_1.default.equal(groups[1].attempts[0].shuffleModeEnabled, false);
+    strict_1.default.equal(groups[1].attempts[0].appliedShufflePenaltyCount, 1);
     restoreWindow();
 });

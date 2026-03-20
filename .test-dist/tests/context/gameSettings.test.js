@@ -40,29 +40,35 @@ function withMockWindow(storedValue, callback) {
 }
 (0, node_test_1.default)("default custom settings include the new suggestion-list and penalty toggles", () => {
     strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["show-visited-suggestions"], true);
-    strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["sort-suggestions-by-risk-priority"], false);
     strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["cycle-risk-click-adds-penalty"], false);
     const ids = gameSettings_1.CUSTOM_SETTING_DEFINITIONS.map((setting) => setting.id);
     strict_1.default.ok(ids.includes("show-visited-suggestions"));
-    strict_1.default.ok(ids.includes("sort-suggestions-by-risk-priority"));
     strict_1.default.ok(ids.includes("cycle-risk-click-adds-penalty"));
+    strict_1.default.ok(!ids.includes("sort-suggestions-by-risk-priority"));
 });
-(0, node_test_1.default)("readStoredGameSettings restores persisted values for the new toggles", () => {
+(0, node_test_1.default)("readStoredGameSettings restores persisted values for toggles and suggestion display settings", () => {
     withMockWindow(JSON.stringify({
         difficulty: "custom",
         customSettings: {
             ...gameSettings_1.DEFAULT_CUSTOM_SETTINGS,
             "show-visited-suggestions": false,
-            "sort-suggestions-by-risk-priority": true,
             "cycle-risk-click-adds-penalty": true,
         },
         dataFilters: gameSettings_1.DEFAULT_GAME_SETTINGS.dataFilters,
-        suggestionDisplay: gameSettings_1.DEFAULT_GAME_SETTINGS.suggestionDisplay,
+        suggestionDisplay: {
+            ...gameSettings_1.DEFAULT_GAME_SETTINGS.suggestionDisplay,
+            orderMode: "shuffled",
+            sortMode: "best-path",
+            subsetCount: 6,
+            viewMode: "subset",
+        },
     }), () => {
         const settings = (0, gameSettings_1.readStoredGameSettings)();
         strict_1.default.equal(settings.customSettings["show-visited-suggestions"], false);
-        strict_1.default.equal(settings.customSettings["sort-suggestions-by-risk-priority"], true);
         strict_1.default.equal(settings.customSettings["cycle-risk-click-adds-penalty"], true);
+        strict_1.default.equal(settings.suggestionDisplay.orderMode, "shuffled");
+        strict_1.default.equal(settings.suggestionDisplay.sortMode, "best-path");
+        strict_1.default.equal(settings.suggestionDisplay.subsetCount, 6);
     });
 });
 (0, node_test_1.default)("readStoredGameSettings falls back to defaults when new toggle keys are missing", () => {
@@ -78,5 +84,25 @@ function withMockWindow(storedValue, callback) {
         },
     }), () => {
         strict_1.default.deepEqual((0, gameSettings_1.readStoredGameSettings)(), gameSettings_1.DEFAULT_GAME_SETTINGS);
+    });
+});
+(0, node_test_1.default)("readStoredGameSettings preserves random sort preferences", () => {
+    withMockWindow(JSON.stringify({
+        difficulty: "custom",
+        customSettings: gameSettings_1.DEFAULT_CUSTOM_SETTINGS,
+        dataFilters: {
+            ...gameSettings_1.DEFAULT_GAME_SETTINGS.dataFilters,
+            movieSortMode: "random",
+            actorSortMode: "random",
+        },
+        suggestionDisplay: {
+            ...gameSettings_1.DEFAULT_GAME_SETTINGS.suggestionDisplay,
+            sortMode: "random",
+        },
+    }), () => {
+        const settings = (0, gameSettings_1.readStoredGameSettings)();
+        strict_1.default.equal(settings.dataFilters.movieSortMode, "random");
+        strict_1.default.equal(settings.dataFilters.actorSortMode, "random");
+        strict_1.default.equal(settings.suggestionDisplay.sortMode, "random");
     });
 });
