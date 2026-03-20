@@ -113,6 +113,9 @@ interface CompletionState {
   isValidated: boolean | null;
   validationMessage?: string;
   score?: number;
+  shuffles: number;
+  shuffleModeEnabled: boolean;
+  appliedShufflePenaltyCount: number;
 }
 
 type NodeInspectorState = {
@@ -394,7 +397,6 @@ function getCompletionScoreSymbol(score: number | undefined) {
 function getDisplayedCompletionScore(
   completion: CompletionState | null,
   optimalHops: number | null,
-  shuffles: number,
   rewinds: number,
   deadEndPenalties: number,
 ) {
@@ -405,7 +407,7 @@ function getDisplayedCompletionScore(
   return calculateLevelScore({
     hops: completion.usedHops,
     optimalHops: optimalHops ?? completion.usedHops,
-    shuffles,
+    shuffles: completion.appliedShufflePenaltyCount,
     rewinds,
     deadEnds: deadEndPenalties,
   });
@@ -526,10 +528,11 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
-  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSuggestionViewMode, setSubsetCount, setAllWindowMode } = useGameSettings();
+  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSubsetCount, setSuggestionOrderMode } = useGameSettings();
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
   const dataFilters = settings.dataFilters;
+  const isSortedResultsEnabled = dataFilters.movieSortMode === "releaseYear" && dataFilters.actorSortMode === "popularity";
   const shouldGuaranteeBestPathSuggestion = helperSettings["guarantee-best-path-suggestion"];
   const showVisitedSuggestions = helperSettings["show-visited-suggestions"];
   const sortSuggestionsByRiskPriority = helperSettings["sort-suggestions-by-risk-priority"];
@@ -581,9 +584,10 @@ function GamePage() {
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
   const levelHistoryAttempts = levelHistory?.attempts ?? [];
   const latestAttempt = levelHistory?.attempts[0] ?? null;
+  const isShuffleModeEnabled = suggestionDisplay.orderMode === "shuffled";
   const displayedCompletionScore = useMemo(
-    () => getDisplayedCompletionScore(completion, optimalHops, shuffles, rewinds, deadEndPenalties),
-    [completion, deadEndPenalties, optimalHops, rewinds, shuffles],
+    () => getDisplayedCompletionScore(completion, optimalHops, rewinds, deadEndPenalties),
+    [completion, deadEndPenalties, optimalHops, rewinds],
   );
   const isDeadEndGameOver = deadEndPenalties >= MAX_DEAD_END_PENALTIES;
   const currentLevelCompleted = useMemo(() => {
@@ -614,7 +618,7 @@ function GamePage() {
             </span>
             <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
             <span className="gameCompletionLeaderboardMeta">
-              shuffles {attempt.shuffles} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
+              {attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
             </span>
           </div>
           <div className="gameCompletionLeaderboardPath">
@@ -955,22 +959,16 @@ function GamePage() {
   }, [actorA, actorB, selectedSide]);
 
   const shouldRandomizeSuggestions = useMemo(() => {
-    if (!currentSelection) {
-      return false;
-    }
-
-    return currentSelection.type === "actor"
-      ? dataFilters.movieSortMode === "random"
-      : dataFilters.actorSortMode === "random";
-  }, [currentSelection, dataFilters.actorSortMode, dataFilters.movieSortMode]);
+    return suggestionDisplay.orderMode === "shuffled";
+  }, [suggestionDisplay.orderMode]);
 
   const suggestionBuildOptions = useMemo(() => ({
     shouldShuffle: shouldRandomizeSuggestions,
     shouldGuaranteeBestPath: shouldGuaranteeBestPathSuggestion,
-    suggestionLimit: suggestionDisplay.viewMode === "subset" ? suggestionDisplay.subsetCount : null,
+    suggestionLimit: shouldRandomizeSuggestions ? suggestionDisplay.subsetCount : null,
     movieSortMode: dataFilters.movieSortMode,
     actorSortMode: dataFilters.actorSortMode,
-  }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.viewMode, suggestionDisplay.subsetCount]);
+  }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.subsetCount]);
 
   const oppositeFrontierNode = useMemo(() => {
     if (!actorA || !actorB) {
@@ -1528,14 +1526,16 @@ function GamePage() {
   const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
     const hops = hydratedFullPath.length - 1;
+    const shuffleModeEnabledAtCompletion = isShuffleModeEnabled;
     const shufflesCount = shuffles;
+    const appliedShufflePenaltyCount = shuffleModeEnabledAtCompletion ? shufflesCount : 1;
     const rewindsCount = rewinds;
     const deadEndsCount = deadEndPenalties;
     const optimalHopsValue = optimalHops ?? hops;
     const score = calculateLevelScore({
       hops,
       optimalHops: optimalHopsValue,
-      shuffles: shufflesCount,
+      shuffles: appliedShufflePenaltyCount,
       rewinds: rewindsCount,
       deadEnds: deadEndsCount,
     });
@@ -1550,6 +1550,8 @@ function GamePage() {
         score,
         hops,
         shuffles: shufflesCount,
+        shuffleModeEnabled: shuffleModeEnabledAtCompletion,
+        appliedShufflePenaltyCount,
         rewinds: rewindsCount,
         deadEnds: deadEndsCount,
         timestamp: Date.now(),
@@ -1563,6 +1565,9 @@ function GamePage() {
       winningSide,
       source,
       isValidated: null,
+      shuffles: shufflesCount,
+      shuffleModeEnabled: shuffleModeEnabledAtCompletion,
+      appliedShufflePenaltyCount,
       score,
     };
 
@@ -2107,7 +2112,7 @@ function GamePage() {
             currentSelection={currentSelection ?? createNode("Loading…", "actor")}
             suggestions={visibleSuggestions}
             suggestionDisplay={suggestionDisplay}
-            canRandomizeSuggestions={shouldRandomizeSuggestions}
+            isShuffleModeEnabled={isShuffleModeEnabled}
             showSuggestionValues={helperSettings["show-suggestions"]}
             showHintColors={helperSettings["show-hint-color"]}
             turns={turns}
@@ -2168,10 +2173,10 @@ function GamePage() {
               Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
             </p>
             <p className="gameRulesText">
-              Suggestion lists are generated from the currently active dataset. Actor lists can be sorted by popularity or randomized, and movie lists can be sorted by release year or randomized.
+              Suggestion lists are generated from the currently active dataset and ranked from strongest path options to weakest.
             </p>
             <p className="gameRulesText">
-              Best-path inclusion can be guaranteed from settings. When random ordering is enabled for the current list type, the shuffle button rerolls the full list order; otherwise the list stays sorted and you can page or scroll through it using the selected window size.
+              With shuffle turned off, you scroll through the full ranked list and the shuffle score shows as N/A until completion. With shuffle turned on, you see a fixed number of cards and can reroll them with the shuffle button.
             </p>
             <p className="gameRulesText">
               Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
@@ -2188,17 +2193,19 @@ function GamePage() {
                 />
                 <GameDataFilterPanel
                   dataFilters={dataFilters}
+                  isSortedResultsEnabled={isSortedResultsEnabled}
+                  onSortedResultsChange={(enabled) => {
+                    setMovieSortMode(enabled ? "releaseYear" : "random");
+                    setActorSortMode(enabled ? "popularity" : "random");
+                  }}
                   onActorPopularityCutoffChange={setActorPopularityCutoff}
                   onReleaseYearCutoffChange={setReleaseYearCutoff}
-                  onMovieSortModeChange={setMovieSortMode}
-                  onActorSortModeChange={setActorSortMode}
                   className="gameRulesCustomPanel"
                 />
                 <SuggestionDisplaySettingsPanel
                   suggestionDisplay={suggestionDisplay}
-                  onViewModeChange={setSuggestionViewMode}
                   onSubsetCountChange={setSubsetCount}
-                  onAllWindowModeChange={setAllWindowMode}
+                  onOrderModeChange={setSuggestionOrderMode}
                   className="gameRulesCustomPanel"
                 />
               </div>
@@ -2234,7 +2241,12 @@ function GamePage() {
               </div>
               <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Shuffles</span>
-                <span className="gameCompletionStatValue">{shuffles}</span>
+                <span
+                  className="gameCompletionStatValue"
+                  title={completion.shuffleModeEnabled ? undefined : "penalty will be applied for non-shuffled game"}
+                >
+                  {completion.shuffleModeEnabled ? completion.shuffles : "N/A"}
+                </span>
               </div>
               <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Rewinds</span>
@@ -2257,8 +2269,8 @@ function GamePage() {
                 <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
-                <span>Shuffle penalties</span>
-                <span>{formatPenaltyValue(shuffles * 3)}</span>
+                <span>{completion.shuffleModeEnabled ? "Shuffle penalties" : "Non-shuffled game penalty"}</span>
+                <span>{formatPenaltyValue(completion.appliedShufflePenaltyCount * 3)}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
                 <span>Rewind penalties</span>

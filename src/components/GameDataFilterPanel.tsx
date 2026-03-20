@@ -2,27 +2,41 @@ import type { GameDataFilters } from "../types"
 
 export default function GameDataFilterPanel({
   dataFilters,
+  isSortedResultsEnabled,
+  onSortedResultsChange,
   onActorPopularityCutoffChange,
   onReleaseYearCutoffChange,
-  onMovieSortModeChange,
-  onActorSortModeChange,
   className = "",
 }: {
   dataFilters: GameDataFilters
+  isSortedResultsEnabled: boolean
+  onSortedResultsChange: (enabled: boolean) => void
   onActorPopularityCutoffChange: (value: number | null) => void
   onReleaseYearCutoffChange: (year: number | null) => void
-	 onMovieSortModeChange: (mode: "releaseYear" | "random") => void
-	 onActorSortModeChange: (mode: "popularity" | "random") => void
   className?: string
 }) {
-  const isSortingMoviesByReleaseYear = dataFilters.movieSortMode === "releaseYear"
-  const isSortingActorsByPopularity = dataFilters.actorSortMode === "popularity"
-
   return (
     <div className={`settingsCustomPanel${className ? ` ${className}` : ""}`}>
       <div className="settingsCustomHeader">
         <h3>Data Filter & Sort</h3>
-        <p className="settingsHint">Control how suggestions are filtered and sorted by type.</p>
+        <p className="settingsHint">Control which actors and movies are eligible, and whether equal-quality results are sorted by popularity or release year.</p>
+      </div>
+
+      <div className="settingsToggleList">
+        <label className="settingsToggleRow">
+          <span className="settingsToggleText">
+            <strong>Sort equal-quality results</strong>
+            <span className="settingsHint">When on, actors prefer higher popularity and movies prefer newer release years. This is separate from shuffle mode.</span>
+          </span>
+          <button
+            type="button"
+            className={`settingsToggleSwitch${isSortedResultsEnabled ? " settingsToggleSwitch--on" : ""}`}
+            onClick={() => onSortedResultsChange(!isSortedResultsEnabled)}
+            aria-pressed={isSortedResultsEnabled}
+          >
+            <span className="settingsToggleThumb" aria-hidden="true" />
+          </button>
+        </label>
       </div>
 
       <div className="settingsDataFilterRow">
@@ -85,37 +99,7 @@ export default function GameDataFilterPanel({
       </div>
     <p className="settingsHint">Leave empty or remove to disable. When set, movies released before that year are hidden from suggestions.</p>
 
-      <div className="settingsToggleList">
-        <label className="settingsToggleRow">
-          <span className="settingsToggleText">
-			<strong>Sort movies by release year</strong>
-			<span className="settingsHint">When off, movie suggestion lists use a random order. When on, they sort newest first.</span>
-          </span>
-          <button
-            type="button"
-            className={`settingsToggleSwitch${isSortingMoviesByReleaseYear ? " settingsToggleSwitch--on" : ""}`}
-			onClick={() => onMovieSortModeChange(isSortingMoviesByReleaseYear ? "random" : "releaseYear")}
-            aria-pressed={isSortingMoviesByReleaseYear}
-          >
-            <span className="settingsToggleThumb" aria-hidden="true" />
-          </button>
-        </label>
-
-        <label className="settingsToggleRow">
-          <span className="settingsToggleText">
-			<strong>Sort actors by popularity</strong>
-			<span className="settingsHint">When off, actor suggestion lists use a random order. When on, they sort most popular first.</span>
-          </span>
-          <button
-            type="button"
-            className={`settingsToggleSwitch${isSortingActorsByPopularity ? " settingsToggleSwitch--on" : ""}`}
-			onClick={() => onActorSortModeChange(isSortingActorsByPopularity ? "random" : "popularity")}
-            aria-pressed={isSortingActorsByPopularity}
-          >
-            <span className="settingsToggleThumb" aria-hidden="true" />
-          </button>
-        </label>
-      </div>
+  	  <p className="settingsHint">{isSortedResultsEnabled ? "Equal-quality movie results currently prefer newer releases, and actor results prefer higher popularity." : "Equal-quality results currently keep their source ordering instead of popularity or release-year sorting."}</p>
     </div>
   )
 }

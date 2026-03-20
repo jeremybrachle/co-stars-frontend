@@ -10,7 +10,7 @@ type Props = {
   currentSelection: GameNode;
   suggestions: GameNode[];
   suggestionDisplay: SuggestionDisplaySettings;
-  canRandomizeSuggestions: boolean;
+  isShuffleModeEnabled: boolean;
   showSuggestionValues: boolean;
   showHintColors: boolean;
   turns: number;
@@ -66,7 +66,7 @@ function GameRightPanel({
   currentSelection,
   suggestions,
   suggestionDisplay,
-  canRandomizeSuggestions,
+  isShuffleModeEnabled,
   showSuggestionValues,
   showHintColors,
   turns,
@@ -90,40 +90,18 @@ function GameRightPanel({
   const [isSubmittingWriteIn, setIsSubmittingWriteIn] = useState(false);
   const selectionContext = getSuggestionContextLabel(currentSelection);
   const isCycleWarning = errorMessage?.startsWith("Cycle detected:") ?? false;
-  
-  // Determine display modes
-  const isViewingAll = suggestionDisplay.viewMode === "all";
-  const isViewingSubset = suggestionDisplay.viewMode === "subset";
-	const isScrollMode = isViewingAll && suggestionDisplay.allWindowMode === "scroll";
-	const isPaginationMode = isViewingAll && suggestionDisplay.allWindowMode === "pagination";
-  const isRandomMode = canRandomizeSuggestions;
-  
-  const isShuffleDisabled = isCycleWarning || !isRandomMode;
+  const isScrollMode = !isShuffleModeEnabled;
+  const isShuffleDisabled = isCycleWarning || isDisabled || isLoading || isComplete;
   const canShowHintState = showSuggestionValues && showHintColors;
   const windowSize = suggestionDisplay.subsetCount;
-  const [pageIndex, setPageIndex] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(suggestions.length / windowSize));
   
   const visibleSuggestions = useMemo(() => {
-    // Scroll mode (fixed window, all items visible by scrolling)
     if (isScrollMode) {
       return suggestions;
     }
 
-    // Pagination mode (show N items per page)
-    if (isPaginationMode) {
-      const startIndex = pageIndex * windowSize;
-      return suggestions.slice(startIndex, startIndex + windowSize);
-    }
-
-  	// Subset random mode (show first N from randomized list)
-  	if (isRandomMode && isViewingSubset) {
-        return suggestions.slice(0, windowSize);
-    }
-
-    // Subset no-shuffle or fallback (show first N from sorted list)
-      return suggestions.slice(0, windowSize);
-  	}, [isRandomMode, isScrollMode, isPaginationMode, isViewingSubset, pageIndex, suggestions, windowSize]);
+    return suggestions.slice(0, windowSize);
+  }, [isScrollMode, suggestions, windowSize]);
   
   const suggestionSlots = useMemo(
     () => Array.from({ length: isScrollMode ? visibleSuggestions.length : windowSize }, (_, index) => visibleSuggestions[index] ?? null),
@@ -135,16 +113,6 @@ function GameRightPanel({
     () => renderedSuggestions.some((suggestion) => suggestion?.highlight?.kind === "optimal"),
     [renderedSuggestions],
   );
-
-  useEffect(() => {
-    setPageIndex(0);
-  }, [windowSize, suggestions]);
-
-  useEffect(() => {
-    if (pageIndex >= totalPages) {
-      setPageIndex(Math.max(0, totalPages - 1));
-    }
-  }, [pageIndex, totalPages]);
 
   useEffect(() => {
     if (WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isComplete) {
@@ -187,6 +155,7 @@ function GameRightPanel({
             type="button"
             className={`game-right-panel__toolbar-button${isCycleWarning ? " game-right-panel__toolbar-button--highlighted" : ""}`}
             onClick={onBack}
+            disabled={isDisabled || isLoading || isComplete}
             aria-label="Rewind"
             title="Rewind"
           >
@@ -196,21 +165,23 @@ function GameRightPanel({
             <span className="game-right-panel__toolbar-label">Rewind</span>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="game-right-panel__toolbar-button"
-          onClick={onShuffle}
-          disabled={isShuffleDisabled}
-          aria-label="Shuffle"
-          title="Shuffle"
-        >
-          <span className="game-right-panel__toolbar-icon" aria-hidden="true">⟳</span>
-        </button>
+        {isShuffleModeEnabled ? (
+          <button
+            type="button"
+            className="game-right-panel__toolbar-button"
+            onClick={onShuffle}
+            disabled={isShuffleDisabled}
+            aria-label="Shuffle"
+            title="Shuffle"
+          >
+            <span className="game-right-panel__toolbar-icon" aria-hidden="true">⟳</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="game-right-panel__toolbar-button"
           onClick={onReverse}
-          disabled={isCycleWarning}
+          disabled={isCycleWarning || isDisabled || isLoading || isComplete}
           aria-label="Swap"
           title="Swap"
         >
@@ -225,36 +196,10 @@ function GameRightPanel({
         </div>
 
         <div className="game-right-panel__helper-copy">
-          {isViewingAll
-            ? isScrollMode
-              ? `Scrolling through all suggestions.`
-              : `Paginating all suggestions (page ${Math.min(totalPages, pageIndex + 1)} / ${totalPages}).`
-			: isRandomMode
-			? `Random mode shows ${windowSize} suggestions from a reshuffled list. Click shuffle to regenerate.`
-            : `Showing next ${windowSize} suggestions.`}
+          {isShuffleModeEnabled
+            ? `Shuffle mode shows ${windowSize} cards from a reshuffled list. Click shuffle to reroll.`
+            : "Scrolling through the full ranked suggestion list."}
         </div>
-
-        {isPaginationMode ? (
-                <div className="game-right-panel__pagination">
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-                    disabled={pageIndex <= 0 || isDisabled || isLoading}
-                  >
-                    Prev
-                  </button>
-                  <span className="game-right-panel__pagination-label">Page {Math.min(totalPages, pageIndex + 1)} / {totalPages}</span>
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.min(totalPages - 1, current + 1))}
-                    disabled={pageIndex >= totalPages - 1 || isDisabled || isLoading}
-                  >
-                    Next
-                  </button>
-                </div>
-              ) : null}
 
         {errorMessage ? <div className="game-right-panel__message game-right-panel__message--error">{errorMessage}</div> : null}
         {isLoading ? <div className="game-right-panel__message">{isRiskAnalysisEnabled ? "Refreshing suggestions and analyzing path risks…" : "Refreshing live suggestions…"}</div> : null}
@@ -334,29 +279,6 @@ function GameRightPanel({
                   );
                 })}
               </div>
-
-              {isPaginationMode ? (
-                <div className="game-right-panel__pagination">
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-                    disabled={pageIndex <= 0 || isDisabled || isLoading}
-                  >
-                    Prev
-                  </button>
-                  <span className="game-right-panel__pagination-label">Page {Math.min(totalPages, pageIndex + 1)} / {totalPages}</span>
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.min(totalPages - 1, current + 1))}
-                    disabled={pageIndex >= totalPages - 1 || isDisabled || isLoading}
-                  >
-                    Next
-                  </button>
-                </div>
-              ) : null}
-
               {isWriteInOpen ? (
                 <div className="game-right-panel__write-in-panel">
                   <input
@@ -416,12 +338,17 @@ function GameRightPanel({
             <span className="game-right-panel__score-value">{turns}</span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
-            <span className="game-right-panel__score-label">Shuffles:</span>
-            <span className="game-right-panel__score-value">{shuffles}</span>
-          </div>
-          <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
             <span className="game-right-panel__score-label">Rewinds:</span>
             <span className="game-right-panel__score-value">{rewinds}</span>
+          </div>
+          <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
+            <span className="game-right-panel__score-label">Shuffles:</span>
+            <span
+              className="game-right-panel__score-value"
+              title={isShuffleModeEnabled ? undefined : "penalty will be applied for non-shuffled game"}
+            >
+              {isShuffleModeEnabled ? shuffles : "N/A"}
+            </span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
             <span className="game-right-panel__score-label">Dead-ends:</span>

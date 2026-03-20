@@ -185,11 +185,13 @@ export type DifficultySettings = Record<DifficultyToggleId, boolean>;
 
 export type SuggestionViewMode = "all" | "subset";
 export type SuggestionWindowMode = "pagination" | "scroll";
+export type SuggestionOrderMode = "ranked" | "shuffled";
 
 export type SuggestionDisplaySettings = {
 	viewMode: SuggestionViewMode;
 	subsetCount: number;
 	allWindowMode: SuggestionWindowMode;
+	orderMode: SuggestionOrderMode;
 };
 
 export type GameDataFilters = {

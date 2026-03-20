@@ -102,6 +102,17 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					},
 				});
 			},
+			setSuggestionOrderMode: (mode: "ranked" | "shuffled") => {
+				persistSettings({
+					...settings,
+					suggestionDisplay: {
+						...settings.suggestionDisplay,
+						viewMode: mode === "shuffled" ? "subset" : "all",
+						allWindowMode: "scroll",
+						orderMode: mode,
+					},
+				});
+			},
 		}),
 		[settings],
 	);

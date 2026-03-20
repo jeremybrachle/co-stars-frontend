@@ -7,6 +7,8 @@ export type SavedLevelAttempt = {
   score: number;
   hops: number;
   shuffles: number;
+  shuffleModeEnabled: boolean;
+  appliedShufflePenaltyCount: number;
   rewinds: number;
   deadEnds: number;
   timestamp: number;
@@ -25,6 +27,8 @@ type SaveLevelAttemptInput = {
   score: number;
   hops: number;
   shuffles: number;
+  shuffleModeEnabled: boolean;
+  appliedShufflePenaltyCount: number;
   rewinds: number;
   deadEnds: number;
   timestamp?: number;
@@ -57,6 +61,8 @@ function createAttemptSignature(input: SaveLevelAttemptInput) {
     input.hops,
     input.score.toFixed(1),
     input.shuffles,
+    input.shuffleModeEnabled ? "shuffle-on" : "shuffle-off",
+    input.appliedShufflePenaltyCount,
     input.rewinds,
     input.deadEnds,
   ].join("|");
@@ -118,6 +124,8 @@ function isSavedLevelAttempt(value: unknown): value is SavedLevelAttempt {
     && typeof candidate.score === "number"
     && typeof candidate.hops === "number"
     && typeof candidate.shuffles === "number"
+    && (candidate.shuffleModeEnabled === undefined || typeof candidate.shuffleModeEnabled === "boolean")
+    && (candidate.appliedShufflePenaltyCount === undefined || typeof candidate.appliedShufflePenaltyCount === "number")
     && typeof candidate.rewinds === "number"
     && typeof candidate.deadEnds === "number"
     && typeof candidate.timestamp === "number"
@@ -233,6 +241,8 @@ export function saveLevelAttempt(endpointA: string, endpointB: string, input: Sa
     score: Math.round(input.score * 10) / 10,
     hops: input.hops,
     shuffles: input.shuffles,
+    shuffleModeEnabled: input.shuffleModeEnabled,
+    appliedShufflePenaltyCount: input.appliedShufflePenaltyCount,
     rewinds: input.rewinds,
     deadEnds: input.deadEnds,
     timestamp,

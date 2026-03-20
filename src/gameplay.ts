@@ -106,8 +106,7 @@ function createComparatorBySort(
 
 		// Apply per-type sorting
 		if (a.type === "movie" && b.type === "movie") {
-			// Both are movies
-			if (movieSortMode === "releaseYear" || movieSortMode === "random") {
+			if (movieSortMode === "releaseYear") {
 				const aYear = a.releaseDate ? new Date(a.releaseDate).getFullYear() : 0;
 				const bYear = b.releaseDate ? new Date(b.releaseDate).getFullYear() : 0;
 				if (aYear !== bYear) {
@@ -115,8 +114,7 @@ function createComparatorBySort(
 				}
 			}
 		} else if (a.type === "actor" && b.type === "actor") {
-			// Both are actors
-			if (actorSortMode === "popularity" || actorSortMode === "random") {
+			if (actorSortMode === "popularity") {
 				const popularityDelta = (b.popularity ?? -1) - (a.popularity ?? -1);
 				if (popularityDelta !== 0) {
 					return popularityDelta;
@@ -124,9 +122,11 @@ function createComparatorBySort(
 			}
 		}
 
-		const recencyDelta = getRecencyScore(b) - getRecencyScore(a);
-		if (recencyDelta !== 0) {
-			return recencyDelta;
+		if (movieSortMode === "releaseYear") {
+			const recencyDelta = getRecencyScore(b) - getRecencyScore(a);
+			if (recencyDelta !== 0) {
+				return recencyDelta;
+			}
 		}
 
 		return getTieBreakerLabel(a).localeCompare(getTieBreakerLabel(b));
@@ -172,7 +172,9 @@ export function buildSuggestionSet(
 		.filter((suggestion) => !featured.has(getNodeKey(suggestion)))
 		.map((suggestion) => ({
 			suggestion,
-			score: getHintScore(suggestion) + getPopularityScore(suggestion) + getRecencyScore(suggestion),
+			score: getHintScore(suggestion)
+				+ (suggestion.type === "actor" && actorSortMode === "popularity" ? getPopularityScore(suggestion) : 0)
+				+ (suggestion.type === "movie" && movieSortMode === "releaseYear" ? getRecencyScore(suggestion) : 0),
 		}))
 		.sort((a, b) => {
 			if (b.score !== a.score) {
@@ -183,9 +185,10 @@ export function buildSuggestionSet(
 		})
 		.map((entry) => entry.suggestion);
 
-	const allRanked = [...featured.values(), ...rankedRemainder];
-	const shuffledAll = shouldShuffle ? shuffleSuggestions(allRanked) : allRanked;
-	const selected = suggestionLimit === null ? shuffledAll : shuffledAll.slice(0, suggestionLimit);
+	const featuredSuggestions = [...featured.values()];
+	const orderedRemainder = shouldShuffle ? shuffleSuggestions(rankedRemainder) : rankedRemainder;
+	const allRanked = [...featuredSuggestions, ...orderedRemainder];
+	const selected = suggestionLimit === null ? allRanked : allRanked.slice(0, suggestionLimit);
 	const bestReachableSteps = reachableSuggestions[0]?.pathHint?.stepsToTarget ?? null;
 
 	return selected.map((suggestion) => {

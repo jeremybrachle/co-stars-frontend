@@ -2,67 +2,43 @@ import type { SuggestionDisplaySettings } from "../types"
 
 export default function SuggestionDisplaySettingsPanel({
   suggestionDisplay,
-  onViewModeChange,
   onSubsetCountChange,
-  onAllWindowModeChange,
+  onOrderModeChange,
   className = "",
 }: {
   suggestionDisplay: SuggestionDisplaySettings
-  onViewModeChange: (mode: SuggestionDisplaySettings["viewMode"]) => void
   onSubsetCountChange: (count: number) => void
-  onAllWindowModeChange: (mode: SuggestionDisplaySettings["allWindowMode"]) => void
+  onOrderModeChange: (mode: SuggestionDisplaySettings["orderMode"]) => void
   className?: string
 }) {
-  const isViewingAll = suggestionDisplay.viewMode === "all"
-  const isViewingSubset = suggestionDisplay.viewMode === "subset"
-  const isScrollMode = suggestionDisplay.allWindowMode === "scroll"
+  const isShuffleMode = suggestionDisplay.orderMode === "shuffled"
 
   return (
     <div className={`settingsCustomPanel${className ? ` ${className}` : ""}`}>
       <div className="settingsCustomHeader">
         <h3>Suggestion Display</h3>
-  		<p className="settingsHint">Choose how many suggestions are visible at once and whether the full list scrolls or paginates.</p>
+		<p className="settingsHint">Choose between a full ranked scroll list or a shuffled card window.</p>
       </div>
 
       <div className="settingsToggleList">
-        {/* View Mode Toggle */}
         <label className="settingsToggleRow">
           <span className="settingsToggleText">
-            <strong>View all suggestions</strong>
-            <span className="settingsHint">Show entire ranked list at once (all) or a subset (2-10).</span>
+            <strong>Shuffle suggestion list</strong>
+            <span className="settingsHint">When off, the board shows every ranked suggestion in one scrollable list. When on, the board shows a shuffled fixed-size set and enables rerolls.</span>
           </span>
           <button
             type="button"
-            className={`settingsToggleSwitch${isViewingAll ? " settingsToggleSwitch--on" : ""}`}
-            onClick={() => onViewModeChange(isViewingAll ? "subset" : "all")}
-            aria-pressed={isViewingAll}
+            className={`settingsToggleSwitch${isShuffleMode ? " settingsToggleSwitch--on" : ""}`}
+            onClick={() => onOrderModeChange(isShuffleMode ? "ranked" : "shuffled")}
+            aria-pressed={isShuffleMode}
           >
             <span className="settingsToggleThumb" aria-hidden="true" />
           </button>
         </label>
 
-        {/* All Window Mode - Only shown in full list mode */}
-        {isViewingAll && (
-          <label className="settingsToggleRow">
-            <span className="settingsToggleText">
-              <strong>Use scroll window</strong>
-              <span className="settingsHint">Scroll through fixed-height window or page through suggestions.</span>
-            </span>
-            <button
-              type="button"
-              className={`settingsToggleSwitch${isScrollMode ? " settingsToggleSwitch--on" : ""}`}
-              onClick={() => onAllWindowModeChange(isScrollMode ? "pagination" : "scroll")}
-              aria-pressed={isScrollMode}
-            >
-              <span className="settingsToggleThumb" aria-hidden="true" />
-            </button>
-          </label>
-        )}
-
-        {/* Subset Count - Only shown in subset mode */}
-        {isViewingSubset && (
+        {isShuffleMode ? (
           <label className="settingsDataFilterField">
-            <span>Suggestions visible in subset</span>
+            <span>Visible cards in shuffled mode</span>
             <input
               type="range"
               min={2}
@@ -73,22 +49,8 @@ export default function SuggestionDisplaySettingsPanel({
             />
             <span className="settingsHint">Current: {suggestionDisplay.subsetCount}</span>
           </label>
-        )}
-
-        {/* Count selector for All mode - shown when viewing all */}
-        {isViewingAll && (
-          <label className="settingsDataFilterField">
-            <span>Items per window/page</span>
-            <input
-              type="range"
-              min={2}
-              max={10}
-              step={1}
-              value={suggestionDisplay.subsetCount}
-              onChange={(event) => onSubsetCountChange(Number(event.target.value))}
-            />
-            <span className="settingsHint">Current: {suggestionDisplay.subsetCount}</span>
-          </label>
+        ) : (
+          <p className="settingsHint">Shuffle score shows N/A in ranked mode. A fixed penalty is applied only if the game ends with shuffle mode turned off.</p>
         )}
       </div>
     </div>

@@ -18,9 +18,10 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
 ]
 
 function SettingsPage() {
-  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSuggestionViewMode, setSubsetCount, setAllWindowMode } = useGameSettings()
+  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSubsetCount, setSuggestionOrderMode } = useGameSettings()
   const [activeTab, setActiveTab] = useState<SettingsTabId>("info")
   const { customSettings, dataFilters, suggestionDisplay } = settings
+  const isSortedResultsEnabled = dataFilters.movieSortMode === "releaseYear" && dataFilters.actorSortMode === "popularity"
   const activeCustomLabel = useMemo(
     () => CUSTOM_SETTING_DEFINITIONS.filter((setting) => customSettings[setting.id]).map((setting) => setting.label).join(" • "),
     [customSettings],
@@ -68,7 +69,7 @@ function SettingsPage() {
             <div className="settingsHowToGrid">
               <p className="settingsHint">Build a path that alternates actor and movie nodes until the two endpoints connect.</p>
               <p className="settingsHint">Use the right panel to choose the next node and the left panel to inspect the route you are building.</p>
-              <p className="settingsHint">Shuffle rerolls suggestions, rewinds remove the latest move on the active branch, and the run ends when both sides meet or the target is reached directly.</p>
+              <p className="settingsHint">By default you see the full ranked suggestion list. You can switch to shuffled suggestions later from Gameplay Settings if you want rerolls instead.</p>
             </div>
           </section>
         ) : null}
@@ -95,17 +96,19 @@ function SettingsPage() {
 
             <GameDataFilterPanel
               dataFilters={dataFilters}
+              isSortedResultsEnabled={isSortedResultsEnabled}
+              onSortedResultsChange={(enabled) => {
+                setMovieSortMode(enabled ? "releaseYear" : "random")
+                setActorSortMode(enabled ? "popularity" : "random")
+              }}
               onActorPopularityCutoffChange={setActorPopularityCutoff}
               onReleaseYearCutoffChange={setReleaseYearCutoff}
-              onMovieSortModeChange={setMovieSortMode}
-              onActorSortModeChange={setActorSortMode}
             />
 
             <SuggestionDisplaySettingsPanel
               suggestionDisplay={suggestionDisplay}
-              onViewModeChange={setSuggestionViewMode}
               onSubsetCountChange={setSubsetCount}
-              onAllWindowModeChange={setAllWindowMode}
+              onOrderModeChange={setSuggestionOrderMode}
             />
           </section>
         ) : null}

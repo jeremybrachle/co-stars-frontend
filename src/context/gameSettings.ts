@@ -92,9 +92,10 @@ export const DEFAULT_DATA_FILTERS: GameDataFilters = {
 };
 
 export const DEFAULT_SUGGESTION_DISPLAY: SuggestionDisplaySettings = {
-	viewMode: "subset",
-	subsetCount: 8,
-	allWindowMode: "pagination",
+	viewMode: "all",
+	subsetCount: 10,
+	allWindowMode: "scroll",
+	orderMode: "ranked",
 };
 
 export const DEFAULT_GAME_SETTINGS: GameDifficultySettings = {
@@ -115,6 +116,7 @@ export type GameSettingsContextValue = {
 	setSuggestionViewMode: (mode: SuggestionDisplaySettings["viewMode"]) => void;
 	setSubsetCount: (count: number) => void;
 	setAllWindowMode: (mode: SuggestionDisplaySettings["allWindowMode"]) => void;
+	setSuggestionOrderMode: (mode: SuggestionDisplaySettings["orderMode"]) => void;
 };
 
 export const GameSettingsContext = createContext<GameSettingsContextValue | null>(null);
@@ -162,7 +164,8 @@ function isSuggestionDisplaySettings(value: unknown): value is SuggestionDisplay
 		Number.isFinite(obj.subsetCount) &&
 		obj.subsetCount >= 2 &&
 		obj.subsetCount <= 10 &&
-		(obj.allWindowMode === "pagination" || obj.allWindowMode === "scroll")
+		(obj.allWindowMode === "pagination" || obj.allWindowMode === "scroll") &&
+		(obj.orderMode === "ranked" || obj.orderMode === "shuffled")
 	);
 }
 
@@ -182,10 +185,14 @@ export function readStoredGameSettings(): GameDifficultySettings {
 			return DEFAULT_GAME_SETTINGS;
 		}
 
+		const normalizedDataFilters = isGameDataFilters(parsed.dataFilters)
+			? parsed.dataFilters
+			: { ...DEFAULT_DATA_FILTERS };
+
 		return {
 			difficulty: parsed.difficulty,
 			customSettings: parsed.customSettings,
-			dataFilters: isGameDataFilters(parsed.dataFilters) ? parsed.dataFilters : { ...DEFAULT_DATA_FILTERS },
+			dataFilters: normalizedDataFilters,
 			suggestionDisplay: isSuggestionDisplaySettings(parsed.suggestionDisplay)
 				? parsed.suggestionDisplay
 				: { ...DEFAULT_SUGGESTION_DISPLAY },
