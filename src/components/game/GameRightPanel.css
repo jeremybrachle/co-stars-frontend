@@ -765,7 +765,7 @@
   width: calc(100% - 24px);
   max-width: calc(100% - 24px);
   justify-content: center;
-  grid-template-columns: 1.25fr repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   padding: 8px 12px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;

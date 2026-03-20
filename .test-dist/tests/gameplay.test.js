@@ -69,3 +69,55 @@ function createActorSuggestion(label, popularity, stepsToTarget) {
     });
     strict_1.default.deepEqual(result.map((entry) => entry.label), ["Less Popular Shorter Path", "Popular Longer Path"]);
 });
+(0, node_test_1.default)("getNodeKey falls back to normalized labels when ids are missing", () => {
+    strict_1.default.equal((0, gameplay_1.getNodeKey)({ type: "actor", label: "  Brad Pitt  " }), "actor:brad pitt");
+    strict_1.default.equal((0, gameplay_1.getNodeKey)({ id: 7, type: "movie", label: "Ignored" }), "movie:7");
+});
+(0, node_test_1.default)("isSameNode matches by id when present and falls back to normalized labels", () => {
+    strict_1.default.equal((0, gameplay_1.isSameNode)({ id: 5, type: "actor", label: "Actor A" }, { id: 5, type: "actor", label: "Someone Else" }), true);
+    strict_1.default.equal((0, gameplay_1.isSameNode)({ type: "movie", label: " Ocean's Eleven " }, { type: "movie", label: "ocean's eleven" }), true);
+    strict_1.default.equal((0, gameplay_1.isSameNode)({ type: "movie", label: "Ocean's Eleven" }, { type: "actor", label: "Ocean's Eleven" }), false);
+});
+(0, node_test_1.default)("isDirectConnectionSuggestion only returns true for reachable hints ending at the target", () => {
+    const target = { id: 999, label: "Target", type: "actor" };
+    strict_1.default.equal((0, gameplay_1.isDirectConnectionSuggestion)({
+        id: 1,
+        label: "Direct",
+        type: "movie",
+        pathHint: {
+            reachable: true,
+            stepsToTarget: 1,
+            path: [{ id: 999, label: "Target", type: "actor" }],
+        },
+    }, target), true);
+    strict_1.default.equal((0, gameplay_1.isDirectConnectionSuggestion)({
+        id: 2,
+        label: "Wrong Target",
+        type: "movie",
+        pathHint: {
+            reachable: true,
+            stepsToTarget: 1,
+            path: [{ id: 7, label: "Other", type: "actor" }],
+        },
+    }, target), false);
+});
+(0, node_test_1.default)("buildSuggestionSet marks blocked loop nodes with a blocked highlight", () => {
+    const target = { id: 999, label: "Target", type: "actor" };
+    const suggestions = [
+        createActorSuggestion("Blocked Route", 60, 2),
+        createActorSuggestion("Open Route", 40, 1),
+    ];
+    const result = (0, gameplay_1.buildSuggestionSet)(suggestions, target, new Set([(0, gameplay_1.getNodeKey)(suggestions[0])]), {
+        shouldShuffle: false,
+        sortMode: "default",
+        suggestionLimit: null,
+    });
+    strict_1.default.equal(result.find((entry) => entry.label === "Blocked Route")?.highlight?.kind, "blocked");
+});
+(0, node_test_1.default)("combineMeetingPath joins top and bottom routes only when they meet at the same node", () => {
+    const startA = { id: 1, label: "Actor A", type: "actor" };
+    const meeting = { id: 10, label: "Shared Movie", type: "movie" };
+    const startB = { id: 2, label: "Actor B", type: "actor" };
+    strict_1.default.deepEqual((0, gameplay_1.combineMeetingPath)(startA, [meeting], startB, [meeting]), [startA, meeting, startB]);
+    strict_1.default.equal((0, gameplay_1.combineMeetingPath)(startA, [meeting], startB, [{ id: 11, label: "Different Movie", type: "movie" }]), null);
+});

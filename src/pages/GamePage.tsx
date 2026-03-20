@@ -1271,6 +1271,22 @@ function GamePage() {
       : suggestions.filter((suggestion) => suggestion.highlight?.kind !== "blocked");
   }, [showVisitedSuggestions, suggestions]);
 
+  const hiddenPanelMessage = useMemo(() => {
+    if (isSuggestionPanelVisible || !displayedSuggestionError) {
+      return null;
+    }
+
+    if (
+      displayedSuggestionError.startsWith("Cycle")
+      || displayedSuggestionError.startsWith("Game over:")
+      || displayedSuggestionError.toLowerCase().includes("dead-end")
+    ) {
+      return displayedSuggestionError;
+    }
+
+    return null;
+  }, [displayedSuggestionError, isSuggestionPanelVisible]);
+
   const applyActorPopularityFilter = useCallback((nextSuggestions: GameNode[]) => {
     return nextSuggestions.filter((suggestion) => {
       // Apply actor popularity cutoff
@@ -2467,6 +2483,14 @@ function GamePage() {
       writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
       isSubmittingWriteIn={isSubmittingLeftPanelWriteIn}
       isSuggestionPanelVisible={isSuggestionPanelVisible}
+      turns={turns}
+      rewinds={rewinds}
+      shuffles={shuffles}
+      deadEndPenalties={deadEndPenalties}
+      shuffleAddsPenalty={shuffleAddsPenalty}
+      rewindAddsPenalty={rewindAddsPenalty}
+      deadEndAddsPenalty={cycleRiskClickAddsPenalty}
+      hiddenPanelMessage={hiddenPanelMessage}
       suggestionTargetType={currentSelection?.type === "movie" ? "actor" : "movie"}
       onSelectSide={setSelectedSide}
       onInspectNode={(node) => {

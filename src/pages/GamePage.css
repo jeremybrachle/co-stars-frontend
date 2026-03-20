@@ -142,8 +142,8 @@
 }
 
 .gameContainer--solo-panel > .game-left-panel {
-  flex: 0 1 920px;
-  width: min(100%, 920px);
+  flex: 0 1 1020px;
+  width: min(100%, 1020px);
 }
 
 .gameContainer--with-pinned-summary {

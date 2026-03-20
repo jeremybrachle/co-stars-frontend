@@ -15,6 +15,10 @@
   border: 3px solid rgba(0, 0, 0, 0.15);
 }
 
+.game-left-panel--suggestions-hidden {
+  gap: 14px;
+}
+
 .game-left-panel__status-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -153,6 +157,80 @@
   padding: 12px 16px 6px;
   min-height: 0;
   overflow: visible;
+}
+
+.game-left-panel__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-left-panel__score-panel {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 10px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  color: white;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+.game-left-panel__score-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
+}
+
+.game-left-panel__score-item + .game-left-panel__score-item {
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.game-left-panel__score-label {
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.game-left-panel__score-value {
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.game-left-panel__score-value--penalty {
+  color: rgba(248, 113, 113, 0.92);
+}
+
+.game-left-panel__hidden-message {
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.36);
+  background: rgba(127, 29, 29, 0.28);
+  color: rgba(254, 242, 242, 0.96);
+  font-size: 0.79rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.game-left-panel__hidden-message {
+  width: 100%;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.game-left-panel__hidden-message--top {
+  margin-top: -4px;
+  margin-bottom: -2px;
+}
+
+.game-left-panel__hidden-message--bottom {
+  margin-top: -2px;
+  margin-bottom: -4px;
 }
 
 .game-left-panel__completed-shell {

@@ -368,7 +368,7 @@ function GameRightPanel({
 
         <div className="game-right-panel__score-panel">
           <div className="game-right-panel__score-item">
-            <span className="game-right-panel__score-label">Turns</span>
+            <span className="game-right-panel__score-label">Turns:</span>
             <span className="game-right-panel__score-value">{turns}</span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">

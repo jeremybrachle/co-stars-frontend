@@ -55,6 +55,14 @@ type Props = {
   writeInAutoSuggestEnabled: boolean;
   isSubmittingWriteIn: boolean;
   isSuggestionPanelVisible: boolean;
+  turns: number;
+  rewinds: number;
+  shuffles: number;
+  deadEndPenalties: number;
+  shuffleAddsPenalty: boolean;
+  rewindAddsPenalty: boolean;
+  deadEndAddsPenalty: boolean;
+  hiddenPanelMessage: string | null;
   suggestionTargetType: NodeType;
   onSelectSide: (side: SelectedSide) => void;
   onInspectNode: (node: GameNode) => void;
@@ -183,6 +191,15 @@ function BoardWriteInBox({
           {isSubmitting ? "…" : "Go"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function renderHiddenPanelStat(label: string, value: number | "N/A", isPenalty = false) {
+  return (
+    <div className="game-left-panel__score-item">
+      <span className="game-left-panel__score-label">{label}</span>
+      <span className={`game-left-panel__score-value${isPenalty ? " game-left-panel__score-value--penalty" : ""}`}>{value}</span>
     </div>
   );
 }
@@ -511,6 +528,14 @@ function GameLeftPanel({
   writeInAutoSuggestEnabled,
   isSubmittingWriteIn,
   isSuggestionPanelVisible,
+  turns,
+  rewinds,
+  shuffles,
+  deadEndPenalties,
+  shuffleAddsPenalty,
+  rewindAddsPenalty,
+  deadEndAddsPenalty,
+  hiddenPanelMessage,
   suggestionTargetType,
   onSelectSide,
   onInspectNode,
@@ -528,6 +553,9 @@ function GameLeftPanel({
   const bottomFontSize = Math.max(minFont, baseFont - bottomPath.length * 2);
   const isBoardLocked = topPath.length + bottomPath.length >= MAX_PATH_LENGTH;
   const cappedSide = isBoardLocked ? lockedSide : null;
+  const shouldShowHiddenPanelFooter = !completedPath && !isSuggestionPanelVisible;
+  const shouldShowTopWarning = shouldShowHiddenPanelFooter && Boolean(hiddenPanelMessage) && selectedSide === "top";
+  const shouldShowBottomWarning = shouldShowHiddenPanelFooter && Boolean(hiddenPanelMessage) && selectedSide === "bottom";
 
   const topBoardState = buildBoardTokens({
     path: topPath,
@@ -579,7 +607,7 @@ function GameLeftPanel({
   });
 
   return (
-    <section className="game-left-panel">
+    <section className={`game-left-panel${shouldShowHiddenPanelFooter ? " game-left-panel--suggestions-hidden" : ""}`}>
       <div className="game-left-panel__status-row">
         <div className="game-left-panel__status-slot game-left-panel__status-slot--left">
           <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
@@ -614,6 +642,8 @@ function GameLeftPanel({
       ) : (
         <>
           {renderEndpoint(actorA, "top", selectedSide === "top", onInspectNode)}
+
+          {shouldShowTopWarning ? <div className="game-left-panel__hidden-message game-left-panel__hidden-message--top">{hiddenPanelMessage}</div> : null}
 
           <div className="game-left-panel__path-area">
             <div className="game-left-panel__board">
@@ -658,7 +688,20 @@ function GameLeftPanel({
             </div>
           </div>
 
+          {shouldShowBottomWarning ? <div className="game-left-panel__hidden-message game-left-panel__hidden-message--bottom">{hiddenPanelMessage}</div> : null}
+
           {renderEndpoint(actorB, "bottom", selectedSide === "bottom", onInspectNode)}
+
+          {shouldShowHiddenPanelFooter ? (
+            <div className="game-left-panel__footer">
+              <div className="game-left-panel__score-panel">
+                {renderHiddenPanelStat("Turns:", turns)}
+                {renderHiddenPanelStat("Rewinds:", rewindAddsPenalty ? rewinds : "N/A")}
+                {renderHiddenPanelStat("Shuffles:", shuffleAddsPenalty ? shuffles : "N/A")}
+                {renderHiddenPanelStat("Dead-ends:", deadEndAddsPenalty ? deadEndPenalties : "N/A", deadEndAddsPenalty && deadEndPenalties > 0)}
+              </div>
+            </div>
+          ) : null}
         </>
       )}
     </section>

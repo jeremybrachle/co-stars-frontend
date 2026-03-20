@@ -39,11 +39,13 @@ function withMockWindow(storedValue, callback) {
     }
 }
 (0, node_test_1.default)("default custom settings include the new suggestion-list and penalty toggles", () => {
+    strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["start-with-suggestion-panel"], true);
     strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["show-visited-suggestions"], true);
     strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["shuffle-adds-penalty"], true);
     strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["rewind-adds-penalty"], true);
     strict_1.default.equal(gameSettings_1.DEFAULT_CUSTOM_SETTINGS["cycle-risk-click-adds-penalty"], true);
     const ids = gameSettings_1.CUSTOM_SETTING_DEFINITIONS.map((setting) => setting.id);
+    strict_1.default.ok(ids.includes("start-with-suggestion-panel"));
     strict_1.default.ok(ids.includes("show-visited-suggestions"));
     strict_1.default.ok(ids.includes("shuffle-adds-penalty"));
     strict_1.default.ok(ids.includes("rewind-adds-penalty"));
@@ -145,4 +147,41 @@ function withMockWindow(storedValue, callback) {
         const settings = (0, gameSettings_1.readStoredGameSettings)();
         strict_1.default.equal(settings.difficulty, "all-on");
     });
+});
+(0, node_test_1.default)("inferDifficultyPreset reports custom when any toggle differs from the presets", () => {
+    strict_1.default.equal((0, gameSettings_1.inferDifficultyPreset)(gameSettings_1.ALL_ON_CUSTOM_SETTINGS), "all-on");
+    strict_1.default.equal((0, gameSettings_1.inferDifficultyPreset)(gameSettings_1.ALL_OFF_CUSTOM_SETTINGS), "all-off");
+    strict_1.default.equal((0, gameSettings_1.inferDifficultyPreset)({
+        ...gameSettings_1.ALL_ON_CUSTOM_SETTINGS,
+        "show-suggestions": false,
+    }), "custom");
+});
+(0, node_test_1.default)("getDifficultyPresetSettings returns cloned preset values and null for custom", () => {
+    const allOn = (0, gameSettings_1.getDifficultyPresetSettings)("all-on");
+    const allOff = (0, gameSettings_1.getDifficultyPresetSettings)("all-off");
+    strict_1.default.deepEqual(allOn, gameSettings_1.ALL_ON_CUSTOM_SETTINGS);
+    strict_1.default.deepEqual(allOff, gameSettings_1.ALL_OFF_CUSTOM_SETTINGS);
+    strict_1.default.notEqual(allOn, gameSettings_1.ALL_ON_CUSTOM_SETTINGS);
+    strict_1.default.notEqual(allOff, gameSettings_1.ALL_OFF_CUSTOM_SETTINGS);
+    strict_1.default.equal((0, gameSettings_1.getDifficultyPresetSettings)("custom"), null);
+});
+(0, node_test_1.default)("applyDifficultyToSuggestionDisplay normalizes all-on and all-off display defaults", () => {
+    const base = {
+        ...gameSettings_1.DEFAULT_GAME_SETTINGS.suggestionDisplay,
+        viewMode: "subset",
+        allWindowMode: "pagination",
+        orderMode: "shuffled",
+    };
+    strict_1.default.deepEqual((0, gameSettings_1.applyDifficultyToSuggestionDisplay)("all-on", base), {
+        ...base,
+        viewMode: "all",
+        allWindowMode: "scroll",
+        orderMode: "ranked",
+    });
+    strict_1.default.deepEqual((0, gameSettings_1.applyDifficultyToSuggestionDisplay)("all-off", base), {
+        ...base,
+        viewMode: "subset",
+        orderMode: "shuffled",
+    });
+    strict_1.default.equal((0, gameSettings_1.applyDifficultyToSuggestionDisplay)("custom", base), base);
 });

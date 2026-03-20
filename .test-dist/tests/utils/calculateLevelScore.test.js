@@ -50,3 +50,27 @@ const calculateLevelScore_1 = require("../../src/utils/calculateLevelScore");
         deadEnds: 0,
     }), 95);
 });
+(0, node_test_1.default)("getEffectiveTurnCount normalizes negative and fractional counts", () => {
+    strict_1.default.equal((0, calculateLevelScore_1.getEffectiveTurnCount)({
+        turns: -2,
+        shuffles: 1.7,
+        rewinds: 2.2,
+        deadEnds: -4,
+    }), 4);
+});
+(0, node_test_1.default)("buildLevelScoreBreakdown reports raw components used in the final score", () => {
+    const breakdown = (0, calculateLevelScore_1.buildLevelScoreBreakdown)({
+        hops: 4,
+        optimalHops: 2,
+        turns: 3,
+        suggestionAssists: 2,
+        shuffles: 1,
+        rewinds: 0,
+        deadEnds: 1,
+    });
+    strict_1.default.equal(breakdown.effectiveTurns, 5);
+    strict_1.default.equal(breakdown.suggestionPenalty, 10);
+    strict_1.default.equal(breakdown.hopEfficiency, 0.5);
+    strict_1.default.equal(breakdown.turnEfficiency, 0.4);
+    strict_1.default.equal(breakdown.finalScore, 35);
+});

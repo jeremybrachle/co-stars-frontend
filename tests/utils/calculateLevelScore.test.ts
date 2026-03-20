@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { calculateLevelScore } from "../../src/utils/calculateLevelScore";
+import { buildLevelScoreBreakdown, calculateLevelScore, getEffectiveTurnCount } from "../../src/utils/calculateLevelScore";
 
 test("calculateLevelScore returns 100 for an optimal clean run", () => {
   assert.equal(calculateLevelScore({
@@ -48,4 +48,31 @@ test("calculateLevelScore applies a flat suggestion-assist penalty", () => {
     rewinds: 0,
     deadEnds: 0,
   }), 95);
+});
+
+test("getEffectiveTurnCount normalizes negative and fractional counts", () => {
+  assert.equal(getEffectiveTurnCount({
+    turns: -2,
+    shuffles: 1.7,
+    rewinds: 2.2,
+    deadEnds: -4,
+  }), 4);
+});
+
+test("buildLevelScoreBreakdown reports raw components used in the final score", () => {
+  const breakdown = buildLevelScoreBreakdown({
+    hops: 4,
+    optimalHops: 2,
+    turns: 3,
+    suggestionAssists: 2,
+    shuffles: 1,
+    rewinds: 0,
+    deadEnds: 1,
+  });
+
+  assert.equal(breakdown.effectiveTurns, 5);
+  assert.equal(breakdown.suggestionPenalty, 10);
+  assert.equal(breakdown.hopEfficiency, 0.5);
+  assert.equal(breakdown.turnEfficiency, 0.4);
+  assert.equal(breakdown.finalScore, 35);
 });
