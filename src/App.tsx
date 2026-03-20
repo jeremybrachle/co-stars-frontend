@@ -1,5 +1,6 @@
 import AppRouter from "./router/AppRouter"
 import Footer from "./components/Footer"
+import { BrowserRouter } from "react-router-dom"
 import { DataSourceModeProvider } from "./context/DataSourceModeContext"
 import { GameSettingsProvider } from "./context/GameSettingsContext"
 import { SnapshotDataProvider } from "./context/SnapshotDataContext"
@@ -9,10 +10,12 @@ function App() {
     <DataSourceModeProvider>
       <GameSettingsProvider>
         <SnapshotDataProvider>
-          <div>
-            <AppRouter />
-            <Footer />
-          </div>
+          <BrowserRouter>
+            <div>
+              <AppRouter />
+              <Footer />
+            </div>
+          </BrowserRouter>
         </SnapshotDataProvider>
       </GameSettingsProvider>
     </DataSourceModeProvider>

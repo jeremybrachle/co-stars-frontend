@@ -806,4 +806,24 @@
   color: rgba(248, 113, 113, 0.9);
 }
 
+@media (max-width: 440px) {
+  .game-right-panel__write-in-panel {
+    gap: 10px;
+  }
+
+  .game-right-panel__write-in-hint {
+    font-size: 0.82rem;
+  }
+
+  .game-right-panel__write-in-input {
+    height: 50px;
+    padding: 0 14px;
+    font-size: 1rem;
+  }
+
+  .game-right-panel__write-in-actions {
+    gap: 10px;
+  }
+}
+
 

@@ -98,3 +98,53 @@
   font-size: 0.84rem;
   line-height: 1.35;
 }
+
+@media (max-width: 440px) {
+  .write-in-autosuggest {
+    width: 100%;
+  }
+
+  .write-in-autosuggest__dropdown {
+    width: 100%;
+    max-height: min(280px, 38vh);
+    border-radius: 14px;
+    overscroll-behavior: contain;
+  }
+
+  .write-in-autosuggest__option {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+
+  .write-in-autosuggest__option-label {
+    font-size: 1rem;
+    line-height: 1.28;
+    overflow-wrap: anywhere;
+  }
+
+  .write-in-autosuggest__option-copy {
+    min-width: 0;
+  }
+
+  .write-in-autosuggest__option-meta {
+    font-size: 0.82rem;
+    line-height: 1.28;
+    color: rgba(255, 255, 255, 0.76);
+  }
+
+  .write-in-autosuggest__artwork {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  .write-in-autosuggest__artwork-emoji {
+    font-size: 1.2rem;
+  }
+
+  .write-in-autosuggest__empty {
+    padding: 14px;
+    font-size: 0.9rem;
+  }
+}

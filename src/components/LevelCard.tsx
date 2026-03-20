@@ -2,6 +2,7 @@ import { useState } from "react";
 import EntityArtwork from "./EntityArtwork";
 import type { Level } from "../types";
 import type { LevelHistoryRecord } from "../utils/levelHistoryStorage";
+import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import styles from "./LevelCard.module.css";
 
 type StarTone = "gold" | "silver" | "bronze";
@@ -71,6 +72,19 @@ function formatAverageReleaseYear(value: number | null | undefined) {
 	return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+function splitActorName(value: string) {
+	const parts = value.trim().split(/\s+/).filter(Boolean);
+
+	if (parts.length <= 1) {
+		return { firstLine: value, secondLine: null };
+	}
+
+	return {
+		firstLine: parts[0],
+		secondLine: parts.slice(1).join(" "),
+	};
+}
+
 type Props = {
 	level: Level;
 	levelIndex: number;
@@ -93,6 +107,7 @@ function LevelCard({
 	onStart,
 }: Props) {
 	const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+	const isCompactPhoneViewport = useIsCompactPhoneViewport();
 	const leaderboardAttempts = levelHistory?.attempts ?? [];
 	const bestAttempt = leaderboardAttempts[0] ?? null;
 	const totalAttempts = levelHistory?.attempts.length ?? 0;
@@ -100,13 +115,15 @@ function LevelCard({
 	const levelStars = buildDisplayedStars(displayedStarCount, level.optimalHops);
 	const bestAttemptTone = bestAttempt ? getStarTone(bestAttempt.hops, level.optimalHops) : null;
 	const completionTrophyCount = getCompletionTrophyCount(bestAttemptTone);
+	const leftActorName = splitActorName(level.actorA);
+	const rightActorName = splitActorName(level.actorB);
 
 	return (
 		<div className={`${styles.card} ${isCompleted ? styles.cardCompleted : ""}`}>
 			<div className={styles.headerRow}>
 				<div className={styles.levelLabel}>
 					<span>Level {levelIndex + 1}</span>
-					{levelStars.length > 0 ? (
+					{!isCompactPhoneViewport && levelStars.length > 0 ? (
 						<span className={styles.starRow}>
 							{levelStars.map((star, starIndex) => (
 								<span
@@ -118,8 +135,16 @@ function LevelCard({
 							))}
 						</span>
 					) : null}
-					<span className={styles.levelHops}>Optimal hops: {level.optimalHops ?? "--"}</span>
+					{isCompactPhoneViewport ? null : (
+						<span className={styles.levelHops}>Optimal hops: {level.optimalHops ?? "--"}</span>
+					)}
 				</div>
+				{isCompactPhoneViewport ? (
+					<span className={`${styles.levelHops} ${styles.levelHopsCompact}`} aria-label={`Optimal hops: ${level.optimalHops ?? "unknown"}`}>
+						<span className={styles.levelHopsCompactLabel}>Optimal hops: {level.optimalHops ?? "--"}</span>
+						{/* <span className={styles.levelHopsCompactValue}>{level.optimalHops ?? "--"}</span> */}
+					</span>
+				) : null}
 				<div className={styles.headerActions}>
 					{isCompleted ? (
 						<button
@@ -128,31 +153,43 @@ function LevelCard({
 							onClick={() => setIsLeaderboardOpen(true)}
 							aria-label={`Open leaderboard for level ${levelIndex + 1}`}
 						>
-							<span
-								className={styles.completionBadgeTrophyRow}
-								aria-hidden="true"
-							>
-								{Array.from({ length: 3 }, (_, trophyIndex) => (
+							{isCompactPhoneViewport ? (
+								<span className={`${styles.completionBadgeTrophy} ${styles.completionBadgeTrophyFilled}`} aria-hidden="true">🏆</span>
+							) : (
+								<>
 									<span
-										key={trophyIndex}
-										className={`${styles.completionBadgeTrophy} ${trophyIndex < completionTrophyCount ? styles.completionBadgeTrophyFilled : styles.completionBadgeTrophyEmpty}`}
+										className={styles.completionBadgeTrophyRow}
+										aria-hidden="true"
 									>
-										🏆
+										{Array.from({ length: 3 }, (_, trophyIndex) => (
+											<span
+												key={trophyIndex}
+												className={`${styles.completionBadgeTrophy} ${trophyIndex < completionTrophyCount ? styles.completionBadgeTrophyFilled : styles.completionBadgeTrophyEmpty}`}
+											>
+												🏆
+											</span>
+										))}
 									</span>
-								))}
-							</span>
-							<span>Completed</span>
+									<span>Completed</span>
+								</>
+							)}
 						</button>
 					) : (
 						<span className={styles.completionBadge}>
-							<span className={styles.completionBadgeTrophyRow} aria-hidden="true">
-								{Array.from({ length: 3 }, (_, trophyIndex) => (
-									<span key={trophyIndex} className={`${styles.completionBadgeTrophy} ${styles.completionBadgeTrophyEmpty}`}>
-										🏆
+							{isCompactPhoneViewport ? (
+								<span className={`${styles.completionBadgeTrophy} ${styles.completionBadgeTrophyEmpty}`} aria-hidden="true">🏆</span>
+							) : (
+								<>
+									<span className={styles.completionBadgeTrophyRow} aria-hidden="true">
+										{Array.from({ length: 3 }, (_, trophyIndex) => (
+											<span key={trophyIndex} className={`${styles.completionBadgeTrophy} ${styles.completionBadgeTrophyEmpty}`}>
+												🏆
+											</span>
+										))}
 									</span>
-								))}
-							</span>
-							<span>Not completed</span>
+									<span>Not completed</span>
+								</>
+							)}
 						</span>
 					)}
 				</div>
@@ -170,7 +207,10 @@ function LevelCard({
 								imageClassName={styles.levelActorArtworkImage}
 								placeholderClassName={styles.levelActorArtworkEmoji}
 							/>
-							<span className={styles.levelActorName}>{level.actorA}</span>
+							<span className={styles.levelActorName}>
+								<span className={styles.levelActorNameLine}>{leftActorName.firstLine}</span>
+								{leftActorName.secondLine ? <span className={styles.levelActorNameLine}>{leftActorName.secondLine}</span> : null}
+							</span>
 						</span>
 					</span>
 					<span className={styles.levelVs}>vs.</span>
@@ -184,7 +224,10 @@ function LevelCard({
 								imageClassName={styles.levelActorArtworkImage}
 								placeholderClassName={styles.levelActorArtworkEmoji}
 							/>
-							<span className={styles.levelActorName}>{level.actorB}</span>
+							<span className={styles.levelActorName}>
+								<span className={styles.levelActorNameLine}>{rightActorName.firstLine}</span>
+								{rightActorName.secondLine ? <span className={styles.levelActorNameLine}>{rightActorName.secondLine}</span> : null}
+							</span>
 						</span>
 					</span>
 				</div>

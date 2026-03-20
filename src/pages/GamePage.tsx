@@ -32,6 +32,7 @@ import {
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
+import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import {
   getConfiguredPrimarySource,
@@ -79,7 +80,7 @@ import { resolveWriteInOption } from "../utils/writeInOptions.ts";
 import type { Actor, EffectiveDataSource, GameDataFilters, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
-type RulesTabId = "how-to-play" | "gameplay-settings";
+type RulesTabId = "how-to-play" | "gameplay-settings" | "saved-history";
 
 type RouteGameNode = {
   id?: number;
@@ -588,13 +589,15 @@ function GamePage() {
   const [deadEndPenalties, setDeadEndPenalties] = useState(0);
   const [shuffles, setShuffles] = useState(0);
   const startWithSuggestionPanelVisible = helperSettings["start-with-suggestion-panel"];
+  const isCompactPhoneViewport = useIsCompactPhoneViewport();
+  const defaultSuggestionPanelVisible = startWithSuggestionPanelVisible && !isCompactPhoneViewport;
 
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [activeRulesGameplaySection, setActiveRulesGameplaySection] = useState<GameplaySectionId>("presets");
   const [activeRulesTab, setActiveRulesTab] = useState<RulesTabId>("how-to-play");
   const [isPanelOrderSwapped, setIsPanelOrderSwapped] = useState(false);
-  const [isSuggestionPanelVisible, setIsSuggestionPanelVisible] = useState(startWithSuggestionPanelVisible);
+  const [isSuggestionPanelVisible, setIsSuggestionPanelVisible] = useState(defaultSuggestionPanelVisible);
   const [filterValidationMessage, setFilterValidationMessage] = useState<string | null>(null);
 
   const [optimalHops, setOptimalHops] = useState<number | null>(routeState?.optimalHops ?? null);
@@ -2451,6 +2454,7 @@ function GamePage() {
     && typeof routeState?.totalLevels === "number"
     && routeState.levelIndex < routeState.totalLevels - 1;
   const completionScoreSymbol = getCompletionScoreSymbol(displayedCompletionScore ?? undefined);
+  const shouldShowMobileHistoryTab = isCompactPhoneViewport && currentLevelCompleted;
   const inspectorHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
     return inspectorTrail.map((node) => ({
       key: `${node.type}-${node.id ?? node.label}`,
@@ -2460,8 +2464,27 @@ function GamePage() {
   }, [inspectorTrail]);
 
   useEffect(() => {
-    setIsSuggestionPanelVisible(startWithSuggestionPanelVisible);
-  }, [startWithSuggestionPanelVisible]);
+    setIsSuggestionPanelVisible(defaultSuggestionPanelVisible);
+  }, [defaultSuggestionPanelVisible]);
+
+  useEffect(() => {
+    if (!shouldShowMobileHistoryTab && activeRulesTab === "saved-history") {
+      setActiveRulesTab("how-to-play");
+    }
+  }, [activeRulesTab, shouldShowMobileHistoryTab]);
+
+  useEffect(() => {
+    const handleOpenGameInfo = () => {
+      setActiveRulesTab("how-to-play");
+      setIsRulesOpen(true);
+    };
+
+    window.addEventListener("costars:open-game-info", handleOpenGameInfo as EventListener);
+
+    return () => {
+      window.removeEventListener("costars:open-game-info", handleOpenGameInfo as EventListener);
+    };
+  }, []);
 
   const gameGridPanel = (
     <GameLeftPanel
@@ -2483,6 +2506,8 @@ function GamePage() {
       writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
       isSubmittingWriteIn={isSubmittingLeftPanelWriteIn}
       isSuggestionPanelVisible={isSuggestionPanelVisible}
+      showSuggestionToggle={!isCompactPhoneViewport}
+      showSideSwapButton={isCompactPhoneViewport}
       turns={turns}
       rewinds={rewinds}
       shuffles={shuffles}
@@ -2497,6 +2522,7 @@ function GamePage() {
         void handleInspectNode(node);
       }}
       onToggleSuggestionPanel={() => setIsSuggestionPanelVisible((currentValue) => !currentValue)}
+      onSwapSides={handleReverseSides}
       onOpenWriteIn={handleOpenLeftPanelWriteIn}
       onCloseWriteIn={handleCloseLeftPanelWriteIn}
       onWriteInValueChange={setLeftPanelWriteInValue}
@@ -2601,7 +2627,7 @@ function GamePage() {
       {completion && !isCompletionDialogOpen ? (
         <div className="gameCompletionPinnedArea">
           <div className="gameCompletionPinnedScore" role="status" aria-live="polite">
-            <div className="gameCompletionPinnedScoreIcon" aria-hidden="true">{completionScoreSymbol}</div>
+            {!isCompactPhoneViewport ? <div className="gameCompletionPinnedScoreIcon" aria-hidden="true">{completionScoreSymbol}</div> : null}
             <div className="gameCompletionPinnedScoreContent">
               <div className="gameCompletionPinnedScoreTitle">Level completed</div>
               <div className="gameCompletionPinnedScoreValue">
@@ -2622,16 +2648,18 @@ function GamePage() {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        className="gameInfoButton"
-        onClick={() => setIsRulesOpen(true)}
-        aria-label="Open game rules"
-      >
-        i
-      </button>
+      {!isCompactPhoneViewport ? (
+        <button
+          type="button"
+          className="gameInfoButton"
+          onClick={() => setIsRulesOpen(true)}
+          aria-label="Open game rules"
+        >
+          i
+        </button>
+      ) : null}
 
-      {currentLevelCompleted ? (
+      {currentLevelCompleted && !isCompactPhoneViewport ? (
         <button
           type="button"
           className="gameHistoryButton"
@@ -2669,6 +2697,17 @@ function GamePage() {
                 >
                   Gameplay settings
                 </button>
+                {shouldShowMobileHistoryTab ? (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeRulesTab === "saved-history"}
+                    className={`gameRulesTab${activeRulesTab === "saved-history" ? " gameRulesTab--active" : ""}`}
+                    onClick={() => setActiveRulesTab("saved-history")}
+                  >
+                    Saved history
+                  </button>
+                ) : null}
               </div>
               <div className="gameRulesPanel">
                 {activeRulesTab === "how-to-play" ? (
@@ -2712,6 +2751,27 @@ function GamePage() {
                       customPanelClassName="gameRulesCustomPanel"
                       dataFilterPanelClassName="gameRulesCustomPanel"
                     />
+                  </div>
+                ) : null}
+
+                {activeRulesTab === "saved-history" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Saved history</div>
+                    <p className="gameRulesText">
+                      Review previously completed attempts for this level without leaving the game board.
+                    </p>
+                    <div className="gameCompletionHistory">
+                      <div className="gameCompletionHistoryHeader">
+                        <div>
+                          <div className="gameCompletionHistoryTitle">Saved history for this level</div>
+                          <div className="gameCompletionHistoryMeta">
+                            {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
+                            {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      {levelHistoryContent}
+                    </div>
                   </div>
                 ) : null}
               </div>

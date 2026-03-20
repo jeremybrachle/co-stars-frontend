@@ -1280,6 +1280,112 @@
     align-items: flex-start;
   }
 
+
+@media (max-width: 440px) {
+  .gamePage {
+    height: 100dvh;
+    padding: 12px 10px 82px;
+    box-sizing: border-box;
+    overflow: hidden;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topBar {
+    gap: 10px;
+    margin-top: 0;
+    padding-top: 4px;
+  }
+
+  .gameLogo {
+    font-size: 1.55rem;
+  }
+
+  .gameLogoResetHint {
+    display: none;
+  }
+
+  .gameContainer {
+    width: 100%;
+    margin: 12px auto 0;
+    padding: 0;
+    gap: 14px;
+    min-height: 0;
+    height: auto;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .gameContainer--solo-panel > .game-left-panel {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .gameCompletionPinnedArea {
+    width: 100%;
+    padding: 0 0 20px;
+  }
+
+  .gamePanelSwapRail {
+    padding: 0;
+  }
+
+  .gamePanelSwapButton {
+    width: 28px;
+    height: 40px;
+  }
+
+  .gameSidebarWarning {
+    top: 92px;
+    width: min(100%, 280px);
+    min-height: 118px;
+    padding: 14px 16px;
+    font-size: 0.86rem;
+  }
+
+  .gamePageStatus {
+    font-size: 0.88rem;
+  }
+
+  .gameInfoButton {
+    bottom: 48px;
+    width: 32px;
+    height: 32px;
+    font-size: 0.88rem;
+  }
+
+  .gameHistoryButton {
+    display: none;
+  }
+
+  .gameCompletionPinnedScore {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 14px 14px;
+  }
+
+  .gameRulesOverlay {
+    padding: 12px;
+  }
+
+  .gameRulesDialog {
+    width: 100%;
+    min-height: auto;
+    height: auto;
+    max-height: calc(100vh - 24px);
+    padding: 20px 18px 18px;
+  }
+
+  .gameRulesTabs {
+    gap: 8px;
+  }
+
+  .gameRulesTab {
+    padding: 0.72rem 0.82rem;
+    font-size: 0.88rem;
+  }
+}
   .gameInspectorList {
     grid-template-columns: 1fr;
   }

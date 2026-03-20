@@ -12,11 +12,15 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [2.0.8] - 2026-03-19
 
-Scoring
+Scoring and mobile layout resizing
 
 ### Added
 
 - Calculation, display, and stored local history of player scores for each level
+
+## Changed
+
+- Viewing size for iPhone devices
 
 ## [2.0.7] - 2026-03-17
 

@@ -107,6 +107,10 @@
   margin-top: 0.2em;
 }
 
+.home-page-landing__mobile-badge {
+  display: none;
+}
+
 .subtitle-tight {
   font-size: 1.2em;
   margin-bottom: 0.15em;
@@ -1035,6 +1039,13 @@ button:hover {
   min-height: 42px;
 }
 
+.footerContent--with-game-info {
+  width: 100%;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) auto minmax(0, 1fr) max-content;
+  align-items: center;
+}
+
 .footerInfo {
   position: relative;
 }
@@ -1076,6 +1087,42 @@ button:hover {
   right: 0;
   display: flex;
   align-items: center;
+}
+
+.footerContent--with-game-info .footerInfo--stacked {
+  align-items: flex-start;
+  justify-self: start;
+}
+
+.footerContent--with-game-info .footerActions {
+  position: static;
+  justify-self: end;
+}
+
+.footerGameInfoButton {
+  position: static;
+  grid-column: 3;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.footerGameInfoButton:hover,
+.footerGameInfoButton:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .footerCopyrightButton {
@@ -2758,4 +2805,159 @@ button:hover {
   .settingsGameplayNav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+@media (max-width: 440px) {
+  .home-page-landing,
+  .play-now-page {
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
+  .home-page-landing .home-page-landing__shell,
+  .play-now-page .play-now-page__shell {
+    position: relative;
+    width: min(100vw - 24px, 408px);
+    min-width: 0;
+    min-height: calc(100vh - 96px);
+    margin-top: 0;
+    padding: 9.5vh 0 4.8rem;
+    box-sizing: border-box;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .home-page-landing .page-container,
+  .play-now-page .page-container {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 138px;
+    justify-content: flex-start;
+    padding-bottom: 0;
+  }
+
+  .home-page-landing h1,
+  .play-now-page h1 {
+    font-size: clamp(2.15rem, 8.2vw, 2.72rem);
+    margin-bottom: 0.08em;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+  }
+
+  .home-page-landing .subtitle,
+  .home-page-landing .subtitle-tight,
+  .play-now-page .subtitle,
+  .play-now-page .subtitle-tight {
+    font-size: 1rem;
+    margin-bottom: 0.24em;
+    font-weight: 700;
+    line-height: 1.28;
+  }
+
+  .home-page-landing__mobile-badge {
+    display: block;
+    margin: 0.1rem auto 0;
+    padding: 0.34rem 0.82rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .home-page-landing .home-menu-group {
+    width: 100%;
+    margin-top: clamp(1rem, 3.2vh, 1.7rem);
+    padding: 1rem 0.9rem 1.05rem;
+    border-radius: 28px;
+    border: 2.5px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.13);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.22);
+    box-sizing: border-box;
+  }
+
+  .play-now-page .home-menu-group {
+    width: 100%;
+    margin-top: clamp(1rem, 3.2vh, 1.7rem);
+    padding: 1rem 0.9rem 1.05rem;
+    border-radius: 28px;
+    border: 2.5px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.13);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.22);
+    box-sizing: border-box;
+  }
+
+  .home-page-landing .nav-menu,
+  .play-now-page .nav-menu {
+    width: 100%;
+    gap: 0.95rem;
+  }
+
+  .home-page-landing .nav-btn-visual,
+  .play-now-page .nav-btn-visual {
+    width: 100%;
+    max-width: 356px;
+    min-height: 84px;
+    margin-inline: auto;
+    gap: 0.9rem;
+    padding: 0.96rem 1rem;
+    box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 24px;
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+  }
+
+  .home-page-landing .nav-icon,
+  .play-now-page .nav-icon {
+    font-size: 3.00rem;
+  }
+
+  .home-page-landing .nav-btn-content,
+  .play-now-page .nav-btn-content {
+    gap: 0.26rem;
+  }
+
+  .home-page-landing .nav-btn-label,
+  .play-now-page .nav-btn-label {
+    font-size: 1.03rem;
+    line-height: 1.08;
+    font-weight: 760;
+    letter-spacing: 0.01em;
+  }
+
+  .home-page-landing .nav-btn-copy,
+  .play-now-page .nav-btn-copy {
+    display: block;
+    font-size: 0.79rem;
+    line-height: 1.28;
+    font-weight: 540;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .home-page-landing .nav-btn-adventure,
+  .play-now-page .nav-btn-adventure {
+    margin-top: 0;
+  }
+
+  .home-page-landing .appVersionHome {
+    margin-top: auto;
+    padding-top: 1rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+  }
+
+  .play-now-page .pageBackLink {
+    margin-top: auto;
+    padding-top: 0.85rem;
+    font-size: 0.8rem;
+  }
+
 }

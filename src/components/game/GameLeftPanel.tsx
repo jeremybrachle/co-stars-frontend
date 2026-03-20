@@ -1,6 +1,7 @@
 import "./GameLeftPanel.css";
 import EntityArtwork from "../EntityArtwork";
 import WriteInAutosuggestField from "./WriteInAutosuggestField";
+import { useIsCompactPhoneViewport } from "../../hooks/useIsCompactPhoneViewport";
 import type { GameNode } from "../../types";
 import { MAX_PATH_LENGTH } from "../../gameplay";
 import type { NodeType } from "../../types";
@@ -55,6 +56,8 @@ type Props = {
   writeInAutoSuggestEnabled: boolean;
   isSubmittingWriteIn: boolean;
   isSuggestionPanelVisible: boolean;
+  showSuggestionToggle: boolean;
+  showSideSwapButton: boolean;
   turns: number;
   rewinds: number;
   shuffles: number;
@@ -67,6 +70,7 @@ type Props = {
   onSelectSide: (side: SelectedSide) => void;
   onInspectNode: (node: GameNode) => void;
   onToggleSuggestionPanel: () => void;
+  onSwapSides: () => void;
   onOpenWriteIn: (side: SelectedSide) => void;
   onCloseWriteIn: () => void;
   onWriteInValueChange: (value: string) => void;
@@ -145,6 +149,7 @@ function BoardWriteInBox({
   onChange,
   onClose,
   onSubmit,
+  variant = "inline",
 }: {
   side: Side;
   value: string;
@@ -156,9 +161,15 @@ function BoardWriteInBox({
   onChange: (value: string) => void;
   onClose: () => void;
   onSubmit: () => void;
+  variant?: "inline" | "dialog";
 }) {
   return (
-    <div className={`game-left-panel__write-in-panel game-left-panel__write-in-panel--${side}`}>
+    <div className={`game-left-panel__write-in-panel game-left-panel__write-in-panel--${side}${variant === "dialog" ? " game-left-panel__write-in-panel--dialog" : ""}`}>
+      {variant === "dialog" ? (
+        <div className="game-left-panel__write-in-title">
+          {side === "top" ? "Add top path entry" : "Add bottom path entry"}
+        </div>
+      ) : null}
       <WriteInAutosuggestField
         value={value}
         onChange={onChange}
@@ -386,6 +397,7 @@ function renderBoardToken(token: BoardToken) {
 function renderBoardEllipsis(
   ellipsis: BoardEllipsis,
   options: {
+    isCompactPhoneViewport: boolean;
     activeWriteInSide: SelectedSide | null;
     writeInValue: string;
     writeInPlaceholder: string;
@@ -401,11 +413,12 @@ function renderBoardEllipsis(
 ) {
   const arrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${ellipsis.side === "top" ? "game-left-panel__board-arrow--up-origin" : "game-left-panel__board-arrow--down-origin"}${ellipsis.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
   const isWriteInOpen = options.activeWriteInSide === ellipsis.side;
+  const shouldRenderInlineWriteIn = isWriteInOpen && !options.isCompactPhoneViewport;
 
   return (
     <div className={`game-left-panel__board-slot${ellipsis.isDimmed ? " game-left-panel__board-slot--inactive" : ""}`}>
       {ellipsis.startArrow ? <span className={arrowClassName}>{ellipsis.startArrow}</span> : null}
-      {isWriteInOpen ? (
+      {shouldRenderInlineWriteIn ? (
         <BoardWriteInBox
           side={ellipsis.side}
           value={options.writeInValue}
@@ -421,7 +434,7 @@ function renderBoardEllipsis(
       ) : (
         <PlusWriteInTrigger
           onClick={() => options.onOpenWriteIn(ellipsis.side)}
-          highlight={!ellipsis.isDimmed}
+          highlight={!ellipsis.isDimmed || isWriteInOpen}
           disabled={options.isInteractionDisabled}
         />
       )}
@@ -528,6 +541,8 @@ function GameLeftPanel({
   writeInAutoSuggestEnabled,
   isSubmittingWriteIn,
   isSuggestionPanelVisible,
+  showSuggestionToggle,
+  showSideSwapButton,
   turns,
   rewinds,
   shuffles,
@@ -540,6 +555,7 @@ function GameLeftPanel({
   onSelectSide,
   onInspectNode,
   onToggleSuggestionPanel,
+  onSwapSides,
   onOpenWriteIn,
   onCloseWriteIn,
   onWriteInValueChange,
@@ -547,6 +563,7 @@ function GameLeftPanel({
   onRemoveTopPathItem,
   onRemoveBottomPathItem,
 }: Props) {
+  const isCompactPhoneViewport = useIsCompactPhoneViewport();
   const baseFont = 22;
   const minFont = 12;
   const topFontSize = Math.max(minFont, baseFont - topPath.length * 2);
@@ -556,6 +573,7 @@ function GameLeftPanel({
   const shouldShowHiddenPanelFooter = !completedPath && !isSuggestionPanelVisible;
   const shouldShowTopWarning = shouldShowHiddenPanelFooter && Boolean(hiddenPanelMessage) && selectedSide === "top";
   const shouldShowBottomWarning = shouldShowHiddenPanelFooter && Boolean(hiddenPanelMessage) && selectedSide === "bottom";
+  const mobileWriteInSide = isCompactPhoneViewport ? activeWriteInSide : null;
 
   const topBoardState = buildBoardTokens({
     path: topPath,
@@ -612,17 +630,29 @@ function GameLeftPanel({
         <div className="game-left-panel__status-slot game-left-panel__status-slot--left">
           <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
         </div>
-        <button
-          type="button"
-          className={`game-left-panel__panel-toggle${isSuggestionPanelVisible ? " game-left-panel__panel-toggle--active" : ""}`}
-          onClick={onToggleSuggestionPanel}
-          aria-label={isSuggestionPanelVisible ? "Hide suggestion panel" : "Show suggestion panel"}
-          title={isSuggestionPanelVisible ? "Hide suggestion panel" : "Show suggestion panel"}
-        >
-          <span className="game-left-panel__panel-toggle-emoji" aria-hidden="true">
-            {suggestionTargetType === "movie" ? "🎬" : "🎭"}
-          </span>
-        </button>
+        {showSuggestionToggle ? (
+          <button
+            type="button"
+            className={`game-left-panel__panel-toggle${isSuggestionPanelVisible ? " game-left-panel__panel-toggle--active" : ""}`}
+            onClick={onToggleSuggestionPanel}
+            aria-label={isSuggestionPanelVisible ? "Hide suggestion panel" : "Show suggestion panel"}
+            title={isSuggestionPanelVisible ? "Hide suggestion panel" : "Show suggestion panel"}
+          >
+            <span className="game-left-panel__panel-toggle-emoji" aria-hidden="true">
+              {suggestionTargetType === "movie" ? "🎬" : "🎭"}
+            </span>
+          </button>
+        ) : showSideSwapButton ? (
+          <button
+            type="button"
+            className="game-left-panel__panel-toggle game-left-panel__panel-toggle--swap"
+            onClick={onSwapSides}
+            aria-label="Swap the current top and bottom selections"
+            title="Swap the current top and bottom selections"
+          >
+            <span className="game-left-panel__panel-toggle-emoji" aria-hidden="true">⇅</span>
+          </button>
+        ) : <span className="game-left-panel__panel-toggle-spacer" aria-hidden="true" />}
         <div className="game-left-panel__status-slot game-left-panel__status-slot--right">
           {showOptimalTracking ? (
             <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
@@ -654,6 +684,7 @@ function GameLeftPanel({
                   style={{ gridColumn: coord.col + 1, gridRow: coord.row + 1 }}
                 >
                   {topToken ? renderBoardToken(topToken) : topEllipsis ? renderBoardEllipsis(topEllipsis, {
+                    isCompactPhoneViewport,
                     activeWriteInSide,
                     writeInValue,
                     writeInPlaceholder,
@@ -670,6 +701,7 @@ function GameLeftPanel({
                     ? renderBoardToken(bottomToken)
                     : bottomEllipsis
                       ? renderBoardEllipsis(bottomEllipsis, {
+                        isCompactPhoneViewport,
                         activeWriteInSide,
                         writeInValue,
                         writeInPlaceholder,
@@ -704,6 +736,26 @@ function GameLeftPanel({
           ) : null}
         </>
       )}
+
+      {mobileWriteInSide ? (
+        <div className="game-left-panel__write-in-overlay" onClick={onCloseWriteIn}>
+          <div className="game-left-panel__write-in-dialog" onClick={(event) => event.stopPropagation()}>
+            <BoardWriteInBox
+              side={mobileWriteInSide}
+              value={writeInValue}
+              placeholder={writeInPlaceholder}
+              suggestions={writeInSuggestions}
+              autoSuggestEnabled={writeInAutoSuggestEnabled}
+              isSubmitting={isSubmittingWriteIn}
+              isDisabled={isInteractionDisabled}
+              onChange={onWriteInValueChange}
+              onClose={onCloseWriteIn}
+              onSubmit={onSubmitWriteIn}
+              variant="dialog"
+            />
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
