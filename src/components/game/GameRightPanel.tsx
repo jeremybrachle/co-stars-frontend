@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import EntityArtwork from "../EntityArtwork";
+import WriteInAutosuggestField from "./WriteInAutosuggestField";
 import { formatYear, getMovieBadges } from "../../data/presentation";
 import { shuffleSuggestionsWithSeed } from "../../gameplay";
 import type { GameNode, NodeType, SuggestionDisplaySettings } from "../../types";
 import "./GameRightPanel.css";
 
-const WRITE_IN_TEMPORARILY_DISABLED = true;
 const RANKED_VISIBLE_SLOT_COUNT = 6;
 
 type Props = {
@@ -13,8 +13,13 @@ type Props = {
   suggestions: GameNode[];
   suggestionDisplay: SuggestionDisplaySettings;
   isShuffleModeEnabled: boolean;
+  shuffleAddsPenalty: boolean;
+  rewindAddsPenalty: boolean;
+  deadEndAddsPenalty: boolean;
   showSuggestionValues: boolean;
   showHintColors: boolean;
+  writeInAutoSuggestEnabled: boolean;
+  writeInSuggestions: GameNode[];
   turns: number;
   rewinds: number;
   deadEndPenalties: number;
@@ -31,7 +36,7 @@ type Props = {
   onReverse: () => void;
   onSuggestion: (choice: GameNode) => void;
   onShuffle: () => void;
-  onWriteIn: (value: string, type: NodeType) => Promise<void>;
+  onWriteIn: (value: string, type: NodeType, allowedOptions: GameNode[], sourceLabel: string) => Promise<boolean>;
 };
 
 function getSuggestionContextLabel(selection: GameNode) {
@@ -71,8 +76,13 @@ function GameRightPanel({
   suggestions,
   suggestionDisplay,
   isShuffleModeEnabled,
+  shuffleAddsPenalty,
+  rewindAddsPenalty,
+  deadEndAddsPenalty,
   showSuggestionValues,
   showHintColors,
+  writeInAutoSuggestEnabled,
+  writeInSuggestions,
   turns,
   rewinds,
   deadEndPenalties,
@@ -130,9 +140,8 @@ function GameRightPanel({
     () => renderedSuggestions.some((suggestion) => suggestion?.highlight?.kind === "optimal"),
     [renderedSuggestions],
   );
-
   useEffect(() => {
-    if (WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isComplete) {
+    if (isDisabled || isLoading || isComplete) {
       setIsWriteInOpen(false);
       setWriteInValue("");
     }
@@ -156,9 +165,11 @@ function GameRightPanel({
     setIsSubmittingWriteIn(true);
 
     try {
-      await onWriteIn(trimmedValue, selectionContext.writeInType);
-      setWriteInValue("");
-      setIsWriteInOpen(false);
+      const didResolve = await onWriteIn(trimmedValue, selectionContext.writeInType, writeInSuggestions, currentSelection.label);
+      if (didResolve) {
+        setWriteInValue("");
+        setIsWriteInOpen(false);
+      }
     } finally {
       setIsSubmittingWriteIn(false);
     }
@@ -300,19 +311,28 @@ function GameRightPanel({
               </div>
               {isWriteInOpen ? (
                 <div className="game-right-panel__write-in-panel">
-                  <input
-                    type="text"
+                  <WriteInAutosuggestField
                     value={writeInValue}
-                    onChange={(event) => setWriteInValue(event.target.value)}
+                    onChange={setWriteInValue}
+                    onSubmit={() => {
+                      void handleSubmitWriteIn();
+                    }}
                     placeholder={selectionContext.placeholder}
-                    className="game-right-panel__write-in-input"
-                    disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn}
+                    suggestions={writeInSuggestions}
+                    autoSuggestEnabled={writeInAutoSuggestEnabled}
+                    disabled={isDisabled || isLoading || isSubmittingWriteIn}
                     autoFocus
+                    inputClassName="game-right-panel__write-in-input"
+                    dropdownLabel={`${selectionContext.writeInType} write in suggestions`}
+                    emptyMessage={`No matching ${selectionContext.writeInType === "actor" ? "actors" : "movies"}.`}
                   />
+                  <div className="game-right-panel__write-in-hint">
+                    {writeInAutoSuggestEnabled ? "Autosuggest is on. Pick a match or enter a partial name." : "Autosuggest is off. Submit the exact title or actor name you want to try."}
+                  </div>
                   <div className="game-right-panel__write-in-actions">
                     <button
                       className="game-right-panel__suggestion-button game-right-panel__write-in-toggle"
-                      disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn}
+                      disabled={isDisabled || isLoading || isSubmittingWriteIn}
                       onClick={handleCloseWriteIn}
                       aria-label="Close write in"
                     >
@@ -321,26 +341,21 @@ function GameRightPanel({
                     <button
                       className="game-right-panel__go-button"
                       onClick={handleSubmitWriteIn}
-                      disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn || writeInValue.trim().length === 0}
+                      disabled={isDisabled || isLoading || isSubmittingWriteIn || writeInValue.trim().length === 0}
                     >
                       {isSubmittingWriteIn ? "Finding…" : "Go"}
                     </button>
                   </div>
                 </div>
               ) : (
-                <div
-                  className={`game-right-panel__write-in-trigger${WRITE_IN_TEMPORARILY_DISABLED ? " game-right-panel__write-in-trigger--disabled" : ""}`}
-                  data-tooltip={WRITE_IN_TEMPORARILY_DISABLED ? "User input is currently disabled" : undefined}
-                >
+                <div className="game-right-panel__write-in-trigger">
                   <button
                     className="game-right-panel__suggestion-button game-right-panel__wide-button"
-                    disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading}
+                    disabled={isDisabled || isLoading}
                     onClick={() => {
-                      if (!WRITE_IN_TEMPORARILY_DISABLED) {
-                        setIsWriteInOpen(true);
-                      }
+                      setIsWriteInOpen(true);
                     }}
-                    aria-label={WRITE_IN_TEMPORARILY_DISABLED ? "Write in temporarily disabled" : "Open write in"}
+                    aria-label="Open write in"
                   >
                     +
                   </button>
@@ -353,25 +368,35 @@ function GameRightPanel({
 
         <div className="game-right-panel__score-panel">
           <div className="game-right-panel__score-item">
-            <span className="game-right-panel__score-label">Turns:</span>
+            <span className="game-right-panel__score-label">Turns</span>
             <span className="game-right-panel__score-value">{turns}</span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
             <span className="game-right-panel__score-label">Rewinds:</span>
-            <span className="game-right-panel__score-value">{rewinds}</span>
+            <span
+              className="game-right-panel__score-value"
+              title={rewindAddsPenalty ? undefined : "rewind penalties are disabled"}
+            >
+              {rewindAddsPenalty ? rewinds : "N/A"}
+            </span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
             <span className="game-right-panel__score-label">Shuffles:</span>
             <span
               className="game-right-panel__score-value"
-              title={isShuffleModeEnabled ? undefined : "penalty will be applied for non-shuffled game"}
+              title={shuffleAddsPenalty ? undefined : "shuffle penalties are disabled"}
             >
-              {isShuffleModeEnabled ? shuffles : "N/A"}
+              {shuffleAddsPenalty ? shuffles : "N/A"}
             </span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
             <span className="game-right-panel__score-label">Dead-ends:</span>
-            <span className={`game-right-panel__score-value${deadEndPenalties > 0 ? " game-right-panel__score-value--penalty" : ""}`}>{deadEndPenalties}</span>
+            <span
+              className={`game-right-panel__score-value${deadEndAddsPenalty && deadEndPenalties > 0 ? " game-right-panel__score-value--penalty" : ""}`}
+              title={deadEndAddsPenalty ? undefined : "dead-end penalties are disabled"}
+            >
+              {deadEndAddsPenalty ? deadEndPenalties : "N/A"}
+            </span>
           </div>
         </div>
       </div>

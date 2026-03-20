@@ -61,11 +61,15 @@ function installWindowMock() {
         ],
         score: 96,
         hops: 2,
+        turns: 2,
+        effectiveTurns: 2,
         shuffles: 0,
         shuffleModeEnabled: true,
         appliedShufflePenaltyCount: 0,
         rewinds: 0,
         deadEnds: 0,
+        popularityScore: 12,
+        averageReleaseYear: 2001,
         timestamp: 10,
     });
     (0, levelHistoryStorage_1.saveLevelAttempt)("George Clooney", "Julia Roberts", {
@@ -76,11 +80,15 @@ function installWindowMock() {
         ],
         score: 96,
         hops: 2,
+        turns: 2,
+        effectiveTurns: 2,
         shuffles: 0,
         shuffleModeEnabled: true,
         appliedShufflePenaltyCount: 0,
         rewinds: 0,
         deadEnds: 0,
+        popularityScore: 12,
+        averageReleaseYear: 2001,
         timestamp: 11,
     });
     (0, levelHistoryStorage_1.saveLevelAttempt)("George Clooney", "Julia Roberts", {
@@ -93,11 +101,15 @@ function installWindowMock() {
         ],
         score: 71,
         hops: 4,
+        turns: 4,
+        effectiveTurns: 6,
         shuffles: 1,
         shuffleModeEnabled: false,
         appliedShufflePenaltyCount: 1,
         rewinds: 1,
         deadEnds: 0,
+        popularityScore: 18,
+        averageReleaseYear: 2002.5,
         timestamp: 12,
     });
     const history = (0, levelHistoryStorage_1.getLevelHistory)("George Clooney", "Julia Roberts");
@@ -108,8 +120,12 @@ function installWindowMock() {
     strict_1.default.equal(groups[0].hops, 2);
     strict_1.default.equal(groups[0].attempts[0].score, 96);
     strict_1.default.equal(groups[0].attempts[0].shuffleModeEnabled, true);
+    strict_1.default.equal(groups[0].attempts[0].turns, 2);
+    strict_1.default.equal(groups[0].attempts[0].popularityScore, 12);
     strict_1.default.equal(groups[1].hops, 4);
     strict_1.default.equal(groups[1].attempts[0].shuffleModeEnabled, false);
     strict_1.default.equal(groups[1].attempts[0].appliedShufflePenaltyCount, 1);
+    strict_1.default.equal(groups[1].attempts[0].effectiveTurns, 6);
+    strict_1.default.equal(groups[1].attempts[0].averageReleaseYear, 2002.5);
     restoreWindow();
 });

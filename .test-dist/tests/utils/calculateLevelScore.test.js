@@ -10,6 +10,7 @@ const calculateLevelScore_1 = require("../../src/utils/calculateLevelScore");
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 3,
         optimalHops: 3,
+        turns: 3,
         suggestionAssists: 0,
         shuffles: 0,
         rewinds: 0,
@@ -20,17 +21,19 @@ const calculateLevelScore_1 = require("../../src/utils/calculateLevelScore");
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 5,
         optimalHops: 3,
+        turns: 5,
         suggestionAssists: 1,
         shuffles: 1,
         rewinds: 2,
         deadEnds: 1,
-    }), 38);
+    }), 41.7);
 });
 (0, node_test_1.default)("calculateLevelScore never drops below zero", () => {
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 10,
         optimalHops: 2,
-        suggestionAssists: 1,
+        turns: 10,
+        suggestionAssists: 4,
         shuffles: 10,
         rewinds: 10,
         deadEnds: 10,
@@ -40,6 +43,7 @@ const calculateLevelScore_1 = require("../../src/utils/calculateLevelScore");
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 3,
         optimalHops: 3,
+        turns: 3,
         suggestionAssists: 1,
         shuffles: 0,
         rewinds: 0,

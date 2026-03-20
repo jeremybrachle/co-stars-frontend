@@ -320,77 +320,20 @@
   color: rgba(226, 232, 240, 0.82);
 }
 
-.leaderboardSummaryGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.9rem;
-}
-
-.leaderboardSummaryCard {
+.leaderboardSummaryInline {
   display: flex;
-  flex-direction: column;
-  gap: 0.32rem;
-  padding: 1rem;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(30, 41, 59, 0.42);
-}
-
-.leaderboardSummaryLabel {
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.9);
-}
-
-.leaderboardSummaryValueRow {
-  display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
 }
 
-.leaderboardSummaryValue {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #f8fafc;
-}
-
-.leaderboardSummaryMeta {
-  font-size: 0.88rem;
-  line-height: 1.45;
-  color: rgba(226, 232, 240, 0.72);
-}
-
-.leaderboardSummaryTrophy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.leaderboardSummaryTrophyToneGold {
-  color: #b8860b;
-}
-
-.leaderboardSummaryTrophyToneSilver {
-  color: #d1d5db;
-}
-
-.leaderboardSummaryTrophyToneBronze {
-  color: #d97706;
-}
-
-.leaderboardSummaryTrophySizeGold {
-  font-size: 1.25rem;
-}
-
-.leaderboardSummaryTrophySizeSilver {
-  font-size: 1.08rem;
-}
-
-.leaderboardSummaryTrophySizeBronze {
-  font-size: 0.92rem;
+.leaderboardSummaryPill {
+  padding: 0.38rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: rgba(248, 250, 252, 0.88);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .leaderboardEmpty {
@@ -460,6 +403,7 @@
 }
 
 .leaderboardHops,
+.leaderboardTurns,
 .leaderboardStars {
   padding: 0.24rem 0.52rem;
   border-radius: 999px;
@@ -497,6 +441,22 @@
 .leaderboardScore {
   font-weight: 800;
   color: #bbf7d0;
+}
+
+.leaderboardMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.leaderboardMetric {
+  padding: 0.24rem 0.52rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(226, 232, 240, 0.76);
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .leaderboardPath {

@@ -74,11 +74,15 @@ test("saveLevelAttempt stores unique attempts and groups them by hops", () => {
     ],
     score: 96,
     hops: 2,
+    turns: 2,
+    effectiveTurns: 2,
     shuffles: 0,
     shuffleModeEnabled: true,
     appliedShufflePenaltyCount: 0,
     rewinds: 0,
     deadEnds: 0,
+    popularityScore: 12,
+    averageReleaseYear: 2001,
     timestamp: 10,
   });
 
@@ -90,11 +94,15 @@ test("saveLevelAttempt stores unique attempts and groups them by hops", () => {
     ],
     score: 96,
     hops: 2,
+    turns: 2,
+    effectiveTurns: 2,
     shuffles: 0,
     shuffleModeEnabled: true,
     appliedShufflePenaltyCount: 0,
     rewinds: 0,
     deadEnds: 0,
+    popularityScore: 12,
+    averageReleaseYear: 2001,
     timestamp: 11,
   });
 
@@ -108,11 +116,15 @@ test("saveLevelAttempt stores unique attempts and groups them by hops", () => {
     ],
     score: 71,
     hops: 4,
+    turns: 4,
+    effectiveTurns: 6,
     shuffles: 1,
     shuffleModeEnabled: false,
     appliedShufflePenaltyCount: 1,
     rewinds: 1,
     deadEnds: 0,
+    popularityScore: 18,
+    averageReleaseYear: 2002.5,
     timestamp: 12,
   });
 
@@ -125,9 +137,13 @@ test("saveLevelAttempt stores unique attempts and groups them by hops", () => {
   assert.equal(groups[0].hops, 2);
   assert.equal(groups[0].attempts[0].score, 96);
   assert.equal(groups[0].attempts[0].shuffleModeEnabled, true);
+  assert.equal(groups[0].attempts[0].turns, 2);
+  assert.equal(groups[0].attempts[0].popularityScore, 12);
   assert.equal(groups[1].hops, 4);
   assert.equal(groups[1].attempts[0].shuffleModeEnabled, false);
   assert.equal(groups[1].attempts[0].appliedShufflePenaltyCount, 1);
+  assert.equal(groups[1].attempts[0].effectiveTurns, 6);
+  assert.equal(groups[1].attempts[0].averageReleaseYear, 2002.5);
 
   restoreWindow();
 });

@@ -55,7 +55,7 @@ import {
 } from "../data/localGraph";
 import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/filterCounts";
 import { formatActorInlineMeta, formatActorLifespan, formatGameNodeMeta, formatMovieInlineMeta, getMovieBadges } from "../data/presentation";
-import { calculateLevelScore } from "../utils/calculateLevelScore.ts";
+import { buildLevelScoreBreakdown, calculateLevelScore, getEffectiveTurnCount } from "../utils/calculateLevelScore.ts";
 import {
   isLevelCompleted,
   markLevelCompleted,
@@ -69,6 +69,13 @@ import {
   subscribeToLevelHistoryUpdates,
   type LevelHistoryRecord,
 } from "../utils/levelHistoryStorage.ts";
+import {
+  calculateAverageReleaseYear,
+  calculatePathPopularityScore,
+  formatAverageReleaseYear,
+  getReleaseYear,
+} from "../utils/gameCompletionMetrics.ts";
+import { resolveWriteInOption } from "../utils/writeInOptions.ts";
 import type { Actor, EffectiveDataSource, GameDataFilters, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
@@ -110,6 +117,8 @@ const MAX_DEAD_END_PENALTIES = 5;
 interface CompletionState {
   fullPath: GameNode[];
   usedHops: number;
+  turns: number;
+  effectiveTurns: number;
   winningSide: SelectedSide;
   source: string;
   isValidated: boolean | null;
@@ -120,6 +129,9 @@ interface CompletionState {
   appliedShufflePenaltyCount: number;
   appliedRewindPenaltyCount: number;
   appliedSuggestionAssistPenaltyCount: number;
+  deadEnds?: number;
+  popularityScore: number;
+  averageReleaseYear: number | null;
 }
 
 type NodeInspectorState = {
@@ -383,7 +395,6 @@ function getCompletionScoreSymbol(score: number | undefined) {
 function getDisplayedCompletionScore(
   completion: CompletionState | null,
   optimalHops: number | null,
-  deadEndPenalties: number,
 ) {
   if (!completion) {
     return null;
@@ -392,10 +403,11 @@ function getDisplayedCompletionScore(
   return calculateLevelScore({
     hops: completion.usedHops,
     optimalHops: optimalHops ?? completion.usedHops,
+    turns: completion.turns,
     suggestionAssists: completion.appliedSuggestionAssistPenaltyCount,
     shuffles: completion.appliedShufflePenaltyCount,
     rewinds: completion.appliedRewindPenaltyCount,
-    deadEnds: deadEndPenalties,
+    deadEnds: completion.deadEnds ?? 0,
   });
 }
 
@@ -422,13 +434,18 @@ function formatPenaltyValue(value: number) {
   return value === 0 ? "0" : `-${value}`;
 }
 
-function getReleaseYear(value: string | null | undefined) {
-  if (!value) {
-    return null;
+function getWriteInContextLabel(selection: GameNode | null) {
+  if (!selection || selection.type === "actor") {
+    return {
+      placeholder: "Enter a movie title",
+      writeInType: "movie" as NodeType,
+    };
   }
 
-  const parsed = Number.parseInt(value.slice(0, 4), 10);
-  return Number.isFinite(parsed) ? parsed : null;
+  return {
+    placeholder: "Enter an actor name",
+    writeInType: "actor" as NodeType,
+  };
 }
 
 type DisplayStar = {
@@ -552,6 +569,7 @@ function GamePage() {
   const rewindAddsPenalty = helperSettings["rewind-adds-penalty"];
   const cycleRiskClickAddsPenalty = helperSettings["cycle-risk-click-adds-penalty"];
   const showCastLockRiskHighlight = helperSettings["show-cast-lock-risk"];
+  const writeInAutoSuggestEnabled = helperSettings["write-in-autosuggest"];
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
@@ -592,6 +610,11 @@ function GamePage() {
   const [inspectorTrail, setInspectorTrail] = useState<GameNode[]>([]);
   const [nodeInspector, setNodeInspector] = useState<NodeInspectorState | null>(null);
   const [inspectorRelationSearch, setInspectorRelationSearch] = useState("");
+  const [leftPanelWriteInSide, setLeftPanelWriteInSide] = useState<SelectedSide | null>(null);
+  const [leftPanelWriteInValue, setLeftPanelWriteInValue] = useState("");
+  const [isSubmittingLeftPanelWriteIn, setIsSubmittingLeftPanelWriteIn] = useState(false);
+  const [rightWriteInSuggestionPool, setRightWriteInSuggestionPool] = useState<GameNode[]>([]);
+  const [leftWriteInSuggestionPool, setLeftWriteInSuggestionPool] = useState<GameNode[]>([]);
   const rulesDialogRef = useRef<HTMLDivElement | null>(null);
   const cycleRiskChildCacheRef = useRef<Map<string, GameNode[]>>(new Map());
   const levelIdentityRef = useRef<{ startLabel: string; endLabel: string } | null>(null);
@@ -637,9 +660,24 @@ function GamePage() {
   const latestAttempt = levelHistory?.attempts[0] ?? null;
   const isShuffleModeEnabled = suggestionDisplay.orderMode === "shuffled";
   const displayedCompletionScore = useMemo(
-    () => getDisplayedCompletionScore(completion, optimalHops, deadEndPenalties),
-    [completion, deadEndPenalties, optimalHops],
+    () => getDisplayedCompletionScore(completion, optimalHops),
+    [completion, optimalHops],
   );
+  const completionScoreBreakdown = useMemo(() => {
+    if (!completion) {
+      return null;
+    }
+
+    return buildLevelScoreBreakdown({
+      hops: completion.usedHops,
+      optimalHops: optimalHops ?? completion.usedHops,
+      turns: completion.turns,
+      suggestionAssists: completion.appliedSuggestionAssistPenaltyCount,
+      shuffles: completion.appliedShufflePenaltyCount,
+      rewinds: completion.appliedRewindPenaltyCount,
+      deadEnds: completion.deadEnds ?? 0,
+    });
+  }, [completion, optimalHops]);
   const isDeadEndGameOver = deadEndPenalties >= MAX_DEAD_END_PENALTIES;
   const currentLevelCompleted = useMemo(() => {
     if (!currentLevelIdentity) {
@@ -657,6 +695,7 @@ function GamePage() {
           <div className="gameCompletionLeaderboardTopRow">
             <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
             <span className="gameCompletionLeaderboardHops">{attempt.hops} hops</span>
+            <span className="gameCompletionLeaderboardTurns">{typeof attempt.turns === "number" ? `${attempt.turns} turns` : "-- turns"}</span>
             <span className="gameCompletionLeaderboardStars">
               {buildDisplayedStars(attempt.hops, optimalHops).map((star, starIndex) => (
                 <span
@@ -668,9 +707,14 @@ function GamePage() {
               ))}
             </span>
             <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
-            <span className="gameCompletionLeaderboardMeta">
-              {attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
-            </span>
+          </div>
+          <div className="gameCompletionLeaderboardMetrics">
+            <span className="gameCompletionLeaderboardMetric">Effective turns {typeof attempt.effectiveTurns === "number" ? attempt.effectiveTurns : "--"}</span>
+            <span className="gameCompletionLeaderboardMetric">{attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`}</span>
+            <span className="gameCompletionLeaderboardMetric">rewinds {attempt.rewinds}</span>
+            <span className="gameCompletionLeaderboardMetric">dead ends {attempt.deadEnds}</span>
+            <span className="gameCompletionLeaderboardMetric">popularity avg {typeof attempt.popularityScore === "number" ? attempt.popularityScore : "--"}</span>
+            <span className="gameCompletionLeaderboardMetric">avg year {formatAverageReleaseYear(attempt.averageReleaseYear)}</span>
           </div>
           <div className="gameCompletionLeaderboardPath">
             {attempt.path.map((node) => node.label).join(" → ")}
@@ -824,6 +868,13 @@ function GamePage() {
     syncLevelHistory();
     return subscribeToLevelHistoryUpdates(syncLevelHistory);
   }, []);
+
+  useEffect(() => {
+    if (completion) {
+      setLeftPanelWriteInSide(null);
+      setLeftPanelWriteInValue("");
+    }
+  }, [completion]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1100,6 +1151,20 @@ function GamePage() {
 
     return bottomPath.length > 0 ? bottomPath[bottomPath.length - 1] : actorB;
   }, [actorA, actorB, bottomPath, selectedSide, topPath]);
+  const topSelection = useMemo(() => {
+    if (!actorA) {
+      return null;
+    }
+
+    return topPath.length > 0 ? topPath[topPath.length - 1] : actorA;
+  }, [actorA, topPath]);
+  const bottomSelection = useMemo(() => {
+    if (!actorB) {
+      return null;
+    }
+
+    return bottomPath.length > 0 ? bottomPath[bottomPath.length - 1] : actorB;
+  }, [actorB, bottomPath]);
   const canGoBackOnCurrentSide = selectedSide === "top" ? topPath.length > 0 : bottomPath.length > 0;
 
   const targetNode = useMemo(() => {
@@ -1111,6 +1176,12 @@ function GamePage() {
   }, [actorA, actorB, selectedSide]);
 
   const shouldRandomizeSuggestions = isShuffleModeEnabled;
+  const leftPanelWriteInSelection = leftPanelWriteInSide === "top"
+    ? topSelection
+    : leftPanelWriteInSide === "bottom"
+      ? bottomSelection
+      : null;
+  const leftPanelWriteInContext = getWriteInContextLabel(leftPanelWriteInSelection);
 
   const suggestionBuildOptions = useMemo(() => ({
     shouldShuffle: false,
@@ -1173,7 +1244,7 @@ function GamePage() {
   const isInteractionDisabled = isPathLimitReached || isDeadEndGameOver || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
   const isGameComplete = !!completion;
 
-  const applyDeadEndPenalty = (message: string) => {
+  const applyDeadEndPenalty = useCallback((message: string) => {
     setDeadEndPenalties((currentPenalties) => {
       const nextPenalties = Math.min(MAX_DEAD_END_PENALTIES, currentPenalties + 1);
 
@@ -1185,7 +1256,7 @@ function GamePage() {
 
       return nextPenalties;
     });
-  };
+  }, []);
 
   const visibleSuggestions = useMemo(() => {
     return showVisitedSuggestions
@@ -1321,6 +1392,91 @@ function GamePage() {
 
     return childNodes;
   }, []);
+
+  const loadWriteInSuggestionPool = useCallback(async (selection: GameNode | null) => {
+    if (!selection || !targetNode || selection.id === undefined) {
+      return [] as GameNode[];
+    }
+
+    const targetSummary = toNodeSummary(targetNode);
+    if (!targetSummary) {
+      return [] as GameNode[];
+    }
+
+    const formatWriteInSuggestions = (nextSuggestions: GameNode[]) => {
+      return finalizeSuggestionOrder(
+        buildSuggestionSet(
+          applyActorPopularityFilter(nextSuggestions),
+          targetNode,
+          blockedLoopNodeKeys,
+          {
+            ...suggestionBuildOptions,
+            shouldShuffle: false,
+            suggestionLimit: null,
+          },
+        ),
+      );
+    };
+
+    const mapApiMovies = async () => {
+      const relatedMovies = await fetchActorMovies(selection.id!, targetNode.type, targetNode.id);
+      return relatedMovies.map((movie) => createNode(movie.title, "movie", {
+        id: movie.id,
+        releaseDate: movie.releaseDate,
+        imageUrl: moviesCatalogById.get(movie.id)?.posterUrl ?? null,
+        genres: moviesCatalogById.get(movie.id)?.genres ?? [],
+        contentRating: moviesCatalogById.get(movie.id)?.contentRating ?? null,
+        originalLanguage: moviesCatalogById.get(movie.id)?.originalLanguage ?? null,
+        overview: moviesCatalogById.get(movie.id)?.overview ?? null,
+        pathHint: movie.pathHint,
+      }));
+    };
+
+    const mapApiActors = async () => {
+      const relatedActors = await fetchMovieActors(selection.id!, [], targetNode.type, targetNode.id);
+      return relatedActors.map((actor) => createNode(actor.name, "actor", {
+        id: actor.id,
+        popularity: actor.popularity,
+        imageUrl: actorsCatalogById.get(actor.id)?.profileUrl ?? null,
+        knownForDepartment: actorsCatalogById.get(actor.id)?.knownForDepartment ?? null,
+        placeOfBirth: actorsCatalogById.get(actor.id)?.placeOfBirth ?? null,
+        pathHint: actor.pathHint,
+        popularityRank: actor.popularityRank,
+      }));
+    };
+
+    if (activeDataSource === "snapshot" || activeDataSource === "demo") {
+      const resources = await resolveSnapshotResources(activeDataSource === "demo");
+      if (!resources) {
+        return [] as GameNode[];
+      }
+
+      const localSuggestions = selection.type === "actor"
+        ? getMoviesForActor(selection.id, targetSummary, resources.indexes)
+        : getActorsForMovie(selection.id, [], targetSummary, resources.indexes);
+
+      return formatWriteInSuggestions(localSuggestions);
+    }
+
+    try {
+      const apiSuggestions = selection.type === "actor"
+        ? await mapApiMovies()
+        : await mapApiActors();
+
+      return formatWriteInSuggestions(apiSuggestions);
+    } catch {
+      const resources = (await resolveSnapshotResources()) ?? (await resolveSnapshotResources(true));
+      if (!resources) {
+        return [] as GameNode[];
+      }
+
+      const localSuggestions = selection.type === "actor"
+        ? getMoviesForActor(selection.id, targetSummary, resources.indexes)
+        : getActorsForMovie(selection.id, [], targetSummary, resources.indexes);
+
+      return formatWriteInSuggestions(localSuggestions);
+    }
+  }, [activeDataSource, actorsCatalogById, applyActorPopularityFilter, blockedLoopNodeKeys, finalizeSuggestionOrder, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode]);
 
   const annotateOneStepCycleRisk = useCallback(async (nextSuggestions: GameNode[], source: EffectiveDataSource) => {
     if (nextSuggestions.length === 0) {
@@ -1688,9 +1844,60 @@ function GamePage() {
     void loadSuggestions();
   }, [actorA, actorB, actorsCatalogById, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, finalizeSuggestionOrder, isNetworkUnavailable, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode, topPath]);
 
-  const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
+  useEffect(() => {
+    if (!writeInAutoSuggestEnabled || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
+      setRightWriteInSuggestionPool([]);
+      return;
+    }
+
+    let didCancel = false;
+
+    const loadOptions = async () => {
+      const nextOptions = await loadWriteInSuggestionPool(currentSelection);
+      if (!didCancel) {
+        setRightWriteInSuggestionPool(nextOptions);
+      }
+    };
+
+    void loadOptions();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [completion, currentSelection, isNetworkUnavailable, loadWriteInSuggestionPool, targetNode, writeInAutoSuggestEnabled]);
+
+  useEffect(() => {
+    if (!writeInAutoSuggestEnabled || !leftPanelWriteInSide || completion || isNetworkUnavailable) {
+      setLeftWriteInSuggestionPool([]);
+      return;
+    }
+
+    const selection = leftPanelWriteInSide === "top" ? topSelection : bottomSelection;
+    if (!selection || !targetNode) {
+      setLeftWriteInSuggestionPool([]);
+      return;
+    }
+
+    let didCancel = false;
+
+    const loadOptions = async () => {
+      const nextOptions = await loadWriteInSuggestionPool(selection);
+      if (!didCancel) {
+        setLeftWriteInSuggestionPool(nextOptions);
+      }
+    };
+
+    void loadOptions();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [bottomSelection, completion, isNetworkUnavailable, leftPanelWriteInSide, loadWriteInSuggestionPool, targetNode, topSelection, writeInAutoSuggestEnabled]);
+
+  const finalizeCompletion = useCallback(async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
     const hops = hydratedFullPath.length - 1;
+    const turnsAtCompletion = turns;
     const shuffleModeEnabledAtCompletion = isShuffleModeEnabled;
     const shufflesCount = shuffles;
     const appliedShufflePenaltyCount = shuffleAddsPenalty ? (shuffleModeEnabledAtCompletion ? shufflesCount : 1) : 0;
@@ -1698,10 +1905,19 @@ function GamePage() {
     const appliedSuggestionAssistPenaltyCount = helperSettings["show-suggestions"] ? 1 : 0;
     const rewindsCount = rewinds;
     const deadEndsCount = deadEndPenalties;
+    const effectiveTurns = getEffectiveTurnCount({
+      turns: turnsAtCompletion,
+      shuffles: appliedShufflePenaltyCount,
+      rewinds: appliedRewindPenaltyCount,
+      deadEnds: deadEndsCount,
+    });
+    const popularityScore = calculatePathPopularityScore(hydratedFullPath);
+    const averageReleaseYear = calculateAverageReleaseYear(hydratedFullPath);
     const optimalHopsValue = optimalHops ?? hops;
     const score = calculateLevelScore({
       hops,
       optimalHops: optimalHopsValue,
+      turns: turnsAtCompletion,
       suggestionAssists: appliedSuggestionAssistPenaltyCount,
       shuffles: appliedShufflePenaltyCount,
       rewinds: appliedRewindPenaltyCount,
@@ -1717,11 +1933,15 @@ function GamePage() {
         path: hydratedFullPath.filter(n => typeof n.id === "number").map(({ id, type, label }) => ({ id: id as number, type, label })),
         score,
         hops,
+        turns: turnsAtCompletion,
+        effectiveTurns,
         shuffles: shufflesCount,
         shuffleModeEnabled: shuffleModeEnabledAtCompletion,
         appliedShufflePenaltyCount,
         rewinds: rewindsCount,
         deadEnds: deadEndsCount,
+        popularityScore,
+        averageReleaseYear,
         timestamp: Date.now(),
       });
       setLevelHistory(savedHistory);
@@ -1730,6 +1950,8 @@ function GamePage() {
     const provisionalCompletion: CompletionState = {
       fullPath: hydratedFullPath,
       usedHops: hops,
+      turns: turnsAtCompletion,
+      effectiveTurns,
       winningSide,
       source,
       isValidated: null,
@@ -1738,6 +1960,9 @@ function GamePage() {
       appliedShufflePenaltyCount,
       appliedRewindPenaltyCount,
       appliedSuggestionAssistPenaltyCount,
+      deadEnds: deadEndsCount,
+      popularityScore,
+      averageReleaseYear,
       score,
     };
 
@@ -1782,9 +2007,9 @@ function GamePage() {
         validationMessage: error instanceof Error ? error.message : "Path validation could not be completed.",
       } : prev);
     }
-  };
+  }, [activeDataSource, actorA, actorB, deadEndPenalties, helperSettings, isShuffleModeEnabled, optimalHops, resolveSnapshotResources, rewindAddsPenalty, rewinds, shuffles, shuffleAddsPenalty, turns]);
 
-  const handleSuggestion = async (choice: GameNode) => {
+  const handleSuggestion = useCallback(async (choice: GameNode) => {
     if (!actorA || !actorB || !targetNode || isInteractionDisabled) {
       return;
     }
@@ -1838,7 +2063,7 @@ function GamePage() {
         : "The target node was selected directly.";
       await finalizeCompletion(winningPath, selectedSide, source);
     }
-  };
+  }, [actorA, actorB, applyDeadEndPenalty, blockedLoopNodeKeys, bottomPath, cycleRiskClickAddsPenalty, finalizeCompletion, isInteractionDisabled, selectedSide, targetNode, topPath]);
 
   const handleRemoveTopPathItem = () => {
     if (topPath.length === 0 || completion) {
@@ -1897,6 +2122,8 @@ function GamePage() {
     setTopPath([]);
     setBottomPath([]);
     setLockedSide(null);
+    setLeftPanelWriteInSide(null);
+    setLeftPanelWriteInValue("");
     setTurns(0);
     setRewinds(0);
     setDeadEndPenalties(0);
@@ -2131,88 +2358,68 @@ function GamePage() {
     void loadInspectorNode(node);
   }, [loadInspectorNode]);
 
-  const handleWriteIn = async (value: string, type: NodeType) => {
+  const handleWriteIn = useCallback(async (value: string, type: NodeType, allowedOptions: GameNode[], sourceLabel: string) => {
     setSuggestionError(null);
 
     try {
-      if (activeDataSource === "snapshot" || activeDataSource === "demo") {
-		const resources = await resolveSnapshotResources(activeDataSource === "demo");
-        if (!resources) {
-          setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
-          setIsNetworkUnavailable(true);
-          setSuggestions(createPlaceholderSuggestions(type));
-          return;
-        }
+      const matchedOption = resolveWriteInOption(
+        value,
+        allowedOptions.filter((option) => option.type === type),
+        writeInAutoSuggestEnabled,
+      );
 
-        if (type === "actor") {
-          const actor = findNodeByLabel(value, "actor", resources.indexes);
-          if (!actor) {
-            setSuggestionError(`No actor named "${value}" was found in the local snapshot.`);
-            return;
-          }
-
-          await handleSuggestion(createGameNodeFromSummary(actor, resources.indexes));
-          return;
-        }
-
-        const movie = findNodeByLabel(value, "movie", resources.indexes);
-        if (!movie) {
-          setSuggestionError(`No movie named "${value}" was found in the local snapshot.`);
-          return;
-        }
-
-        await handleSuggestion(createGameNodeFromSummary(movie, resources.indexes));
-        return;
+      if (!matchedOption) {
+        setSuggestionError(`No valid ${type} connected to ${sourceLabel} matches "${value}".`);
+        return false;
       }
 
-      try {
-        if (type === "actor") {
-          const actor = await fetchActorByName(value);
-          await handleSuggestion(createNodeFromActor(actor));
-          return;
-        }
-
-        const movie = moviesCatalog.find((entry) => entry.title.toLowerCase() === value.toLowerCase());
-        if (!movie) {
-          setSuggestionError(`No movie named "${value}" was found in the API movie catalog.`);
-          return;
-        }
-
-        await handleSuggestion(createNodeFromMovie(movie));
-      } catch {
-        const resources = (await resolveSnapshotResources()) ?? (await resolveSnapshotResources(true));
-        if (!resources) {
-          setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
-          setIsNetworkUnavailable(true);
-          setSuggestions(createPlaceholderSuggestions(type));
-          return;
-        }
-
-        if (type === "actor") {
-          const actor = findNodeByLabel(value, "actor", resources.indexes);
-          if (!actor) {
-            setSuggestionError(`No actor named "${value}" was found after falling back to snapshot data.`);
-            return;
-          }
-
-          setResolvedDataSource(resources.source);
-          await handleSuggestion(createGameNodeFromSummary(actor, resources.indexes));
-          return;
-        }
-
-        const movie = findNodeByLabel(value, "movie", resources.indexes);
-        if (!movie) {
-          setSuggestionError(`No movie named "${value}" was found after falling back to snapshot data.`);
-          return;
-        }
-
-        setResolvedDataSource(resources.source);
-        await handleSuggestion(createGameNodeFromSummary(movie, resources.indexes));
-      }
+      await handleSuggestion(matchedOption);
+      return true;
     } catch (error) {
       setSuggestionError(error instanceof Error ? error.message : "The write-in value could not be resolved.");
+      return false;
     }
-  };
+  }, [handleSuggestion, writeInAutoSuggestEnabled]);
+
+  const handleOpenLeftPanelWriteIn = useCallback((side: SelectedSide) => {
+    setSelectedSide(side);
+    setLeftPanelWriteInSide(side);
+    setLeftPanelWriteInValue("");
+    setLeftWriteInSuggestionPool([]);
+  }, []);
+
+  const handleCloseLeftPanelWriteIn = useCallback(() => {
+    setLeftPanelWriteInSide(null);
+    setLeftPanelWriteInValue("");
+    setLeftWriteInSuggestionPool([]);
+  }, []);
+
+  const handleSubmitLeftPanelWriteIn = useCallback(async () => {
+    if (!leftPanelWriteInSide || isSubmittingLeftPanelWriteIn) {
+      return;
+    }
+
+    const trimmedValue = leftPanelWriteInValue.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    setIsSubmittingLeftPanelWriteIn(true);
+
+    try {
+      const didResolve = await handleWriteIn(
+        trimmedValue,
+        leftPanelWriteInContext.writeInType,
+        leftWriteInSuggestionPool,
+        leftPanelWriteInSelection?.label ?? "this node",
+      );
+      if (didResolve) {
+        handleCloseLeftPanelWriteIn();
+      }
+    } finally {
+      setIsSubmittingLeftPanelWriteIn(false);
+    }
+  }, [handleCloseLeftPanelWriteIn, handleWriteIn, isSubmittingLeftPanelWriteIn, leftPanelWriteInContext.writeInType, leftPanelWriteInSelection, leftPanelWriteInSide, leftPanelWriteInValue, leftWriteInSuggestionPool]);
 
 
   const backDestination = routeState?.returnTo ?? "/play-now";
@@ -2258,9 +2465,22 @@ function GamePage() {
           currentHops={currentHops}
           optimalHops={optimalHops}
           showOptimalTracking={helperSettings["show-optimal-tracking"]}
+          isInteractionDisabled={isInteractionDisabled}
+          activeWriteInSide={leftPanelWriteInSide}
+          writeInValue={leftPanelWriteInValue}
+          writeInPlaceholder={leftPanelWriteInContext.placeholder}
+          writeInSuggestions={leftWriteInSuggestionPool}
+          writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
+          isSubmittingWriteIn={isSubmittingLeftPanelWriteIn}
           onSelectSide={setSelectedSide}
           onInspectNode={(node) => {
             void handleInspectNode(node);
+          }}
+          onOpenWriteIn={handleOpenLeftPanelWriteIn}
+          onCloseWriteIn={handleCloseLeftPanelWriteIn}
+          onWriteInValueChange={setLeftPanelWriteInValue}
+          onSubmitWriteIn={() => {
+            void handleSubmitLeftPanelWriteIn();
           }}
           onRemoveTopPathItem={handleRemoveTopPathItem}
           onRemoveBottomPathItem={handleRemoveBottomPathItem}
@@ -2301,8 +2521,13 @@ function GamePage() {
             suggestions={visibleSuggestions}
             suggestionDisplay={suggestionDisplay}
             isShuffleModeEnabled={isShuffleModeEnabled}
+            shuffleAddsPenalty={shuffleAddsPenalty}
+            rewindAddsPenalty={rewindAddsPenalty}
+            deadEndAddsPenalty={cycleRiskClickAddsPenalty}
             showSuggestionValues={helperSettings["show-suggestions"]}
             showHintColors={helperSettings["show-hint-color"]}
+            writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
+            writeInSuggestions={rightWriteInSuggestionPool}
             turns={turns}
             rewinds={rewinds}
             deadEndPenalties={deadEndPenalties}
@@ -2335,7 +2560,7 @@ function GamePage() {
               Score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
             </div>
             <div className="gameCompletionPinnedScoreMeta">
-              {completion.usedHops} hops used{optimalHops !== null ? ` • optimal ${optimalHops}` : ""}
+              {completion.usedHops} hops • {completion.turns} turns{optimalHops !== null ? ` • optimal ${optimalHops}` : ""} • popularity avg {completion.popularityScore} • avg year {formatAverageReleaseYear(completion.averageReleaseYear)}
             </div>
           </div>
           <button
@@ -2413,6 +2638,11 @@ function GamePage() {
                 <span className="gameCompletionStatLabel">Score</span>
                 <span className="gameCompletionStatValue">{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
               </div>
+              <div className="gameCompletionStat gameCompletionStat--turns">
+                <span className="gameCompletionStatIcon" aria-hidden="true">↺</span>
+                <span className="gameCompletionStatLabel">Turns used</span>
+                <span className="gameCompletionStatValue gameCompletionStatValue--turns">{completion.turns}</span>
+              </div>
               <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Completed hops</span>
                 <span className="gameCompletionStatValue">{completion.usedHops}</span>
@@ -2422,8 +2652,8 @@ function GamePage() {
                 <span className="gameCompletionStatValue">{optimalHops ?? "--"}</span>
               </div>
               <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Turns used</span>
-                <span className="gameCompletionStatValue">{turns}</span>
+                <span className="gameCompletionStatLabel">Effective turns</span>
+                <span className="gameCompletionStatValue">{completion.effectiveTurns}</span>
               </div>
               <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Shuffles</span>
@@ -2440,11 +2670,19 @@ function GamePage() {
               </div>
               <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Rewinds</span>
-                <span className="gameCompletionStatValue">{rewinds}</span>
+                <span className="gameCompletionStatValue">{completion.appliedRewindPenaltyCount}</span>
               </div>
               <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Dead ends</span>
-                <span className="gameCompletionStatValue">{deadEndPenalties}</span>
+                <span className="gameCompletionStatValue">{completion.deadEnds ?? 0}</span>
+              </div>
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Popularity avg</span>
+                <span className="gameCompletionStatValue">{completion.popularityScore}</span>
+              </div>
+              <div className="gameCompletionStat">
+                <span className="gameCompletionStatLabel">Average release year</span>
+                <span className="gameCompletionStatValue">{formatAverageReleaseYear(completion.averageReleaseYear)}</span>
               </div>
             </div>
 
@@ -2459,20 +2697,20 @@ function GamePage() {
                 <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
+                <span>Turn efficiency</span>
+                <span>{optimalHops ?? completion.usedHops} / {completion.effectiveTurns}</span>
+              </div>
+              <div className="gameCompletionScoreBreakdownRow">
                 <span>Suggestion assist penalty</span>
-                <span>{formatPenaltyValue(completion.appliedSuggestionAssistPenaltyCount * 5)}</span>
+                <span>{formatPenaltyValue(completionScoreBreakdown?.suggestionPenalty ?? 0)}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
-                <span>{completion.shuffleModeEnabled ? "Shuffle penalties" : "Non-shuffled game penalty"}</span>
-                <span>{formatPenaltyValue(completion.appliedShufflePenaltyCount * 3)}</span>
+                <span>Turn load</span>
+                <span>{completion.turns} base + {completion.appliedShufflePenaltyCount} shuffle + {completion.appliedRewindPenaltyCount} rewind + {completion.deadEnds ?? 0} dead-end</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
-                <span>Rewind penalties</span>
-                <span>{formatPenaltyValue(completion.appliedRewindPenaltyCount * 4)}</span>
-              </div>
-              <div className="gameCompletionScoreBreakdownRow">
-                <span>Dead-end penalties</span>
-                <span>{formatPenaltyValue(deadEndPenalties * 6)}</span>
+                <span>Base efficiency score</span>
+                <span>{completionScoreBreakdown ? `${(((completionScoreBreakdown.hopEfficiency + completionScoreBreakdown.turnEfficiency) / 2) * 100).toFixed(1)}%` : "--"}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
                 <span>Final score</span>
@@ -2503,6 +2741,13 @@ function GamePage() {
             </div>
 
             <div className="gameCompletionHistory">
+              <div className="gameCompletionHistorySummary">
+                <span className="gameCompletionHistorySummaryPill">Optimal {optimalHops ?? completion.usedHops} hops</span>
+                <span className="gameCompletionHistorySummaryPill">Best {latestAttempt ? `${latestAttempt.hops} hops` : "--"}</span>
+                <span className="gameCompletionHistorySummaryPill">Latest turns {latestAttempt?.turns ?? "--"}</span>
+                <span className="gameCompletionHistorySummaryPill">Latest popularity avg {latestAttempt?.popularityScore ?? "--"}</span>
+                <span className="gameCompletionHistorySummaryPill">Latest avg year {formatAverageReleaseYear(latestAttempt?.averageReleaseYear)}</span>
+              </div>
               <button
                 type="button"
                 className="gameCompletionHistoryToggle"

@@ -11,6 +11,7 @@ import type {
 export const ALL_ON_CUSTOM_SETTINGS: DifficultySettings = {
 	"show-suggestions": true,
 	"show-hint-color": true,
+	"write-in-autosuggest": true,
 	"show-optimal-tracking": true,
 	"guarantee-best-path-suggestion": true,
 	"show-visited-suggestions": true,
@@ -23,6 +24,7 @@ export const ALL_ON_CUSTOM_SETTINGS: DifficultySettings = {
 export const ALL_OFF_CUSTOM_SETTINGS: DifficultySettings = {
 	"show-suggestions": false,
 	"show-hint-color": false,
+	"write-in-autosuggest": false,
 	"show-optimal-tracking": false,
 	"guarantee-best-path-suggestion": false,
 	"show-visited-suggestions": false,
@@ -57,6 +59,13 @@ export const CUSTOM_SETTING_DEFINITIONS: CustomSettingDefinition[] = [
 		label: "Show hint colors",
 		hint: "Keep connection, best-path, and cycle-risk highlight colors enabled.",
 		performanceWarning: "Hint colors are cheap by themselves, but they also enable the expensive cast-lock analysis when the cast-lock overlay is on.",
+		requires: "show-suggestions",
+	},
+	{
+		id: "write-in-autosuggest",
+		label: "Autosuggest write-ins",
+		hint: "Offer type-ahead matches in the write-in field and resolve partial names to the closest catalog match.",
+		section: "helpers",
 	},
 	{
 		id: "show-visited-suggestions",

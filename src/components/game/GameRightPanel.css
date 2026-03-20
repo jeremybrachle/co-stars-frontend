@@ -637,6 +637,13 @@
   gap: 8px;
 }
 
+.game-right-panel__write-in-hint {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
 .game-right-panel__completion-review {
   width: 100%;
   min-height: 168px;
@@ -747,7 +754,7 @@
   width: calc(100% - 24px);
   max-width: calc(100% - 24px);
   justify-content: center;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1.25fr repeat(3, 1fr);
   padding: 8px 12px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { DifficultyOption, DifficultySettings, GameDifficultySettings } from "../types";
-import { applyDifficultyToSuggestionDisplay, GAME_SETTINGS_KEY, GameSettingsContext, getDifficultyPresetSettings, inferDifficultyPreset, readStoredGameSettings } from "./gameSettings";
+import { applyDifficultyToSuggestionDisplay, CUSTOM_SETTING_DEFINITIONS, GAME_SETTINGS_KEY, GameSettingsContext, getDifficultyPresetSettings, inferDifficultyPreset, readStoredGameSettings } from "./gameSettings";
 
 export function GameSettingsProvider({ children }: { children: React.ReactNode }) {
 	const [settings, setSettings] = useState<GameDifficultySettings>(() => readStoredGameSettings());
@@ -27,6 +27,14 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					...settings.customSettings,
 					[settingId]: enabled,
 				};
+
+				if (!enabled) {
+					CUSTOM_SETTING_DEFINITIONS.forEach((settingDefinition) => {
+						if (settingDefinition.requires === settingId) {
+							nextCustomSettings[settingDefinition.id] = false;
+						}
+					});
+				}
 
 				persistSettings({
 					...settings,

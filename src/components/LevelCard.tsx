@@ -63,6 +63,14 @@ function getCompletionTrophyCount(tone: StarTone | null) {
 	return 0;
 }
 
+function formatAverageReleaseYear(value: number | null | undefined) {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return "--";
+	}
+
+	return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 type Props = {
 	level: Level;
 	levelIndex: number;
@@ -91,7 +99,6 @@ function LevelCard({
 	const displayedStarCount = getDisplayedStarCount(level.optimalHops);
 	const levelStars = buildDisplayedStars(displayedStarCount, level.optimalHops);
 	const bestAttemptTone = bestAttempt ? getStarTone(bestAttempt.hops, level.optimalHops) : null;
-	const bestAttemptToneClass = getToneClassSuffix(bestAttemptTone ?? "bronze");
 	const completionTrophyCount = getCompletionTrophyCount(bestAttemptTone);
 
 	return (
@@ -205,33 +212,18 @@ function LevelCard({
 						<p className={styles.leaderboardDialogDescription}>
 							Review your saved attempts for this level. Entries are ordered by fewest hops first, then highest score, so your best route stays at the top.
 						</p>
-						<div className={styles.leaderboardSummaryGrid}>
-							<div className={styles.leaderboardSummaryCard}>
-								<span className={styles.leaderboardSummaryLabel}>Target</span>
-								<span className={styles.leaderboardSummaryValue}>Optimal in {level.optimalHops ?? "--"}</span>
-								<span className={styles.leaderboardSummaryMeta}>Gold matches optimal, silver is within two hops, bronze is anything beyond that.</span>
-							</div>
-							<div className={styles.leaderboardSummaryCard}>
-								<span className={styles.leaderboardSummaryLabel}>Saved routes</span>
-								<span className={styles.leaderboardSummaryValue}>{totalAttempts}</span>
-								<span className={styles.leaderboardSummaryMeta}>Attempts stored for this level on this browser</span>
-							</div>
-                            <div className={styles.leaderboardSummaryCard}>
-								<span className={styles.leaderboardSummaryLabel}>Best run</span>
-								{bestAttempt ? (
-									<>
-										<div className={styles.leaderboardSummaryValueRow}>
-											<span className={styles.leaderboardSummaryValue}>{bestAttempt.hops} hops</span>
-											<span className={`${styles.leaderboardSummaryTrophy} ${styles[`leaderboardSummaryTrophyTone${bestAttemptToneClass}`]} ${styles[`leaderboardSummaryTrophySize${bestAttemptToneClass}`]}`} aria-hidden="true">
-												🏆
-											</span>
-										</div>
-										<span className={styles.leaderboardSummaryMeta}>{bestAttempt.score.toFixed(1)}% final score</span>
-									</>
-								) : (
-									<span className={styles.leaderboardSummaryMeta}>No completed runs saved yet</span>
-								)}
-							</div>
+						<div className={styles.leaderboardSummaryInline}>
+							<span className={styles.leaderboardSummaryPill}>Optimal {level.optimalHops ?? "--"} hops</span>
+							<span className={styles.leaderboardSummaryPill}>{totalAttempts} saved route{totalAttempts === 1 ? "" : "s"}</span>
+							{bestAttempt ? (
+								<>
+									<span className={styles.leaderboardSummaryPill}>Best {bestAttempt.hops} hops</span>
+									<span className={styles.leaderboardSummaryPill}>Best turns {bestAttempt.turns ?? "--"}</span>
+									<span className={styles.leaderboardSummaryPill}>Best score {bestAttempt.score.toFixed(1)}%</span>
+								</>
+							) : (
+								<span className={styles.leaderboardSummaryPill}>No saved runs yet</span>
+							)}
 						</div>
 						{leaderboardAttempts.length === 0 ? (
 							<div className={styles.leaderboardEmpty}>No saved routes for this level yet. Finish the level once to start building a personal leaderboard here.</div>
@@ -245,6 +237,7 @@ function LevelCard({
 										<div className={styles.leaderboardTopRow}>
 											<span className={styles.leaderboardRank}>#{index + 1}</span>
 											<span className={styles.leaderboardHops}>{attempt.hops} hops</span>
+											<span className={styles.leaderboardTurns}>{typeof attempt.turns === "number" ? `${attempt.turns} turns` : "-- turns"}</span>
 											<span className={`${styles.leaderboardAttemptTrophy} ${styles[`leaderboardAttemptTrophyTone${attemptToneClass}`]} ${styles[`leaderboardAttemptTrophySize${attemptToneClass}`]}`} aria-hidden="true">
 												🏆
 											</span>
@@ -259,6 +252,14 @@ function LevelCard({
 												))}
 											</span>
 											<span className={styles.leaderboardScore}>{attempt.score.toFixed(1)}%</span>
+										</div>
+										<div className={styles.leaderboardMetrics}>
+											<span className={styles.leaderboardMetric}>effective turns {typeof attempt.effectiveTurns === "number" ? attempt.effectiveTurns : "--"}</span>
+											<span className={styles.leaderboardMetric}>{attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`}</span>
+											<span className={styles.leaderboardMetric}>rewinds {attempt.rewinds}</span>
+											<span className={styles.leaderboardMetric}>dead ends {attempt.deadEnds}</span>
+											<span className={styles.leaderboardMetric}>popularity avg {typeof attempt.popularityScore === "number" ? attempt.popularityScore : "--"}</span>
+											<span className={styles.leaderboardMetric}>avg year {formatAverageReleaseYear(attempt.averageReleaseYear)}</span>
 										</div>
 										<div className={styles.leaderboardPath}>{attempt.path.map((node) => node.label).join(" → ")}</div>
 									</li>

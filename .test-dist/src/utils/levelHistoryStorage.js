@@ -24,6 +24,8 @@ function createAttemptSignature(input) {
     return [
         pathSignature,
         input.hops,
+        input.turns,
+        input.effectiveTurns,
         input.score.toFixed(1),
         input.shuffles,
         input.shuffleModeEnabled ? "shuffle-on" : "shuffle-off",
@@ -74,11 +76,15 @@ function isSavedLevelAttempt(value) {
         && candidate.path.every(isNodeSummary)
         && typeof candidate.score === "number"
         && typeof candidate.hops === "number"
+        && (candidate.turns === undefined || typeof candidate.turns === "number")
+        && (candidate.effectiveTurns === undefined || typeof candidate.effectiveTurns === "number")
         && typeof candidate.shuffles === "number"
         && (candidate.shuffleModeEnabled === undefined || typeof candidate.shuffleModeEnabled === "boolean")
         && (candidate.appliedShufflePenaltyCount === undefined || typeof candidate.appliedShufflePenaltyCount === "number")
         && typeof candidate.rewinds === "number"
         && typeof candidate.deadEnds === "number"
+        && (candidate.popularityScore === undefined || typeof candidate.popularityScore === "number")
+        && (candidate.averageReleaseYear === undefined || candidate.averageReleaseYear === null || typeof candidate.averageReleaseYear === "number")
         && typeof candidate.timestamp === "number");
 }
 function parseCollection(rawValue) {
@@ -164,11 +170,15 @@ function saveLevelAttempt(endpointA, endpointB, input) {
         path: input.path,
         score: Math.round(input.score * 10) / 10,
         hops: input.hops,
+        turns: input.turns,
+        effectiveTurns: input.effectiveTurns,
         shuffles: input.shuffles,
         shuffleModeEnabled: input.shuffleModeEnabled,
         appliedShufflePenaltyCount: input.appliedShufflePenaltyCount,
         rewinds: input.rewinds,
         deadEnds: input.deadEnds,
+        popularityScore: input.popularityScore,
+        averageReleaseYear: input.averageReleaseYear,
         timestamp,
     };
     const nextRecord = {

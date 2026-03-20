@@ -449,6 +449,24 @@
   text-align: center;
 }
 
+.gameCompletionStat--turns {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.14), rgba(255, 255, 255, 0.06));
+  border-color: rgba(125, 211, 252, 0.24);
+}
+
+.gameCompletionStatIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  font-size: 1.35rem;
+}
+
 .gameCompletionStatLabel {
   display: block;
   color: rgba(255, 255, 255, 0.66);
@@ -461,6 +479,10 @@
 .gameCompletionStatValue {
   font-size: 1.45rem;
   font-weight: 800;
+}
+
+.gameCompletionStatValue--turns {
+  font-size: 1.85rem;
 }
 
 .gameCompletionPreview {
@@ -582,6 +604,23 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.gameCompletionHistorySummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.gameCompletionHistorySummaryPill {
+  padding: 0.34rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .gameCompletionHistoryHeader {
   display: flex;
   justify-content: space-between;
@@ -666,6 +705,7 @@
 }
 
 .gameCompletionLeaderboardHops,
+.gameCompletionLeaderboardTurns,
 .gameCompletionLeaderboardStars {
   padding: 0.24rem 0.58rem;
   border-radius: 999px;
@@ -705,9 +745,20 @@
   color: #86efac;
 }
 
-.gameCompletionLeaderboardMeta {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
+.gameCompletionLeaderboardMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.gameCompletionLeaderboardMetric {
+  padding: 0.24rem 0.54rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .gameCompletionLeaderboardPath {

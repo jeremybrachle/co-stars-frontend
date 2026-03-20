@@ -55,6 +55,9 @@ export default function CustomGameSettingsPanel({
   const renderSettingCard = (setting: typeof CUSTOM_SETTING_DEFINITIONS[number]) => {
     const isEnabled = customSettings[setting.id]
     const isDependencyMissing = setting.requires ? !customSettings[setting.requires] : false
+    const requiredSetting = setting.requires
+      ? CUSTOM_SETTING_DEFINITIONS.find((candidate) => candidate.id === setting.requires) ?? null
+      : null
 
     return (
       <article key={setting.id} className={`settingsToggleCard${isDependencyMissing ? " settingsToggleCard--disabled" : ""}`}>
@@ -66,7 +69,7 @@ export default function CustomGameSettingsPanel({
               <span className="settingsWarning">Performance warning: {setting.performanceWarning}</span>
             ) : null}
             {isDependencyMissing ? (
-              <span className="settingsHint">Enable cast lock risk first.</span>
+              <span className="settingsHint">Enable {requiredSetting?.label.toLocaleLowerCase() ?? "the required setting"} first.</span>
             ) : null}
           </div>
           <div className="settingsToggleControl">

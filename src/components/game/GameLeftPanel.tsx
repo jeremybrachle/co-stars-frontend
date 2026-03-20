@@ -1,5 +1,6 @@
 import "./GameLeftPanel.css";
 import EntityArtwork from "../EntityArtwork";
+import WriteInAutosuggestField from "./WriteInAutosuggestField";
 import type { GameNode } from "../../types";
 import { MAX_PATH_LENGTH } from "../../gameplay";
 
@@ -45,8 +46,19 @@ type Props = {
   currentHops: number;
   optimalHops: number | null;
   showOptimalTracking: boolean;
+  isInteractionDisabled: boolean;
+  activeWriteInSide: SelectedSide | null;
+  writeInValue: string;
+  writeInPlaceholder: string;
+  writeInSuggestions: GameNode[];
+  writeInAutoSuggestEnabled: boolean;
+  isSubmittingWriteIn: boolean;
   onSelectSide: (side: SelectedSide) => void;
   onInspectNode: (node: GameNode) => void;
+  onOpenWriteIn: (side: SelectedSide) => void;
+  onCloseWriteIn: () => void;
+  onWriteInValueChange: (value: string) => void;
+  onSubmitWriteIn: () => void;
   onRemoveTopPathItem: () => void;
   onRemoveBottomPathItem: () => void;
 };
@@ -88,19 +100,85 @@ function buildBottomSnakeOrder() {
 
 const BOTTOM_ORDER = buildBottomSnakeOrder();
 
-function VerticalEllipsisBox({
+function PlusWriteInTrigger({
   onClick,
   highlight,
+  disabled,
 }: {
   onClick: () => void;
   highlight: boolean;
+  disabled: boolean;
 }) {
   return (
-    <div
+    <button
+      type="button"
       className={`game-left-panel__actor-box game-left-panel__ellipsis${highlight ? " game-left-panel__ellipsis--active" : ""}`}
       onClick={onClick}
+      disabled={disabled}
+      aria-label="Open write in"
     >
-      <span className="game-left-panel__ellipsis-icon">⋮</span>
+      <span className="game-left-panel__ellipsis-icon">+</span>
+    </button>
+  );
+}
+
+function BoardWriteInBox({
+  side,
+  value,
+  placeholder,
+  suggestions,
+  autoSuggestEnabled,
+  isSubmitting,
+  isDisabled,
+  onChange,
+  onClose,
+  onSubmit,
+}: {
+  side: Side;
+  value: string;
+  placeholder: string;
+  suggestions: GameNode[];
+  autoSuggestEnabled: boolean;
+  isSubmitting: boolean;
+  isDisabled: boolean;
+  onChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="game-left-panel__write-in-panel">
+      <WriteInAutosuggestField
+        value={value}
+        onChange={onChange}
+        onSubmit={onSubmit}
+        placeholder={placeholder}
+        suggestions={suggestions}
+        autoSuggestEnabled={autoSuggestEnabled}
+        disabled={isDisabled || isSubmitting}
+        autoFocus
+        inputClassName="game-left-panel__write-in-input"
+        dropdownLabel={`${side} board write in suggestions`}
+        emptyMessage="No matching write-ins."
+      />
+      <div className="game-left-panel__write-in-actions">
+        <button
+          type="button"
+          className="game-left-panel__write-in-button game-left-panel__write-in-button--ghost"
+          onClick={onClose}
+          disabled={isDisabled || isSubmitting}
+          aria-label="Close write in"
+        >
+          ×
+        </button>
+        <button
+          type="button"
+          className="game-left-panel__write-in-button"
+          onClick={onSubmit}
+          disabled={isDisabled || isSubmitting || value.trim().length === 0}
+        >
+          {isSubmitting ? "…" : "Go"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -168,7 +246,7 @@ function buildBoardTokens({
   onSelectSide: (side: Side) => void;
   onInspectNode: (node: GameNode) => void;
   onRemove: () => void;
-}) {
+}): { tokens: BoardToken[]; ellipsis: BoardEllipsis | null } {
   const order = getOrderForSide(side);
   const slotPath = path.slice(0, MAX_PATH_LENGTH);
   const canRenderEllipsis = !isBoardLocked || cappedSide === side;
@@ -284,13 +362,48 @@ function renderBoardToken(token: BoardToken) {
   );
 }
 
-function renderBoardEllipsis(ellipsis: BoardEllipsis) {
+function renderBoardEllipsis(
+  ellipsis: BoardEllipsis,
+  options: {
+    activeWriteInSide: SelectedSide | null;
+    writeInValue: string;
+    writeInPlaceholder: string;
+    writeInSuggestions: GameNode[];
+    writeInAutoSuggestEnabled: boolean;
+    isSubmittingWriteIn: boolean;
+    isInteractionDisabled: boolean;
+    onOpenWriteIn: (side: SelectedSide) => void;
+    onCloseWriteIn: () => void;
+    onWriteInValueChange: (value: string) => void;
+    onSubmitWriteIn: () => void;
+  },
+) {
   const arrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${ellipsis.side === "top" ? "game-left-panel__board-arrow--up-origin" : "game-left-panel__board-arrow--down-origin"}${ellipsis.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
+  const isWriteInOpen = options.activeWriteInSide === ellipsis.side;
 
   return (
     <div className={`game-left-panel__board-slot${ellipsis.isDimmed ? " game-left-panel__board-slot--inactive" : ""}`}>
       {ellipsis.startArrow ? <span className={arrowClassName}>{ellipsis.startArrow}</span> : null}
-      <VerticalEllipsisBox onClick={ellipsis.onSelect} highlight={!ellipsis.isDimmed} />
+      {isWriteInOpen ? (
+        <BoardWriteInBox
+          side={ellipsis.side}
+          value={options.writeInValue}
+          placeholder={options.writeInPlaceholder}
+          suggestions={options.writeInSuggestions}
+          autoSuggestEnabled={options.writeInAutoSuggestEnabled}
+          isSubmitting={options.isSubmittingWriteIn}
+          isDisabled={options.isInteractionDisabled}
+          onChange={options.onWriteInValueChange}
+          onClose={options.onCloseWriteIn}
+          onSubmit={options.onSubmitWriteIn}
+        />
+      ) : (
+        <PlusWriteInTrigger
+          onClick={() => options.onOpenWriteIn(ellipsis.side)}
+          highlight={!ellipsis.isDimmed}
+          disabled={options.isInteractionDisabled}
+        />
+      )}
     </div>
   );
 }
@@ -386,8 +499,19 @@ function GameLeftPanel({
   currentHops,
   optimalHops,
   showOptimalTracking,
+  isInteractionDisabled,
+  activeWriteInSide,
+  writeInValue,
+  writeInPlaceholder,
+  writeInSuggestions,
+  writeInAutoSuggestEnabled,
+  isSubmittingWriteIn,
   onSelectSide,
   onInspectNode,
+  onOpenWriteIn,
+  onCloseWriteIn,
+  onWriteInValueChange,
+  onSubmitWriteIn,
   onRemoveTopPathItem,
   onRemoveBottomPathItem,
 }: Props) {
@@ -477,11 +601,35 @@ function GameLeftPanel({
                   className="game-left-panel__board-cell"
                   style={{ gridColumn: coord.col + 1, gridRow: coord.row + 1 }}
                 >
-                  {topToken ? renderBoardToken(topToken) : topEllipsis ? renderBoardEllipsis(topEllipsis) : null}
+                  {topToken ? renderBoardToken(topToken) : topEllipsis ? renderBoardEllipsis(topEllipsis, {
+                    activeWriteInSide,
+                    writeInValue,
+                    writeInPlaceholder,
+                    writeInSuggestions,
+                    writeInAutoSuggestEnabled,
+                    isSubmittingWriteIn,
+                    isInteractionDisabled,
+                    onOpenWriteIn,
+                    onCloseWriteIn,
+                    onWriteInValueChange,
+                    onSubmitWriteIn,
+                  }) : null}
                   {bottomToken
                     ? renderBoardToken(bottomToken)
                     : bottomEllipsis
-                      ? renderBoardEllipsis(bottomEllipsis)
+                      ? renderBoardEllipsis(bottomEllipsis, {
+                        activeWriteInSide,
+                        writeInValue,
+                        writeInPlaceholder,
+                        writeInSuggestions,
+                        writeInAutoSuggestEnabled,
+                        isSubmittingWriteIn,
+                        isInteractionDisabled,
+                        onOpenWriteIn,
+                        onCloseWriteIn,
+                        onWriteInValueChange,
+                        onSubmitWriteIn,
+                      })
                       : null}
                 </div>
               ))}
