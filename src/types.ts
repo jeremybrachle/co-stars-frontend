@@ -172,6 +172,7 @@ export type DifficultyOption = "all-on" | "all-off" | "custom";
 
 export type DifficultyToggleId =
 	| "show-suggestions"
+	| "start-with-suggestion-panel"
 	| "show-hint-color"
 	| "write-in-autosuggest"
 	| "show-optimal-tracking"

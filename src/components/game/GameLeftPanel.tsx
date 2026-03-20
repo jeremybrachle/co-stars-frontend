@@ -3,6 +3,7 @@ import EntityArtwork from "../EntityArtwork";
 import WriteInAutosuggestField from "./WriteInAutosuggestField";
 import type { GameNode } from "../../types";
 import { MAX_PATH_LENGTH } from "../../gameplay";
+import type { NodeType } from "../../types";
 
 type SelectedSide = "top" | "bottom";
 type Side = SelectedSide;
@@ -53,8 +54,11 @@ type Props = {
   writeInSuggestions: GameNode[];
   writeInAutoSuggestEnabled: boolean;
   isSubmittingWriteIn: boolean;
+  isSuggestionPanelVisible: boolean;
+  suggestionTargetType: NodeType;
   onSelectSide: (side: SelectedSide) => void;
   onInspectNode: (node: GameNode) => void;
+  onToggleSuggestionPanel: () => void;
   onOpenWriteIn: (side: SelectedSide) => void;
   onCloseWriteIn: () => void;
   onWriteInValueChange: (value: string) => void;
@@ -146,7 +150,7 @@ function BoardWriteInBox({
   onSubmit: () => void;
 }) {
   return (
-    <div className="game-left-panel__write-in-panel">
+    <div className={`game-left-panel__write-in-panel game-left-panel__write-in-panel--${side}`}>
       <WriteInAutosuggestField
         value={value}
         onChange={onChange}
@@ -506,8 +510,11 @@ function GameLeftPanel({
   writeInSuggestions,
   writeInAutoSuggestEnabled,
   isSubmittingWriteIn,
+  isSuggestionPanelVisible,
+  suggestionTargetType,
   onSelectSide,
   onInspectNode,
+  onToggleSuggestionPanel,
   onOpenWriteIn,
   onCloseWriteIn,
   onWriteInValueChange,
@@ -574,12 +581,27 @@ function GameLeftPanel({
   return (
     <section className="game-left-panel">
       <div className="game-left-panel__status-row">
-        <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
-        {showOptimalTracking ? (
-          <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
-            Optimal hops: {optimalHops ?? "--"}
+        <div className="game-left-panel__status-slot game-left-panel__status-slot--left">
+          <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
+        </div>
+        <button
+          type="button"
+          className={`game-left-panel__panel-toggle${isSuggestionPanelVisible ? " game-left-panel__panel-toggle--active" : ""}`}
+          onClick={onToggleSuggestionPanel}
+          aria-label={isSuggestionPanelVisible ? "Hide suggestion panel" : "Show suggestion panel"}
+          title={isSuggestionPanelVisible ? "Hide suggestion panel" : "Show suggestion panel"}
+        >
+          <span className="game-left-panel__panel-toggle-emoji" aria-hidden="true">
+            {suggestionTargetType === "movie" ? "🎬" : "🎭"}
           </span>
-        ) : null}
+        </button>
+        <div className="game-left-panel__status-slot game-left-panel__status-slot--right">
+          {showOptimalTracking ? (
+            <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
+              Optimal hops: {optimalHops ?? "--"}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       {completedPath ? (

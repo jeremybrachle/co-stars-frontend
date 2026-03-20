@@ -331,7 +331,7 @@ function GameRightPanel({
                   </div>
                   <div className="game-right-panel__write-in-actions">
                     <button
-                      className="game-right-panel__suggestion-button game-right-panel__write-in-toggle"
+                      className="game-right-panel__suggestion-button game-right-panel__wide-button game-right-panel__write-in-toggle"
                       disabled={isDisabled || isLoading || isSubmittingWriteIn}
                       onClick={handleCloseWriteIn}
                       aria-label="Close write in"

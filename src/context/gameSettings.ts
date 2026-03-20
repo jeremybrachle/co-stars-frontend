@@ -10,6 +10,7 @@ import type {
 
 export const ALL_ON_CUSTOM_SETTINGS: DifficultySettings = {
 	"show-suggestions": true,
+	"start-with-suggestion-panel": true,
 	"show-hint-color": true,
 	"write-in-autosuggest": true,
 	"show-optimal-tracking": true,
@@ -23,6 +24,7 @@ export const ALL_ON_CUSTOM_SETTINGS: DifficultySettings = {
 
 export const ALL_OFF_CUSTOM_SETTINGS: DifficultySettings = {
 	"show-suggestions": false,
+	"start-with-suggestion-panel": true,
 	"show-hint-color": false,
 	"write-in-autosuggest": false,
 	"show-optimal-tracking": false,
@@ -53,6 +55,12 @@ export const CUSTOM_SETTING_DEFINITIONS: CustomSettingDefinition[] = [
 		id: "show-suggestions",
 		label: "Display suggestions",
 		hint: "Keep the right-panel suggestion cards visible during play. A flat score penalty applies if this is still enabled when the run ends.",
+	},
+	{
+		id: "start-with-suggestion-panel",
+		label: "Start with suggestion panel visible",
+		hint: "Choose whether new games open with the suggestion panel already shown. You can still hide or show it from the left panel at any time.",
+		section: "helpers",
 	},
 	{
 		id: "show-hint-color",

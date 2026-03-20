@@ -79,6 +79,8 @@ import { resolveWriteInOption } from "../utils/writeInOptions.ts";
 import type { Actor, EffectiveDataSource, GameDataFilters, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
+type RulesTabId = "how-to-play" | "gameplay-settings";
+
 type RouteGameNode = {
   id?: number;
   label?: string;
@@ -585,9 +587,14 @@ function GamePage() {
   const [rewinds, setRewinds] = useState(0);
   const [deadEndPenalties, setDeadEndPenalties] = useState(0);
   const [shuffles, setShuffles] = useState(0);
+  const startWithSuggestionPanelVisible = helperSettings["start-with-suggestion-panel"];
+
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [activeRulesGameplaySection, setActiveRulesGameplaySection] = useState<GameplaySectionId>("presets");
+  const [activeRulesTab, setActiveRulesTab] = useState<RulesTabId>("how-to-play");
+  const [isPanelOrderSwapped, setIsPanelOrderSwapped] = useState(false);
+  const [isSuggestionPanelVisible, setIsSuggestionPanelVisible] = useState(startWithSuggestionPanelVisible);
   const [filterValidationMessage, setFilterValidationMessage] = useState<string | null>(null);
 
   const [optimalHops, setOptimalHops] = useState<number | null>(routeState?.optimalHops ?? null);
@@ -2436,6 +2443,102 @@ function GamePage() {
     }));
   }, [inspectorTrail]);
 
+  useEffect(() => {
+    setIsSuggestionPanelVisible(startWithSuggestionPanelVisible);
+  }, [startWithSuggestionPanelVisible]);
+
+  const gameGridPanel = (
+    <GameLeftPanel
+      actorA={actorA ?? createNode("Loading…", "actor")}
+      actorB={actorB ?? createNode("Loading…", "actor")}
+      selectedSide={selectedSide}
+      topPath={topPath}
+      bottomPath={bottomPath}
+      lockedSide={lockedSide}
+      completedPath={completion?.fullPath}
+      currentHops={currentHops}
+      optimalHops={optimalHops}
+      showOptimalTracking={helperSettings["show-optimal-tracking"]}
+      isInteractionDisabled={isInteractionDisabled}
+      activeWriteInSide={leftPanelWriteInSide}
+      writeInValue={leftPanelWriteInValue}
+      writeInPlaceholder={leftPanelWriteInContext.placeholder}
+      writeInSuggestions={leftWriteInSuggestionPool}
+      writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
+      isSubmittingWriteIn={isSubmittingLeftPanelWriteIn}
+      isSuggestionPanelVisible={isSuggestionPanelVisible}
+      suggestionTargetType={currentSelection?.type === "movie" ? "actor" : "movie"}
+      onSelectSide={setSelectedSide}
+      onInspectNode={(node) => {
+        void handleInspectNode(node);
+      }}
+      onToggleSuggestionPanel={() => setIsSuggestionPanelVisible((currentValue) => !currentValue)}
+      onOpenWriteIn={handleOpenLeftPanelWriteIn}
+      onCloseWriteIn={handleCloseLeftPanelWriteIn}
+      onWriteInValueChange={setLeftPanelWriteInValue}
+      onSubmitWriteIn={() => {
+        void handleSubmitLeftPanelWriteIn();
+      }}
+      onRemoveTopPathItem={handleRemoveTopPathItem}
+      onRemoveBottomPathItem={handleRemoveBottomPathItem}
+    />
+  );
+
+  const suggestionPanel = (
+    <div className="gameSidebar">
+      {isPathLimitReached && !isGameComplete ? (
+        <div className="gameSidebarWarning gameSidebarWarning--visible">
+          Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
+        </div>
+      ) : null}
+
+      {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
+      {isDeadEndGameOver ? (
+        <div className="gamePageStatus gamePageStatus--error gamePageStatusRetryPanel">
+          <div>Game over: you reached the dead-end limit of {MAX_DEAD_END_PENALTIES}.</div>
+          <button type="button" className="gamePageStatusRetryButton" onClick={handleResetBoard}>
+            Retry level
+          </button>
+        </div>
+      ) : null}
+
+      <div className="gameSidebarPanelSlot">
+        <GameRightPanel
+          currentSelection={currentSelection ?? createNode("Loading…", "actor")}
+          suggestions={visibleSuggestions}
+          suggestionDisplay={suggestionDisplay}
+          isShuffleModeEnabled={isShuffleModeEnabled}
+          shuffleAddsPenalty={shuffleAddsPenalty}
+          rewindAddsPenalty={rewindAddsPenalty}
+          deadEndAddsPenalty={cycleRiskClickAddsPenalty}
+          showSuggestionValues={helperSettings["show-suggestions"]}
+          showHintColors={helperSettings["show-hint-color"]}
+          writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
+          writeInSuggestions={rightWriteInSuggestionPool}
+          turns={turns}
+          rewinds={rewinds}
+          deadEndPenalties={deadEndPenalties}
+          shuffles={shuffles}
+          shuffleSeed={shuffleSeed}
+          canGoBackOnCurrentSide={canGoBackOnCurrentSide}
+          isDisabled={isInteractionDisabled}
+          isComplete={isGameComplete}
+          isLoading={isSuggestionsLoading}
+          isRiskAnalysisEnabled={isRiskAnalysisEnabled}
+          errorMessage={displayedSuggestionError}
+          onBack={handleBackCurrentPathItem}
+          onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
+          onReverse={handleReverseSides}
+          onSuggestion={(choice) => {
+            void handleSuggestion(choice);
+          }}
+          onShuffle={handleShuffle}
+          onWriteIn={handleWriteIn}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="gamePage">
       <PageBackButton to={backDestination} label="Back" />
@@ -2453,129 +2556,68 @@ function GamePage() {
         </div>
       </div>
 
-      <div className="gameContainer">
-        <GameLeftPanel
-          actorA={actorA ?? createNode("Loading…", "actor")}
-          actorB={actorB ?? createNode("Loading…", "actor")}
-          selectedSide={selectedSide}
-          topPath={topPath}
-          bottomPath={bottomPath}
-          lockedSide={lockedSide}
-          completedPath={completion?.fullPath}
-          currentHops={currentHops}
-          optimalHops={optimalHops}
-          showOptimalTracking={helperSettings["show-optimal-tracking"]}
-          isInteractionDisabled={isInteractionDisabled}
-          activeWriteInSide={leftPanelWriteInSide}
-          writeInValue={leftPanelWriteInValue}
-          writeInPlaceholder={leftPanelWriteInContext.placeholder}
-          writeInSuggestions={leftWriteInSuggestionPool}
-          writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
-          isSubmittingWriteIn={isSubmittingLeftPanelWriteIn}
-          onSelectSide={setSelectedSide}
-          onInspectNode={(node) => {
-            void handleInspectNode(node);
-          }}
-          onOpenWriteIn={handleOpenLeftPanelWriteIn}
-          onCloseWriteIn={handleCloseLeftPanelWriteIn}
-          onWriteInValueChange={setLeftPanelWriteInValue}
-          onSubmitWriteIn={() => {
-            void handleSubmitLeftPanelWriteIn();
-          }}
-          onRemoveTopPathItem={handleRemoveTopPathItem}
-          onRemoveBottomPathItem={handleRemoveBottomPathItem}
-        />
-        <div className="gameSidebar">
-          {isPathLimitReached && !isGameComplete ? (
-            <div className="gameSidebarWarning gameSidebarWarning--visible">
-              Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
-            </div>
-          ) : null}
-
-          {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
-          {isDeadEndGameOver ? (
-            <div className="gamePageStatus gamePageStatus--error gamePageStatusRetryPanel">
-              <div>Game over: you reached the dead-end limit of {MAX_DEAD_END_PENALTIES}.</div>
-              <button type="button" className="gamePageStatusRetryButton" onClick={handleResetBoard}>
-                Retry level
-              </button>
-            </div>
-          ) : null}
-          {currentLevelCompleted ? (
+      <div className={`gameContainer${completion && !isCompletionDialogOpen ? " gameContainer--with-pinned-summary" : ""}${!isSuggestionPanelVisible ? " gameContainer--solo-panel" : ""}`}>
+        {isSuggestionPanelVisible ? (isPanelOrderSwapped ? suggestionPanel : gameGridPanel) : gameGridPanel}
+        {isSuggestionPanelVisible ? (
+          <div className="gamePanelSwapRail">
             <button
               type="button"
-              className="gamePageStatus gamePageStatus--success gamePageStatusButton"
-              onClick={() => setIsSavedHistoryDialogOpen(true)}
+              className="gamePanelSwapButton"
+              onClick={() => setIsPanelOrderSwapped((currentValue) => !currentValue)}
+              aria-label="Swap the game grid and suggestions panels"
+              title="Swap panel positions"
             >
-              <span>☑ This level is completed.</span>
-              <span className="gamePageStatusDetail">
-                View saved history{levelHistory?.attempts.length ? ` • ${levelHistory.attempts.length} route${levelHistory.attempts.length === 1 ? "" : "s"}` : ""}
-              </span>
+              ⇄
             </button>
-          ) : (
-            <div className="gamePageStatus gamePageStatus--neutral">☐ This level is not completed yet.</div>
-          )}
-
-          <GameRightPanel
-            currentSelection={currentSelection ?? createNode("Loading…", "actor")}
-            suggestions={visibleSuggestions}
-            suggestionDisplay={suggestionDisplay}
-            isShuffleModeEnabled={isShuffleModeEnabled}
-            shuffleAddsPenalty={shuffleAddsPenalty}
-            rewindAddsPenalty={rewindAddsPenalty}
-            deadEndAddsPenalty={cycleRiskClickAddsPenalty}
-            showSuggestionValues={helperSettings["show-suggestions"]}
-            showHintColors={helperSettings["show-hint-color"]}
-            writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
-            writeInSuggestions={rightWriteInSuggestionPool}
-            turns={turns}
-            rewinds={rewinds}
-            deadEndPenalties={deadEndPenalties}
-            shuffles={shuffles}
-            shuffleSeed={shuffleSeed}
-            canGoBackOnCurrentSide={canGoBackOnCurrentSide}
-            isDisabled={isInteractionDisabled}
-            isComplete={isGameComplete}
-            isLoading={isSuggestionsLoading}
-            isRiskAnalysisEnabled={isRiskAnalysisEnabled}
-            errorMessage={displayedSuggestionError}
-            onBack={handleBackCurrentPathItem}
-            onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
-            onReverse={handleReverseSides}
-            onSuggestion={(choice) => {
-              void handleSuggestion(choice);
-            }}
-            onShuffle={handleShuffle}
-            onWriteIn={handleWriteIn}
-          />
-        </div>
+          </div>
+        ) : null}
+        {isSuggestionPanelVisible ? (isPanelOrderSwapped ? gameGridPanel : suggestionPanel) : null}
       </div>
 
       {completion && !isCompletionDialogOpen ? (
-        <div className="gameCompletionPinnedScore" role="status" aria-live="polite">
-          <div className="gameCompletionPinnedScoreIcon" aria-hidden="true">{completionScoreSymbol}</div>
-          <div className="gameCompletionPinnedScoreContent">
-            <div className="gameCompletionPinnedScoreTitle">Level completed</div>
-            <div className="gameCompletionPinnedScoreValue">
-              Score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+        <div className="gameCompletionPinnedArea">
+          <div className="gameCompletionPinnedScore" role="status" aria-live="polite">
+            <div className="gameCompletionPinnedScoreIcon" aria-hidden="true">{completionScoreSymbol}</div>
+            <div className="gameCompletionPinnedScoreContent">
+              <div className="gameCompletionPinnedScoreTitle">Level completed</div>
+              <div className="gameCompletionPinnedScoreValue">
+                Score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+              </div>
+              <div className="gameCompletionPinnedScoreMeta">
+                {completion.usedHops} hops • {completion.turns} turns{optimalHops !== null ? ` • optimal ${optimalHops}` : ""} • popularity avg {completion.popularityScore} • avg year {formatAverageReleaseYear(completion.averageReleaseYear)}
+              </div>
             </div>
-            <div className="gameCompletionPinnedScoreMeta">
-              {completion.usedHops} hops • {completion.turns} turns{optimalHops !== null ? ` • optimal ${optimalHops}` : ""} • popularity avg {completion.popularityScore} • avg year {formatAverageReleaseYear(completion.averageReleaseYear)}
-            </div>
+            <button
+              type="button"
+              className="gameCompletionPinnedScoreButton"
+              onClick={() => setIsCompletionDialogOpen(true)}
+            >
+              View summary
+            </button>
           </div>
-          <button
-            type="button"
-            className="gameCompletionPinnedScoreButton"
-            onClick={() => setIsCompletionDialogOpen(true)}
-          >
-            View summary
-          </button>
         </div>
       ) : null}
 
-      <button type="button" className="gameInfoButton" onClick={() => setIsRulesOpen(true)} aria-label="Open game rules">
+      <button
+        type="button"
+        className="gameInfoButton"
+        onClick={() => setIsRulesOpen(true)}
+        aria-label="Open game rules"
+      >
         i
       </button>
+
+      {currentLevelCompleted ? (
+        <button
+          type="button"
+          className="gameHistoryButton"
+          onClick={() => setIsSavedHistoryDialogOpen(true)}
+          aria-label="Open saved history"
+          title="View saved history"
+        >
+          🏆
+        </button>
+      ) : null}
 
       {isRulesOpen ? (
         <div className="gameRulesOverlay" onClick={() => setIsRulesOpen(false)} onWheelCapture={handleRulesOverlayWheelCapture}>
@@ -2583,43 +2625,73 @@ function GamePage() {
             <button type="button" className="gameRulesCloseButton" onClick={() => setIsRulesOpen(false)} aria-label="Close rules">
               ×
             </button>
-            <h2 className="gameRulesTitle">How To Play</h2>
-            <p className="gameRulesText">
-              Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
-            </p>
-            <p className="gameRulesText">
-              Suggestion lists are generated from the currently active dataset and ranked from strongest path options to weakest.
-            </p>
-            <p className="gameRulesText">
-              With shuffle turned off, you scroll through the full ranked list and the shuffle score shows as N/A until completion. With shuffle turned on, you see a fixed number of cards and can reroll them with the shuffle button.
-            </p>
-            <p className="gameRulesText">
-              Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
-            </p>
-
-              <div className="gameRulesDifficultySection">
-                <div className="gameRulesDifficultyTitle">Gameplay Settings</div>
-                <GameplaySettingsSectionLayout
-                  activeSection={activeRulesGameplaySection}
-                  onSectionSelect={setActiveRulesGameplaySection}
-                  difficulty={settings.difficulty}
-                  customSettings={helperSettings}
-                  suggestionDisplay={suggestionDisplay}
-                  dataFilters={dataFilters}
-                  onDifficultyChange={setDifficulty}
-                  onToggle={setCustomSetting}
-                  onSubsetCountChange={setSubsetCount}
-                  onOrderModeChange={setSuggestionOrderMode}
-                  onSortModeChange={setSuggestionSortMode}
-                  onActorPopularityCutoffChange={handleActorPopularityCutoffChange}
-                  onReleaseYearCutoffChange={handleReleaseYearCutoffChange}
-                  actorCountSummary={actorCountSummary}
-                  movieCountSummary={movieCountSummary}
-                  filterValidationMessage={filterValidationMessage}
-                  customPanelClassName="gameRulesCustomPanel"
-                  dataFilterPanelClassName="gameRulesCustomPanel"
-                />
+            <div className="gameRulesLayout">
+              <div className="gameRulesTabs" role="tablist" aria-label="Game information sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "how-to-play"}
+                  className={`gameRulesTab${activeRulesTab === "how-to-play" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("how-to-play")}
+                >
+                  How to play
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "gameplay-settings"}
+                  className={`gameRulesTab${activeRulesTab === "gameplay-settings" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("gameplay-settings")}
+                >
+                  Gameplay settings
+                </button>
               </div>
+              <div className="gameRulesPanel">
+                {activeRulesTab === "how-to-play" ? (
+                  <>
+                    <h2 className="gameRulesTitle">How To Play</h2>
+                    <p className="gameRulesText">
+                      Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
+                    </p>
+                    <p className="gameRulesText">
+                      Suggestion lists are generated from the currently active dataset and ranked from strongest path options to weakest.
+                    </p>
+                    <p className="gameRulesText">
+                      With shuffle turned off, you scroll through the full ranked list and the shuffle score shows as N/A until completion. With shuffle turned on, you see a fixed number of cards and can reroll them with the shuffle button.
+                    </p>
+                    <p className="gameRulesText">
+                      Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
+                    </p>
+                  </>
+                ) : null}
+
+                {activeRulesTab === "gameplay-settings" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Gameplay Settings</div>
+                    <GameplaySettingsSectionLayout
+                      activeSection={activeRulesGameplaySection}
+                      onSectionSelect={setActiveRulesGameplaySection}
+                      difficulty={settings.difficulty}
+                      customSettings={helperSettings}
+                      suggestionDisplay={suggestionDisplay}
+                      dataFilters={dataFilters}
+                      onDifficultyChange={setDifficulty}
+                      onToggle={setCustomSetting}
+                      onSubsetCountChange={setSubsetCount}
+                      onOrderModeChange={setSuggestionOrderMode}
+                      onSortModeChange={setSuggestionSortMode}
+                      onActorPopularityCutoffChange={handleActorPopularityCutoffChange}
+                      onReleaseYearCutoffChange={handleReleaseYearCutoffChange}
+                      actorCountSummary={actorCountSummary}
+                      movieCountSummary={movieCountSummary}
+                      filterValidationMessage={filterValidationMessage}
+                      customPanelClassName="gameRulesCustomPanel"
+                      dataFilterPanelClassName="gameRulesCustomPanel"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -2656,27 +2728,6 @@ function GamePage() {
                 <span className="gameCompletionStatValue">{completion.effectiveTurns}</span>
               </div>
               <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Shuffles</span>
-                <span
-                  className="gameCompletionStatValue"
-                  title={completion.shuffleModeEnabled ? undefined : "penalty will be applied for non-shuffled game"}
-                >
-                  {completion.shuffleModeEnabled ? completion.shuffles : "N/A"}
-                </span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Suggestions</span>
-                <span className="gameCompletionStatValue">{completion.appliedSuggestionAssistPenaltyCount > 0 ? "On" : "Off"}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Rewinds</span>
-                <span className="gameCompletionStatValue">{completion.appliedRewindPenaltyCount}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Dead ends</span>
-                <span className="gameCompletionStatValue">{completion.deadEnds ?? 0}</span>
-              </div>
-              <div className="gameCompletionStat">
                 <span className="gameCompletionStatLabel">Popularity avg</span>
                 <span className="gameCompletionStatValue">{completion.popularityScore}</span>
               </div>
@@ -2690,55 +2741,74 @@ function GamePage() {
               This level is now marked completed and will show as completed on the Adventure level list.
             </p>
 
-            <div className="gameCompletionScoreBreakdown">
-              <div className="gameCompletionScoreBreakdownTitle">Score breakdown</div>
-              <div className="gameCompletionScoreBreakdownRow">
-                <span>Hop efficiency</span>
-                <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
-              </div>
-              <div className="gameCompletionScoreBreakdownRow">
-                <span>Turn efficiency</span>
-                <span>{optimalHops ?? completion.usedHops} / {completion.effectiveTurns}</span>
-              </div>
-              <div className="gameCompletionScoreBreakdownRow">
-                <span>Suggestion assist penalty</span>
-                <span>{formatPenaltyValue(completionScoreBreakdown?.suggestionPenalty ?? 0)}</span>
-              </div>
-              <div className="gameCompletionScoreBreakdownRow">
-                <span>Turn load</span>
-                <span>{completion.turns} base + {completion.appliedShufflePenaltyCount} shuffle + {completion.appliedRewindPenaltyCount} rewind + {completion.deadEnds ?? 0} dead-end</span>
-              </div>
-              <div className="gameCompletionScoreBreakdownRow">
-                <span>Base efficiency score</span>
-                <span>{completionScoreBreakdown ? `${(((completionScoreBreakdown.hopEfficiency + completionScoreBreakdown.turnEfficiency) / 2) * 100).toFixed(1)}%` : "--"}</span>
-              </div>
-              <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
-                <span>Final score</span>
-                <span>{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
-              </div>
-            </div>
-
-            <div className="gameCompletionPreview">
-              <div className="gameCompletionPreviewTitle">Completed path preview</div>
-              <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
-                {completion.fullPath.map((node, idx) => (
-                  <li key={idx} style={{ display: "inline" }}>
-                    <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
-                    {idx < completion.fullPath.length - 1 ? <span className="gameCompletionArrow">→</span> : null}
-                  </li>
-                ))}
-              </ul>
-              <div className="gameCompletionPreviewText">{completion.fullPath.map(n => n.label).join(" → ")}</div>
-            </div>
-
             <div className="gameCompletionValidation">
-              {completion.isValidated === true ? `Path validated successfully. ${displayedCompletionScore !== null ? `Score: ${displayedCompletionScore.toFixed(1)}%` : ""}` : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
+              {completion.isValidated === true ? "Path validated successfully." : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
               {completion.validationMessage ? ` ${completion.validationMessage}` : ""}
             </div>
 
-            <div className="gameCompletionValidationScore">
-              Score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
-            </div>
+            <details className="gameCompletionExpandable">
+              <summary className="gameCompletionExpandableSummary">
+                <span>Route details</span>
+                <span className="gameCompletionExpandableHint">Path preview and misc metrics</span>
+              </summary>
+              <div className="gameCompletionExpandableBody">
+                <div className="gameCompletionHistorySummary gameCompletionHistorySummary--dense">
+                  <span className="gameCompletionHistorySummaryPill" title={completion.shuffleModeEnabled ? undefined : "penalty will be applied for non-shuffled game"}>
+                    {completion.shuffleModeEnabled ? `Shuffles ${completion.shuffles}` : "Shuffles N/A"}
+                  </span>
+                  <span className="gameCompletionHistorySummaryPill">Suggestions {completion.appliedSuggestionAssistPenaltyCount > 0 ? "On" : "Off"}</span>
+                  <span className="gameCompletionHistorySummaryPill">Rewinds {completion.appliedRewindPenaltyCount}</span>
+                  <span className="gameCompletionHistorySummaryPill">Dead ends {completion.deadEnds ?? 0}</span>
+                </div>
+                <div className="gameCompletionPreview">
+                  <div className="gameCompletionPreviewTitle">Completed path preview</div>
+                  <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
+                    {completion.fullPath.map((node, idx) => (
+                      <li key={idx} style={{ display: "inline" }}>
+                        <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
+                        {idx < completion.fullPath.length - 1 ? <span className="gameCompletionArrow">→</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="gameCompletionPreviewText">{completion.fullPath.map((node) => node.label).join(" → ")}</div>
+                </div>
+              </div>
+            </details>
+
+            <details className="gameCompletionExpandable" open>
+              <summary className="gameCompletionExpandableSummary">
+                <span>Score breakdown</span>
+                <span className="gameCompletionExpandableHint">See the full scoring formula</span>
+              </summary>
+              <div className="gameCompletionExpandableBody">
+                <div className="gameCompletionScoreBreakdown">
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Hop efficiency</span>
+                    <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Turn efficiency</span>
+                    <span>{optimalHops ?? completion.usedHops} / {completion.effectiveTurns}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Suggestion assist penalty</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.suggestionPenalty ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Turn load</span>
+                    <span>{completion.turns} base + {completion.appliedShufflePenaltyCount} shuffle + {completion.appliedRewindPenaltyCount} rewind + {completion.deadEnds ?? 0} dead-end</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Base efficiency score</span>
+                    <span>{completionScoreBreakdown ? `${(((completionScoreBreakdown.hopEfficiency + completionScoreBreakdown.turnEfficiency) / 2) * 100).toFixed(1)}%` : "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
+                    <span>Final score</span>
+                    <span>{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+                  </div>
+                </div>
+              </div>
+            </details>
 
             <div className="gameCompletionHistory">
               <div className="gameCompletionHistorySummary">
@@ -2770,29 +2840,23 @@ function GamePage() {
             </div>
 
             <div className="gameCompletionActions">
-              <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary" onClick={handleRetryCompletedLevel}>
+              <button type="button" className="gameCompletionActionButton gameCompletionActionButtonSecondary" onClick={handleRetryCompletedLevel}>
                 Retry level
               </button>
               {canOpenLevelList ? (
-                <button type="button" className="gameCompletionActionButton" onClick={handleReturnToLevelList}>
+                <button
+                  type="button"
+                  className={`gameCompletionActionButton gameCompletionActionButtonList${!hasNextLevel ? " gameCompletionActionButtonPrimary" : ""}`}
+                  onClick={handleReturnToLevelList}
+                >
                   Main level list
                 </button>
               ) : null}
               {hasNextLevel ? (
-                <button type="button" className="gameCompletionActionButton" onClick={handleNextLevel}>
+                <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary gameCompletionActionButtonNext" onClick={handleNextLevel}>
                   Next level
                 </button>
               ) : null}
-              {/* <button type="button" className="gameCompletionActionButton gameCompletionActionButtonGhost" onClick={() => setIsCompletionDialogOpen(false)}>
-                Close and stay here
-              </button> */}
-            </div>
-
-            <div className="gameCompletionFooterScore" role="status" aria-live="polite">
-              <span className="gameCompletionFooterScoreIcon" aria-hidden="true">{completionScoreSymbol}</span>
-              <span className="gameCompletionFooterScoreText">
-                Final score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
-              </span>
             </div>
           </div>
         </div>
