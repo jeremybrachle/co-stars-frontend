@@ -227,7 +227,7 @@ function GameRightPanel({
         <div className="game-right-panel__helper-copy">
           {isViewingAll
             ? isScrollMode
-              ? `Scrolling through all suggestions in a fixed window of ${windowSize}.`
+              ? `Scrolling through all suggestions.`
               : `Paginating all suggestions (page ${Math.min(totalPages, pageIndex + 1)} / ${totalPages}).`
 			: isRandomMode
 			? `Random mode shows ${windowSize} suggestions from a reshuffled list. Click shuffle to regenerate.`

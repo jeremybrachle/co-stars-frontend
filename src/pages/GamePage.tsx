@@ -62,7 +62,6 @@ import {
   type CompletedLevelsCollection,
 } from "../utils/levelCompletionStorage.ts";
 import {
-  buildHopLeaderboardGroups,
   getLevelHistory,
   saveLevelAttempt,
   subscribeToLevelHistoryUpdates,
@@ -103,6 +102,8 @@ type GamePageRouteState = {
 };
 
 type SelectedSide = "top" | "bottom";
+
+const MAX_DEAD_END_PENALTIES = 5;
 
 interface CompletionState {
   fullPath: GameNode[];
@@ -410,6 +411,29 @@ function getDisplayedCompletionScore(
   });
 }
 
+function formatPenaltyValue(value: number) {
+  return value === 0 ? "0" : `-${value}`;
+}
+
+type DisplayStar = {
+  tone: "gold" | "silver" | "bronze";
+};
+
+function buildDisplayedStars(hops: number, optimalHops: number | null | undefined) {
+  const safeHops = Math.max(0, Math.round(hops));
+  const safeOptimalHops = typeof optimalHops === "number" ? Math.max(0, Math.round(optimalHops)) : null;
+
+  const tone: DisplayStar["tone"] = safeOptimalHops === null
+    ? "bronze"
+    : safeHops <= safeOptimalHops
+      ? "gold"
+      : safeHops <= safeOptimalHops + 2
+        ? "silver"
+        : "bronze";
+
+  return Array.from({ length: safeHops }, () => ({ tone } satisfies DisplayStar));
+}
+
 function toInspectorDetail(node: GameNode, relatedCount: number, detailLines: string[], description: string | null): EntityDetailsDialogData {
   const cards = node.type === "actor"
     ? [
@@ -555,12 +579,13 @@ function GamePage() {
 
   const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
-  const leaderboardGroups = useMemo(() => buildHopLeaderboardGroups(levelHistory?.attempts ?? []), [levelHistory]);
+  const levelHistoryAttempts = levelHistory?.attempts ?? [];
   const latestAttempt = levelHistory?.attempts[0] ?? null;
   const displayedCompletionScore = useMemo(
     () => getDisplayedCompletionScore(completion, optimalHops, shuffles, rewinds, deadEndPenalties),
     [completion, deadEndPenalties, optimalHops, rewinds, shuffles],
   );
+  const isDeadEndGameOver = deadEndPenalties >= MAX_DEAD_END_PENALTIES;
   const currentLevelCompleted = useMemo(() => {
     if (!currentLevelIdentity) {
       return false;
@@ -568,36 +593,37 @@ function GamePage() {
 
     return isLevelCompleted(currentLevelIdentity.startLabel, currentLevelIdentity.endLabel, completedLevels);
   }, [completedLevels, currentLevelIdentity]);
-  const levelHistoryContent = leaderboardGroups.length === 0 ? (
+  const levelHistoryContent = levelHistoryAttempts.length === 0 ? (
     <div className="gameCompletionHistoryEmpty">This level does not have any saved history yet.</div>
   ) : (
-    <div className="gameCompletionLeaderboardGroups">
-      {leaderboardGroups.map((group: NonNullable<typeof leaderboardGroups>[number]) => (
-        <div key={group.hops} className="gameCompletionLeaderboardGroup">
-          <div className="gameCompletionLeaderboardGroupTitle">
-            <span>{group.hops} hops</span>
-            <span>{group.attempts.length} route{group.attempts.length === 1 ? "" : "s"}</span>
+    <ol className="gameCompletionLeaderboardList gameCompletionLeaderboardList--flat">
+      {levelHistoryAttempts.map((attempt, attemptIndex) => (
+        <li key={attempt.id} className="gameCompletionLeaderboardItem">
+          <div className="gameCompletionLeaderboardTopRow">
+            <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
+            <span className="gameCompletionLeaderboardHops">{attempt.hops} hops</span>
+            <span className="gameCompletionLeaderboardStars">
+              {buildDisplayedStars(attempt.hops, optimalHops).map((star, starIndex) => (
+                <span
+                  key={starIndex}
+                  className={`gameCompletionLeaderboardStar gameCompletionLeaderboardStar--${star.tone}`}
+                >
+                  ★
+                </span>
+              ))}
+            </span>
+            <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
+            <span className="gameCompletionLeaderboardMeta">
+              shuffles {attempt.shuffles} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
+            </span>
           </div>
-          <ol className="gameCompletionLeaderboardList">
-            {group.attempts.map((attempt: NonNullable<typeof group.attempts>[number], attemptIndex: number) => (
-              <li key={attempt.id} className="gameCompletionLeaderboardItem">
-                <div className="gameCompletionLeaderboardTopRow">
-                  <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
-                  <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
-                  <span className="gameCompletionLeaderboardMeta">
-                    shuffles {attempt.shuffles} · rewinds {attempt.rewinds} · dead ends {attempt.deadEnds}
-                  </span>
-                </div>
-                <div className="gameCompletionLeaderboardPath">
-                  {attempt.path.map((node: NonNullable<typeof attempt.path>[number]) => node.label).join(" → ")}
-                </div>
-                <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
-              </li>
-            ))}
-          </ol>
-        </div>
+          <div className="gameCompletionLeaderboardPath">
+            {attempt.path.map((node) => node.label).join(" → ")}
+          </div>
+          <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 
   const resolveSnapshotResources = useCallback(
@@ -979,8 +1005,22 @@ function GamePage() {
     );
   }, [actorA, actorB, bottomPath, topPath]);
 
-  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
+  const isInteractionDisabled = isPathLimitReached || isDeadEndGameOver || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
   const isGameComplete = !!completion;
+
+  const applyDeadEndPenalty = (message: string) => {
+    setDeadEndPenalties((currentPenalties) => {
+      const nextPenalties = Math.min(MAX_DEAD_END_PENALTIES, currentPenalties + 1);
+
+      if (nextPenalties >= MAX_DEAD_END_PENALTIES) {
+        setSuggestionError(`Game over: ${message} You reached ${MAX_DEAD_END_PENALTIES} dead-end penalties. Retry the level to start over.`);
+      } else {
+        setSuggestionError(message);
+      }
+
+      return nextPenalties;
+    });
+  };
 
   const visibleSuggestions = useMemo(() => {
     const filtered = showVisitedSuggestions
@@ -1575,8 +1615,7 @@ function GamePage() {
     }
 
     if (cycleRiskClickAddsPenalty && choice.highlight?.kind === "loop") {
-      setDeadEndPenalties((currentPenalties) => currentPenalties + 1);
-      setSuggestionError(`Cycle risk selected: ${choice.label} would only branch to already-visited nodes. Dead-end penalty applied.`);
+      applyDeadEndPenalty(`Cycle risk selected: ${choice.label} would only branch to already-visited nodes. Dead-end penalty applied.`);
       return;
     }
 
@@ -1588,8 +1627,7 @@ function GamePage() {
     const cycleNode = findLoopedNode([choice, ...autoCompletionTail], blockedLoopNodeKeys);
 
     if (cycleNode) {
-      setDeadEndPenalties((currentPenalties) => currentPenalties + 1);
-      setSuggestionError(`Cycle detected: ${cycleNode.label} is already in your path. Please rewind and make a different selection.`);
+      applyDeadEndPenalty(`Cycle detected: ${cycleNode.label} is already in your path. Please rewind and make a different selection.`);
       return;
     }
 
@@ -2042,6 +2080,14 @@ function GamePage() {
           ) : null}
 
           {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
+          {isDeadEndGameOver ? (
+            <div className="gamePageStatus gamePageStatus--error gamePageStatusRetryPanel">
+              <div>Game over: you reached the dead-end limit of {MAX_DEAD_END_PENALTIES}.</div>
+              <button type="button" className="gamePageStatusRetryButton" onClick={handleResetBoard}>
+                Retry level
+              </button>
+            </div>
+          ) : null}
           {currentLevelCompleted ? (
             <button
               type="button"
@@ -2212,15 +2258,15 @@ function GamePage() {
               </div>
               <div className="gameCompletionScoreBreakdownRow">
                 <span>Shuffle penalties</span>
-                <span>-{shuffles * 3}</span>
+                <span>{formatPenaltyValue(shuffles * 3)}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
                 <span>Rewind penalties</span>
-                <span>-{rewinds * 4}</span>
+                <span>{formatPenaltyValue(rewinds * 4)}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow">
                 <span>Dead-end penalties</span>
-                <span>-{deadEndPenalties * 6}</span>
+                <span>{formatPenaltyValue(deadEndPenalties * 6)}</span>
               </div>
               <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
                 <span>Final score</span>

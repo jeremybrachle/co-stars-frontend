@@ -261,11 +261,13 @@
 }
 
 .adventureBackBtn {
-  margin-top: 2.2em;
-  align-self: center;
-  width: 260px;
-  padding: 0.9em 0;
-  font-size: 1.2em;
+  position: absolute;
+  top: 48px;
+  left: 72px;
+  z-index: 10;
+  min-width: 140px;
+  padding: 0.85em 1.2em;
+  font-size: 1rem;
   font-weight: bold;
   border-radius: 12px;
   background: #ff5252;

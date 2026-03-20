@@ -201,6 +201,23 @@
   color: rgba(255, 255, 255, 0.82);
 }
 
+.gamePageStatusRetryPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.gamePageStatusRetryButton {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .gamePageStatus--error {
   background: rgba(127, 29, 29, 0.56);
 }
@@ -597,34 +614,17 @@
   color: rgba(255, 255, 255, 0.76);
 }
 
-.gameCompletionLeaderboardGroups {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.gameCompletionLeaderboardGroup {
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.48);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: hidden;
-}
-
-.gameCompletionLeaderboardGroupTitle {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .gameCompletionLeaderboardList {
   margin: 0;
-  padding: 16px 16px 16px 38px;
+  padding: 10px 0 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  list-style: none;
+}
+
+.gameCompletionLeaderboardList--flat {
+  padding-top: 4px;
 }
 
 .gameCompletionLeaderboardItem {
@@ -643,6 +643,41 @@
 
 .gameCompletionLeaderboardRank {
   font-weight: 800;
+}
+
+.gameCompletionLeaderboardHops,
+.gameCompletionLeaderboardStars {
+  padding: 0.24rem 0.58rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.gameCompletionLeaderboardStars {
+  display: inline-flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.08rem;
+  max-width: min(100%, 210px);
+}
+
+.gameCompletionLeaderboardStar {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.gameCompletionLeaderboardStar--gold {
+  color: #facc15;
+}
+
+.gameCompletionLeaderboardStar--silver {
+  color: #d1d5db;
+}
+
+.gameCompletionLeaderboardStar--bronze {
+  color: #d97706;
 }
 
 .gameCompletionLeaderboardScore {
@@ -922,7 +957,6 @@
   }
 
   .gameCompletionScoreBreakdownRow,
-  .gameCompletionLeaderboardGroupTitle,
   .gameCompletionHistoryHeader,
   .gameCompletionHistoryToggle {
     flex-direction: column;

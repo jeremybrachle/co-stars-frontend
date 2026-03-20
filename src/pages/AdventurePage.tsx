@@ -257,6 +257,13 @@ function AdventurePage() {
 
 	return (
 		<div className={styles.adventurePageWrapper}>
+			<button
+				type="button"
+				className={styles.adventureBackBtn}
+				onClick={() => navigate(-1)}
+			>
+				← Back
+			</button>
 			<div className={styles.adventureHomeBtn}>
 				<HomeButton />
 			</div>

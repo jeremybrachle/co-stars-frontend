@@ -33,12 +33,26 @@
 
 .starRow {
   display: inline-flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
   gap: 0.1rem;
 }
 
 .levelStar {
-  color: #ffe066;
   font-size: 1.1em;
+  line-height: 1;
+}
+
+.levelStarToneGold {
+  color: #facc15;
+}
+
+.levelStarToneSilver {
+  color: #d1d5db;
+}
+
+.levelStarToneBronze {
+  color: #d97706;
 }
 
 .levelHops {
@@ -201,35 +215,13 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
-.leaderboardGroups {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.leaderboardGroup {
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-}
-
-.leaderboardGroupHeader {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
-  background: rgba(255, 255, 255, 0.06);
-  font-size: 0.88rem;
-  font-weight: 700;
-}
-
 .leaderboardList {
   margin: 0;
-  padding: 0.9rem 1rem 1rem 2.25rem;
+  padding: 0.35rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+  list-style: none;
 }
 
 .leaderboardItem {
@@ -241,6 +233,7 @@
 
 .leaderboardTopRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.65rem;
 }
@@ -248,6 +241,41 @@
 .leaderboardRank {
   font-weight: 800;
   color: rgba(255, 255, 255, 0.9);
+}
+
+.leaderboardHops,
+.leaderboardStars {
+  padding: 0.24rem 0.52rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.leaderboardStars {
+  display: inline-flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.08rem;
+  max-width: min(100%, 190px);
+}
+
+.leaderboardStar {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.leaderboardStarToneGold {
+  color: #facc15;
+}
+
+.leaderboardStarToneSilver {
+  color: #d1d5db;
+}
+
+.leaderboardStarToneBronze {
+  color: #d97706;
 }
 
 .leaderboardScore {
@@ -280,7 +308,6 @@
   }
 
   .leaderboardToggle,
-  .leaderboardGroupHeader,
   .leaderboardTopRow {
     flex-direction: column;
     align-items: flex-start;

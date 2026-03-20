@@ -1,8 +1,35 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import EntityArtwork from "./EntityArtwork";
 import type { Level } from "../types";
-import { buildHopLeaderboardGroups, type LevelHistoryRecord } from "../utils/levelHistoryStorage";
+import type { LevelHistoryRecord } from "../utils/levelHistoryStorage";
 import styles from "./LevelCard.module.css";
+
+type StarTone = "gold" | "silver" | "bronze";
+type DisplayStar = {
+	tone: StarTone;
+};
+
+function getDisplayedStarCount(optimalHops: number | null | undefined) {
+	if (typeof optimalHops !== "number") {
+		return 0;
+	}
+
+	return Math.max(0, Math.round(optimalHops));
+}
+
+function buildDisplayedStars(hops: number, optimalHops: number | null | undefined) {
+	const safeHops = Math.max(0, Math.round(hops));
+	const safeOptimalHops = typeof optimalHops === "number" ? Math.max(0, Math.round(optimalHops)) : null;
+	const tone: StarTone = safeOptimalHops === null
+		? "bronze"
+		: safeHops <= safeOptimalHops
+			? "gold"
+			: safeHops <= safeOptimalHops + 2
+				? "silver"
+				: "bronze";
+
+	return Array.from({ length: safeHops }, () => ({ tone } satisfies DisplayStar));
+}
 
 type Props = {
 	level: Level;
@@ -26,20 +53,29 @@ function LevelCard({
 	onStart,
 }: Props) {
 	const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
-	const leaderboardGroups = useMemo(() => buildHopLeaderboardGroups(levelHistory?.attempts ?? []), [levelHistory]);
-	const bestAttempt = leaderboardGroups[0]?.attempts[0] ?? null;
+	const leaderboardAttempts = levelHistory?.attempts ?? [];
+	const bestAttempt = leaderboardAttempts[0] ?? null;
 	const totalAttempts = levelHistory?.attempts.length ?? 0;
+	const displayedStarCount = getDisplayedStarCount(level.optimalHops);
+	const levelStars = buildDisplayedStars(displayedStarCount, level.optimalHops);
 
 	return (
 		<div className={`${styles.card} ${isCompleted ? styles.cardCompleted : ""}`}>
 			<div className={styles.headerRow}>
 				<div className={styles.levelLabel}>
 					<span>Level {levelIndex + 1}</span>
-					<span className={styles.starRow}>
-						{Array.from({ length: level.stars }).map((_, starIndex) => (
-							<span key={starIndex} className={styles.levelStar}>★</span>
-						))}
-					</span>
+					{levelStars.length > 0 ? (
+						<span className={styles.starRow}>
+							{levelStars.map((star, starIndex) => (
+								<span
+									key={starIndex}
+									className={`${styles.levelStar} ${styles[`levelStarTone${star.tone === "gold" ? "Gold" : star.tone === "silver" ? "Silver" : "Bronze"}`]}`}
+								>
+									★
+								</span>
+							))}
+						</span>
+					) : null}
 					<span className={styles.levelHops}>Optimal hops: {level.optimalHops ?? "--"}</span>
 				</div>
 				<div className={styles.headerActions}>
@@ -100,30 +136,31 @@ function LevelCard({
 				</button>
 
 				{isLeaderboardOpen ? (
-					leaderboardGroups.length === 0 ? (
+					leaderboardAttempts.length === 0 ? (
 						<div className={styles.leaderboardEmpty}>No saved routes for this level yet.</div>
 					) : (
-						<div className={styles.leaderboardGroups}>
-							{leaderboardGroups.map((group) => (
-								<div key={group.hops} className={styles.leaderboardGroup}>
-									<div className={styles.leaderboardGroupHeader}>
-										<span>{group.hops} hops</span>
-										<span>{group.attempts.length} route{group.attempts.length === 1 ? "" : "s"}</span>
+						<ol className={styles.leaderboardList}>
+							{leaderboardAttempts.map((attempt, index) => (
+								<li key={attempt.id} className={styles.leaderboardItem}>
+									<div className={styles.leaderboardTopRow}>
+										<span className={styles.leaderboardRank}>#{index + 1}</span>
+										<span className={styles.leaderboardHops}>{attempt.hops} hops</span>
+										<span className={styles.leaderboardStars}>
+											{buildDisplayedStars(attempt.hops, level.optimalHops).map((star, starIndex) => (
+												<span
+													key={starIndex}
+													className={`${styles.leaderboardStar} ${styles[`leaderboardStarTone${star.tone === "gold" ? "Gold" : star.tone === "silver" ? "Silver" : "Bronze"}`]}`}
+												>
+													★
+												</span>
+											))}
+										</span>
+										<span className={styles.leaderboardScore}>{attempt.score.toFixed(1)}%</span>
 									</div>
-									<ol className={styles.leaderboardList}>
-										{group.attempts.map((attempt, index) => (
-											<li key={attempt.id} className={styles.leaderboardItem}>
-												<div className={styles.leaderboardTopRow}>
-													<span className={styles.leaderboardRank}>#{index + 1}</span>
-													<span className={styles.leaderboardScore}>{attempt.score.toFixed(1)}%</span>
-												</div>
-												<div className={styles.leaderboardPath}>{attempt.path.map((node) => node.label).join(" → ")}</div>
-											</li>
-										))}
-									</ol>
-								</div>
+									<div className={styles.leaderboardPath}>{attempt.path.map((node) => node.label).join(" → ")}</div>
+								</li>
 							))}
-						</div>
+						</ol>
 					)
 				) : null}
 			</div>
