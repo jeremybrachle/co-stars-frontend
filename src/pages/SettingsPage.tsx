@@ -21,6 +21,12 @@ const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
   { id: "gameplay-settings", label: "Gameplay Settings" },
 ]
 
+const MOBILE_GAME_DIFFERENCE_NOTES = [
+  "On iPhone-sized screens, the game page removes the in-game info button so the board has more room.",
+  "While a mobile game is in progress, you cannot jump into the Settings page or open in-game gameplay settings.",
+  "Leave the current game first if you need to change helper rules, data mode, or other settings.",
+]
+
 const DEMO_BUNDLE = getDemoSnapshotBundle()
 
 function SettingsPage() {
@@ -131,6 +137,10 @@ function SettingsPage() {
                 <p className="settingsHint">Use the right panel to choose the next node and the left panel to inspect the route you are building.</p>
                 <p className="settingsHint">By default you see the full ranked suggestion list. You can switch to shuffled suggestions later from Gameplay Settings if you want rerolls instead.</p>
               </div>
+              <h3>Mobile game differences</h3>
+              {MOBILE_GAME_DIFFERENCE_NOTES.map((note) => (
+                <p key={note} className="settingsHint">{note}</p>
+              ))}
             </section>
           ) : null}
 

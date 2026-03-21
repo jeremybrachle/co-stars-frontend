@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./GameLeftPanel.css";
 import EntityArtwork from "../EntityArtwork";
 import WriteInAutosuggestField from "./WriteInAutosuggestField";
@@ -5,6 +6,7 @@ import { useIsCompactPhoneViewport } from "../../hooks/useIsCompactPhoneViewport
 import type { GameNode } from "../../types";
 import { MAX_PATH_LENGTH } from "../../gameplay";
 import type { NodeType } from "../../types";
+import { formatGameNodeMeta } from "../../data/presentation";
 
 type SelectedSide = "top" | "bottom";
 type Side = SelectedSide;
@@ -75,6 +77,7 @@ type Props = {
   onCloseWriteIn: () => void;
   onWriteInValueChange: (value: string) => void;
   onSubmitWriteIn: () => void;
+  onSelectWriteInSuggestion: (suggestion: GameNode) => void;
   onRemoveTopPathItem: () => void;
   onRemoveBottomPathItem: () => void;
 };
@@ -149,6 +152,8 @@ function BoardWriteInBox({
   onChange,
   onClose,
   onSubmit,
+  onSuggestionSelect,
+  autoFocusInput = false,
   variant = "inline",
 }: {
   side: Side;
@@ -161,6 +166,8 @@ function BoardWriteInBox({
   onChange: (value: string) => void;
   onClose: () => void;
   onSubmit: () => void;
+  onSuggestionSelect: (suggestion: GameNode) => void;
+  autoFocusInput?: boolean;
   variant?: "inline" | "dialog";
 }) {
   return (
@@ -178,10 +185,11 @@ function BoardWriteInBox({
         suggestions={suggestions}
         autoSuggestEnabled={autoSuggestEnabled}
         disabled={isDisabled || isSubmitting}
-        autoFocus
+        autoFocus={autoFocusInput}
         inputClassName="game-left-panel__write-in-input"
         dropdownLabel={`${side} board write in suggestions`}
         emptyMessage="No matching write-ins."
+        onSuggestionSelect={onSuggestionSelect}
       />
       <div className="game-left-panel__write-in-actions">
         <button
@@ -211,6 +219,125 @@ function renderHiddenPanelStat(label: string, value: number | "N/A", isPenalty =
     <div className="game-left-panel__score-item">
       <span className="game-left-panel__score-label">{label}</span>
       <span className={`game-left-panel__score-value${isPenalty ? " game-left-panel__score-value--penalty" : ""}`}>{value}</span>
+    </div>
+  );
+}
+
+function MobileWriteInSheet({
+  side,
+  value,
+  placeholder,
+  suggestions,
+  autoSuggestEnabled,
+  isSubmitting,
+  isDisabled,
+  isInputMode,
+  onChange,
+  onClose,
+  onSubmit,
+  onSuggestionSelect,
+  onOpenInput,
+}: {
+  side: Side;
+  value: string;
+  placeholder: string;
+  suggestions: GameNode[];
+  autoSuggestEnabled: boolean;
+  isSubmitting: boolean;
+  isDisabled: boolean;
+  isInputMode: boolean;
+  onChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  onSuggestionSelect: (suggestion: GameNode) => void;
+  onOpenInput: () => void;
+}) {
+  if (isInputMode) {
+    return (
+      <BoardWriteInBox
+        side={side}
+        value={value}
+        placeholder={placeholder}
+        suggestions={suggestions}
+        autoSuggestEnabled={autoSuggestEnabled}
+        isSubmitting={isSubmitting}
+        isDisabled={isDisabled}
+        onChange={onChange}
+        onClose={onClose}
+        onSubmit={onSubmit}
+        onSuggestionSelect={onSuggestionSelect}
+        autoFocusInput
+        variant="dialog"
+      />
+    );
+  }
+
+  const showEmptyState = suggestions.length === 0;
+  const emptyMessage = autoSuggestEnabled
+    ? "No filtered options are available right now."
+    : "Suggestion list is off. Use the pen button to search manually.";
+
+  return (
+    <div className="game-left-panel__mobile-picker-sheet">
+      <div className="game-left-panel__mobile-picker-header">
+        <div className="game-left-panel__write-in-title">
+          {side === "top" ? "Top path options" : "Bottom path options"}
+        </div>
+        <div className="game-left-panel__mobile-picker-subtitle">
+          {autoSuggestEnabled ? "Choose a filtered option or switch to write-in." : "Write-in is available below."}
+        </div>
+      </div>
+
+      <div className="game-left-panel__mobile-picker-list" role="listbox" aria-label={`${side} board write in suggestions`}>
+        {showEmptyState ? (
+          <div className="game-left-panel__mobile-picker-empty">{emptyMessage}</div>
+        ) : (
+          suggestions.map((suggestion) => (
+            <button
+              key={`${suggestion.type}-${suggestion.id ?? suggestion.label}`}
+              type="button"
+              className="write-in-autosuggest__option"
+              onClick={() => onSuggestionSelect(suggestion)}
+              disabled={isDisabled || isSubmitting}
+            >
+              <EntityArtwork
+                type={suggestion.type}
+                label={suggestion.label}
+                imageUrl={suggestion.imageUrl}
+                className="write-in-autosuggest__artwork"
+                imageClassName="write-in-autosuggest__artwork-image"
+                placeholderClassName="write-in-autosuggest__artwork-emoji"
+              />
+              <span className="write-in-autosuggest__option-copy">
+                <span className="write-in-autosuggest__option-label">{suggestion.label}</span>
+                <span className="write-in-autosuggest__option-meta">{formatGameNodeMeta(suggestion)}</span>
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="game-left-panel__mobile-picker-actions">
+        <button
+          type="button"
+          className="game-left-panel__write-in-button game-left-panel__write-in-button--ghost"
+          onClick={onClose}
+          disabled={isDisabled || isSubmitting}
+          aria-label="Close write in"
+        >
+          ×
+        </button>
+        <button
+          type="button"
+          className={`game-left-panel__write-in-button game-left-panel__mobile-picker-pen${showEmptyState ? " game-left-panel__mobile-picker-pen--emphasized" : ""}`}
+          onClick={onOpenInput}
+          disabled={isDisabled || isSubmitting}
+          aria-label="Write in manually"
+          title="Write in manually"
+        >
+          ✎
+        </button>
+      </div>
     </div>
   );
 }
@@ -352,11 +479,11 @@ function renderStepRow({
         </button>
       ) : null}
       <div
-        className={`game-left-panel__actor-box game-left-panel__board-box${isCurrent ? " game-left-panel__actor-box--path-current-primary" : " game-left-panel__actor-box--placed"}`}
+        className={`game-left-panel__actor-box game-left-panel__board-box${isCurrent ? " game-left-panel__actor-box--path-current-primary game-left-panel__board-box--current" : " game-left-panel__actor-box--placed game-left-panel__board-box--past"}`}
         style={{ fontSize: `${fontSize}px` }}
         onClick={onInspect}
       >
-        <div className="game-left-panel__node-identity">
+        <div className={`game-left-panel__node-identity${isCurrent ? " game-left-panel__node-identity--current" : " game-left-panel__node-identity--past"}`}>
           <EntityArtwork
             type={node.type}
             label={node.label}
@@ -365,7 +492,7 @@ function renderStepRow({
             imageClassName="game-left-panel__node-artwork-image"
             placeholderClassName="game-left-panel__node-artwork-emoji"
           />
-          <span className="game-left-panel__node-label">{node.label}</span>
+          <span className={`game-left-panel__node-label${isCurrent ? " game-left-panel__node-label--current" : " game-left-panel__node-label--past"}`}>{node.label}</span>
         </div>
       </div>
     </div>
@@ -409,6 +536,7 @@ function renderBoardEllipsis(
     onCloseWriteIn: () => void;
     onWriteInValueChange: (value: string) => void;
     onSubmitWriteIn: () => void;
+    onSelectWriteInSuggestion: (suggestion: GameNode) => void;
   },
 ) {
   const arrowClassName = `game-left-panel__arrow game-left-panel__board-arrow ${ellipsis.side === "top" ? "game-left-panel__board-arrow--up-origin" : "game-left-panel__board-arrow--down-origin"}${ellipsis.isDimmed ? " game-left-panel__board-arrow--inactive" : ""}`;
@@ -430,6 +558,7 @@ function renderBoardEllipsis(
           onChange={options.onWriteInValueChange}
           onClose={options.onCloseWriteIn}
           onSubmit={options.onSubmitWriteIn}
+          onSuggestionSelect={options.onSelectWriteInSuggestion}
         />
       ) : (
         <PlusWriteInTrigger
@@ -480,7 +609,7 @@ function renderCompletedBoard(completedPath: GameNode[], onInspectNode: (node: G
                   className={`game-left-panel__actor-box game-left-panel__board-box game-left-panel__completed-node${isEndpoint ? " game-left-panel__completed-node--endpoint" : ""}`}
                   onClick={() => onInspectNode(node)}
                 >
-                  <div className="game-left-panel__node-identity">
+                  <div className="game-left-panel__node-identity game-left-panel__completed-node-identity">
                     <EntityArtwork
                       type={node.type}
                       label={node.label}
@@ -489,7 +618,7 @@ function renderCompletedBoard(completedPath: GameNode[], onInspectNode: (node: G
                       imageClassName="game-left-panel__node-artwork-image"
                       placeholderClassName="game-left-panel__node-artwork-emoji"
                     />
-                    <span className="game-left-panel__node-label">{node.label}</span>
+                    <span className="game-left-panel__node-label game-left-panel__completed-node-label">{node.label}</span>
                   </div>
                 </div>
               </div>
@@ -560,10 +689,12 @@ function GameLeftPanel({
   onCloseWriteIn,
   onWriteInValueChange,
   onSubmitWriteIn,
+  onSelectWriteInSuggestion,
   onRemoveTopPathItem,
   onRemoveBottomPathItem,
 }: Props) {
   const isCompactPhoneViewport = useIsCompactPhoneViewport();
+  const [isMobileWriteInInputMode, setIsMobileWriteInInputMode] = useState(false);
   const baseFont = 22;
   const minFont = 12;
   const topFontSize = Math.max(minFont, baseFont - topPath.length * 2);
@@ -574,6 +705,16 @@ function GameLeftPanel({
   const shouldShowTopWarning = shouldShowHiddenPanelFooter && Boolean(hiddenPanelMessage) && selectedSide === "top";
   const shouldShowBottomWarning = shouldShowHiddenPanelFooter && Boolean(hiddenPanelMessage) && selectedSide === "bottom";
   const mobileWriteInSide = isCompactPhoneViewport ? activeWriteInSide : null;
+
+  const handleOpenWriteIn = (side: SelectedSide) => {
+    setIsMobileWriteInInputMode(false);
+    onOpenWriteIn(side);
+  };
+
+  const handleCloseWriteIn = () => {
+    setIsMobileWriteInInputMode(false);
+    onCloseWriteIn();
+  };
 
   const topBoardState = buildBoardTokens({
     path: topPath,
@@ -692,10 +833,11 @@ function GameLeftPanel({
                     writeInAutoSuggestEnabled,
                     isSubmittingWriteIn,
                     isInteractionDisabled,
-                    onOpenWriteIn,
-                    onCloseWriteIn,
+                    onOpenWriteIn: handleOpenWriteIn,
+                    onCloseWriteIn: handleCloseWriteIn,
                     onWriteInValueChange,
                     onSubmitWriteIn,
+                    onSelectWriteInSuggestion,
                   }) : null}
                   {bottomToken
                     ? renderBoardToken(bottomToken)
@@ -709,10 +851,11 @@ function GameLeftPanel({
                         writeInAutoSuggestEnabled,
                         isSubmittingWriteIn,
                         isInteractionDisabled,
-                        onOpenWriteIn,
-                        onCloseWriteIn,
+                        onOpenWriteIn: handleOpenWriteIn,
+                        onCloseWriteIn: handleCloseWriteIn,
                         onWriteInValueChange,
                         onSubmitWriteIn,
+                        onSelectWriteInSuggestion,
                       })
                       : null}
                 </div>
@@ -738,9 +881,9 @@ function GameLeftPanel({
       )}
 
       {mobileWriteInSide ? (
-        <div className="game-left-panel__write-in-overlay" onClick={onCloseWriteIn}>
+        <div className="game-left-panel__write-in-overlay" onClick={handleCloseWriteIn}>
           <div className="game-left-panel__write-in-dialog" onClick={(event) => event.stopPropagation()}>
-            <BoardWriteInBox
+            <MobileWriteInSheet
               side={mobileWriteInSide}
               value={writeInValue}
               placeholder={writeInPlaceholder}
@@ -748,10 +891,12 @@ function GameLeftPanel({
               autoSuggestEnabled={writeInAutoSuggestEnabled}
               isSubmitting={isSubmittingWriteIn}
               isDisabled={isInteractionDisabled}
+              isInputMode={isMobileWriteInInputMode}
               onChange={onWriteInValueChange}
-              onClose={onCloseWriteIn}
+              onClose={handleCloseWriteIn}
               onSubmit={onSubmitWriteIn}
-              variant="dialog"
+              onSuggestionSelect={onSelectWriteInSuggestion}
+              onOpenInput={() => setIsMobileWriteInInputMode(true)}
             />
           </div>
         </div>

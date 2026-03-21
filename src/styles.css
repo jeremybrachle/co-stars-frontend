@@ -1039,11 +1039,9 @@ button:hover {
   min-height: 42px;
 }
 
-.footerContent--with-game-info {
+.footerContent--game-info-only {
   width: 100%;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) auto minmax(0, 1fr) max-content;
-  align-items: center;
+  justify-content: center;
 }
 
 .footerInfo {
@@ -1089,20 +1087,8 @@ button:hover {
   align-items: center;
 }
 
-.footerContent--with-game-info .footerInfo--stacked {
-  align-items: flex-start;
-  justify-self: start;
-}
-
-.footerContent--with-game-info .footerActions {
-  position: static;
-  justify-self: end;
-}
-
 .footerGameInfoButton {
   position: static;
-  grid-column: 3;
-  justify-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2726,6 +2712,11 @@ button:hover {
     padding-right: 88px;
   }
 
+  .footerContent--game-info-only {
+    justify-content: center;
+    padding-right: 0;
+  }
+
   .footerPopover--info {
     left: 0;
     right: auto;
@@ -2777,6 +2768,199 @@ button:hover {
   }
 }
 
+@media (max-width: 440px) {
+  .catalogDialogOverlay {
+    padding: 28px;
+    background: rgba(2, 6, 23, 0.48);
+    backdrop-filter: none;
+  }
+
+  .catalogDialog {
+    width: min(332px, calc(100vw - 56px));
+    max-height: calc(100vh - 56px);
+    padding: 16px 14px 14px;
+    border-radius: 18px;
+  }
+
+  .catalogDialogClose {
+    top: 10px;
+    right: 10px;
+    min-width: 28px;
+    min-height: 28px;
+    font-size: 1.2rem;
+  }
+
+  .catalogDetailTrail {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .catalogDetailTrailStep {
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .catalogDialogHeader {
+    gap: 12px;
+  }
+
+  .catalogDialogHero {
+    gap: 10px;
+  }
+
+  .catalogDialog .entityArtwork--hero {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+  }
+
+  .catalogDialogHeader h2 {
+    font-size: 1.2rem;
+    line-height: 1.15;
+  }
+
+  .catalogDialog .pageEyebrow {
+    margin-bottom: 6px;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+  }
+
+  .catalogDetailLead {
+    margin-top: 6px;
+    font-size: 0.88rem;
+    line-height: 1.38;
+  }
+
+  .catalogDetailSubtle {
+    margin-top: 4px;
+    font-size: 0.78rem;
+  }
+
+  .entityBadgeRow--detail {
+    margin-top: 12px;
+    gap: 6px;
+  }
+
+  .catalogDialog .entityBadge {
+    padding: 3px 8px;
+    font-size: 0.68rem;
+  }
+
+  .catalogDetailMetaGrid {
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .catalogDetailMetaCard {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .catalogDetailMetaCard strong {
+    font-size: 0.88rem;
+  }
+
+  .catalogDetailMetaLabel {
+    margin-bottom: 4px;
+    font-size: 0.66rem;
+  }
+
+  .catalogDetailNarrative {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 14px;
+    max-height: 118px;
+  }
+
+  .catalogDetailNarrativeHeader {
+    margin-bottom: 8px;
+  }
+
+  .catalogDetailNarrative h3 {
+    font-size: 0.92rem;
+  }
+
+  .catalogDetailNarrative p {
+    font-size: 0.84rem;
+    line-height: 1.45;
+    padding-bottom: 18px;
+  }
+
+  .catalogDetailNarrativeToggle {
+    min-width: 26px;
+    min-height: 26px;
+  }
+
+  .catalogRelationToolbar {
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .catalogControlField {
+    gap: 6px;
+  }
+
+  .catalogControlField span {
+    font-size: 0.76rem;
+  }
+
+  .catalogControlField input,
+  .catalogControlField select {
+    padding: 0.72em 0.85em;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+
+  .catalogDialogListHeader {
+    margin-top: 16px;
+  }
+
+  .catalogDialogListHeader h3 {
+    font-size: 0.92rem;
+  }
+
+  .catalogDialogListHeader span {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .catalogDialogList {
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .catalogDialogListItem {
+    gap: 10px;
+    padding: 10px 11px;
+    border-radius: 12px;
+  }
+
+  .catalogDialogListPrimary {
+    gap: 10px;
+  }
+
+  .catalogDialog .entityArtwork--row {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .catalogDialogListPrimary span:first-child {
+    font-size: 0.88rem;
+  }
+
+  .catalogDialogListMeta,
+  .catalogDialogListSecondary {
+    font-size: 0.74rem;
+  }
+
+  .catalogDialogPopularity {
+    padding: 3px 7px;
+    font-size: 0.7rem;
+  }
+}
+
 @media (max-width: 760px) {
   .settingsPage {
     --settings-footer-clearance: 132px;
@@ -2817,11 +3001,11 @@ button:hover {
   .home-page-landing .home-page-landing__shell,
   .play-now-page .play-now-page__shell {
     position: relative;
-    width: min(100vw - 24px, 408px);
+    width: min(100vw - 12px, 432px);
     min-width: 0;
-    min-height: calc(100vh - 96px);
+    min-height: calc(100vh - 110px);
     margin-top: 0;
-    padding: 9.5vh 0 4.8rem;
+    padding: 10.4vh 0 1.15rem;
     box-sizing: border-box;
     border: none !important;
     border-radius: 0 !important;
@@ -2834,14 +3018,14 @@ button:hover {
   .play-now-page .page-container {
     flex: 0 0 auto;
     width: 100%;
-    min-height: 138px;
+    min-height: 126px;
     justify-content: flex-start;
     padding-bottom: 0;
   }
 
   .home-page-landing h1,
   .play-now-page h1 {
-    font-size: clamp(2.15rem, 8.2vw, 2.72rem);
+    font-size: clamp(2rem, 7.7vw, 2.46rem);
     margin-bottom: 0.08em;
     font-weight: 900;
     letter-spacing: 0.01em;
@@ -2851,21 +3035,21 @@ button:hover {
   .home-page-landing .subtitle-tight,
   .play-now-page .subtitle,
   .play-now-page .subtitle-tight {
-    font-size: 1rem;
-    margin-bottom: 0.24em;
+    font-size: 0.93rem;
+    margin-bottom: 0.12em;
     font-weight: 700;
-    line-height: 1.28;
+    line-height: 1.22;
   }
 
   .home-page-landing__mobile-badge {
     display: block;
-    margin: 0.1rem auto 0;
-    padding: 0.34rem 0.82rem;
+    margin: 0.05rem auto 0;
+    padding: 0.28rem 0.72rem;
     border-radius: 999px;
     border: 1px solid rgba(255,255,255,0.18);
     background: rgba(255,255,255,0.08);
     color: rgba(255, 255, 255, 0.9);
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 700;
     line-height: 1.1;
     letter-spacing: 0.06em;
@@ -2874,9 +3058,9 @@ button:hover {
 
   .home-page-landing .home-menu-group {
     width: 100%;
-    margin-top: clamp(1rem, 3.2vh, 1.7rem);
-    padding: 1rem 0.9rem 1.05rem;
-    border-radius: 28px;
+    margin-top: clamp(1.05rem, 2.8vh, 1.55rem);
+    padding: 0.96rem 0.86rem 0.98rem;
+    border-radius: 24px;
     border: 2.5px solid rgba(255,255,255,0.18);
     background: rgba(0,0,0,0.13);
     box-shadow: 0 12px 36px rgba(0,0,0,0.22);
@@ -2885,9 +3069,9 @@ button:hover {
 
   .play-now-page .home-menu-group {
     width: 100%;
-    margin-top: clamp(1rem, 3.2vh, 1.7rem);
-    padding: 1rem 0.9rem 1.05rem;
-    border-radius: 28px;
+    margin-top: clamp(1.05rem, 2.8vh, 1.55rem);
+    padding: 0.96rem 0.86rem 0.98rem;
+    border-radius: 24px;
     border: 2.5px solid rgba(255,255,255,0.18);
     background: rgba(0,0,0,0.13);
     box-shadow: 0 12px 36px rgba(0,0,0,0.22);
@@ -2897,37 +3081,37 @@ button:hover {
   .home-page-landing .nav-menu,
   .play-now-page .nav-menu {
     width: 100%;
-    gap: 0.95rem;
+    gap: 0.98rem;
   }
 
   .home-page-landing .nav-btn-visual,
   .play-now-page .nav-btn-visual {
-    width: 100%;
-    max-width: 356px;
-    min-height: 84px;
+    width: calc(100% - clamp(0.4rem, 2vw, 0.9rem));
+    max-width: none;
+    min-height: 68px;
     margin-inline: auto;
-    gap: 0.9rem;
-    padding: 0.96rem 1rem;
+    gap: 0.72rem;
+    padding: 0.72rem 0.8rem;
     box-sizing: border-box;
     border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 24px;
+    border-radius: 20px;
     background: rgba(255,255,255,0.08);
     box-shadow: 0 12px 24px rgba(0,0,0,0.12);
   }
 
   .home-page-landing .nav-icon,
   .play-now-page .nav-icon {
-    font-size: 3.00rem;
+    font-size: 2.18rem;
   }
 
   .home-page-landing .nav-btn-content,
   .play-now-page .nav-btn-content {
-    gap: 0.26rem;
+    gap: 0.18rem;
   }
 
   .home-page-landing .nav-btn-label,
   .play-now-page .nav-btn-label {
-    font-size: 1.03rem;
+    font-size: 0.93rem;
     line-height: 1.08;
     font-weight: 760;
     letter-spacing: 0.01em;
@@ -2936,8 +3120,8 @@ button:hover {
   .home-page-landing .nav-btn-copy,
   .play-now-page .nav-btn-copy {
     display: block;
-    font-size: 0.79rem;
-    line-height: 1.28;
+    font-size: 0.71rem;
+    line-height: 1.22;
     font-weight: 540;
     color: rgba(255, 255, 255, 0.88);
   }
@@ -2948,16 +3132,36 @@ button:hover {
   }
 
   .home-page-landing .appVersionHome {
-    margin-top: auto;
-    padding-top: 1rem;
-    font-size: 0.7rem;
+    margin-top: 0.8rem;
+    padding-top: 0;
+    font-size: 0.66rem;
     letter-spacing: 0.06em;
   }
 
   .play-now-page .pageBackLink {
-    margin-top: auto;
-    padding-top: 0.85rem;
-    font-size: 0.8rem;
+    margin-top: 0.8rem;
+    padding-top: 0;
+    font-size: 0.74rem;
   }
 
+}
+
+@media (max-width: 440px) {
+  .footer--game-info-only {
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(3px);
+  }
+
+  .footer--game-info-only .footerContent {
+    min-height: 24px;
+    padding-right: 0;
+    justify-content: center;
+  }
+
+  .footer--game-info-only .footerGameInfoButton {
+    width: 22px;
+    height: 22px;
+    font-size: 0.72rem;
+  }
 }

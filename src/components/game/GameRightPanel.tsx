@@ -35,6 +35,7 @@ type Props = {
   onCompletePanelClick: () => void;
   onReverse: () => void;
   onSuggestion: (choice: GameNode) => void;
+  onSelectWriteInSuggestion: (choice: GameNode) => Promise<void>;
   onShuffle: () => void;
   onWriteIn: (value: string, type: NodeType, allowedOptions: GameNode[], sourceLabel: string) => Promise<boolean>;
 };
@@ -98,6 +99,7 @@ function GameRightPanel({
   onCompletePanelClick,
   onReverse,
   onSuggestion,
+  onSelectWriteInSuggestion,
   onShuffle,
   onWriteIn,
 }: Props) {
@@ -170,6 +172,22 @@ function GameRightPanel({
         setWriteInValue("");
         setIsWriteInOpen(false);
       }
+    } finally {
+      setIsSubmittingWriteIn(false);
+    }
+  };
+
+  const handleSelectWriteInSuggestion = async (choice: GameNode) => {
+    if (isDisabled || isLoading || isSubmittingWriteIn || isComplete) {
+      return;
+    }
+
+    setIsSubmittingWriteIn(true);
+
+    try {
+      await onSelectWriteInSuggestion(choice);
+      setWriteInValue("");
+      setIsWriteInOpen(false);
     } finally {
       setIsSubmittingWriteIn(false);
     }
@@ -321,10 +339,12 @@ function GameRightPanel({
                     suggestions={writeInSuggestions}
                     autoSuggestEnabled={writeInAutoSuggestEnabled}
                     disabled={isDisabled || isLoading || isSubmittingWriteIn}
-                    autoFocus
                     inputClassName="game-right-panel__write-in-input"
                     dropdownLabel={`${selectionContext.writeInType} write in suggestions`}
                     emptyMessage={`No matching ${selectionContext.writeInType === "actor" ? "actors" : "movies"}.`}
+                    onSuggestionSelect={(choice) => {
+                      void handleSelectWriteInSuggestion(choice);
+                    }}
                   />
                   <div className="game-right-panel__write-in-hint">
                     {writeInAutoSuggestEnabled ? "Autosuggest is on. Pick a match or enter a partial name." : "Autosuggest is off. Submit the exact title or actor name you want to try."}

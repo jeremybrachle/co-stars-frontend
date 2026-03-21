@@ -17,6 +17,7 @@ type Props = {
   emptyMessage: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onSuggestionSelect?: (suggestion: GameNode) => void;
 };
 
 function WriteInAutosuggestField({
@@ -31,6 +32,7 @@ function WriteInAutosuggestField({
   emptyMessage,
   onChange,
   onSubmit,
+  onSuggestionSelect,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -82,9 +84,16 @@ function WriteInAutosuggestField({
                 key={`${suggestion.type}-${suggestion.id ?? suggestion.label}`}
                 type="button"
                 className="write-in-autosuggest__option"
-                onMouseDown={() => {
-                  onChange(suggestion.label);
+                onMouseDown={(event) => {
+                  event.preventDefault();
                   setIsOpen(false);
+
+                  if (onSuggestionSelect) {
+                    onSuggestionSelect(suggestion);
+                    return;
+                  }
+
+                  onChange(suggestion.label);
                 }}
               >
                 <EntityArtwork

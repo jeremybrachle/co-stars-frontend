@@ -17,6 +17,7 @@ Current gameplay rules:
 - The shuffle button rerolls the suggestion pool using popularity and shortest-path hints computed locally.
 - Some suggestions are highlighted when they reveal an immediate or highly optimal connection.
 - On a win, the game shows your completed path, hop count, turns, shuffles, rewinds, and the optimal comparison.
+- On iPhone-sized screens, an active game hides the in-game info button and does not allow jumping into Settings until you leave the current game.
 
 ## Technical Overview
 

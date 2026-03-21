@@ -299,23 +299,29 @@
 
 @media (max-width: 440px) {
   .adventureHomeBtn {
-    top: 16px;
-    right: 16px;
+    top: 0;
+    right: 0;
+  }
+
+  .adventureHomeBtn :global(.home-btn) {
+    top: 14px;
+    right: 14px;
   }
 
   .adventureContent {
     min-height: 100vh;
-    padding: 72px 12px 118px;
+    padding: 92px 12px 118px;
     box-sizing: border-box;
   }
 
   .adventureTitle {
     font-size: clamp(2rem, 8.4vw, 2.45rem);
-    margin-bottom: 0.2em;
+    margin-top: 0;
+    margin-bottom: 0.18em;
   }
 
   .adventureSubtitle {
-    margin-bottom: 0.5em;
+    margin-bottom: 0.44em;
     font-size: 0.98rem;
   }
 
