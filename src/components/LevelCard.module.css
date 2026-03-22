@@ -433,6 +433,38 @@
   font-size: 0.86rem;
 }
 
+.leaderboardTierBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.8rem;
+  padding: 0.24rem 0.58rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.leaderboardTierBadgeGold {
+  color: #fef3c7;
+  background: rgba(202, 138, 4, 0.24);
+  border-color: rgba(250, 204, 21, 0.34);
+}
+
+.leaderboardTierBadgeSilver {
+  color: #f8fafc;
+  background: rgba(148, 163, 184, 0.22);
+  border-color: rgba(203, 213, 225, 0.3);
+}
+
+.leaderboardTierBadgeBronze {
+  color: #ffedd5;
+  background: rgba(180, 83, 9, 0.24);
+  border-color: rgba(251, 146, 60, 0.34);
+}
+
 .leaderboardHops,
 .leaderboardTurns,
 .leaderboardStars {
@@ -457,16 +489,12 @@
   line-height: 1;
 }
 
-.leaderboardStarToneGold {
+.leaderboardStarFilled {
   color: #facc15;
 }
 
-.leaderboardStarToneSilver {
-  color: #d1d5db;
-}
-
-.leaderboardStarToneBronze {
-  color: #d97706;
+.leaderboardStarEmpty {
+  color: rgba(255, 255, 255, 0.24);
 }
 
 .leaderboardScore {

@@ -1,26 +1,91 @@
-type CalculateLevelScoreInput = {
+export type LevelScoreTier = "GOLD" | "SILVER" | "BRONZE" | "FAIL";
+
+export type CalculateLevelScoreInput = {
   hops: number;
   optimalHops: number;
   turns: number;
-  suggestionAssists: number;
+  optimalTurns?: number;
+  usedSuggestions?: boolean;
+  usedFilteredSuggestions?: boolean;
+  usedFullSuggestionList?: boolean;
+  usedRandomSubset?: boolean;
   shuffles: number;
   rewinds: number;
+  repeatNodeClicks?: number;
   deadEnds: number;
 };
 
-const SUGGESTION_ASSIST_PENALTY = 5;
-
 export type LevelScoreBreakdown = {
-  hopEfficiency: number;
-  turnEfficiency: number;
+  tier: LevelScoreTier;
+  score: number;
+  stars: number;
+  optimalNodes: number;
+  playerNodes: number;
+  optimalTurns: number;
+  playerTurns: number;
   effectiveTurns: number;
-  suggestionPenalty: number;
-  rawScore: number;
-  finalScore: number;
+  extraTurns: number;
+  repeatNodeClicks: number;
+  deadEnds: number;
+  totalMistakes: number;
+  penalties: {
+    suggestions: number;
+    filteredSuggestions: number;
+    fullSuggestionList: number;
+    randomSubset: number;
+    shuffles: number;
+    rewinds: number;
+    extraTurns: number;
+    mistakes: number;
+    total: number;
+  };
+  failed: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function normalizeCount(value: number | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.round(value));
+}
+
+export function getLevelScoreTier(hops: number, optimalHops: number): Exclude<LevelScoreTier, "FAIL"> {
+  const normalizedHops = Math.max(0, Math.round(hops));
+  const normalizedOptimalHops = Math.max(0, Math.round(optimalHops));
+  const hopDelta = normalizedHops - normalizedOptimalHops;
+
+  if (hopDelta <= 0) {
+    return "GOLD";
+  }
+
+  if (hopDelta <= 2) {
+    return "SILVER";
+  }
+
+  return "BRONZE";
+}
+
+export function getLevelScoreStars(score: number) {
+  const normalizedScore = clamp(Math.round(score), 0, 100);
+
+  if (normalizedScore >= 90) {
+    return 3;
+  }
+
+  if (normalizedScore >= 75) {
+    return 2;
+  }
+
+  if (normalizedScore >= 60) {
+    return 1;
+  }
+
+  return 0;
 }
 
 export function getEffectiveTurnCount({
@@ -28,64 +93,93 @@ export function getEffectiveTurnCount({
   shuffles,
   rewinds,
   deadEnds,
-}: Pick<CalculateLevelScoreInput, "turns" | "shuffles" | "rewinds" | "deadEnds">) {
-  const normalizedTurns = Math.max(0, Math.round(turns));
-  const normalizedShuffles = Math.max(0, Math.round(shuffles));
-  const normalizedRewinds = Math.max(0, Math.round(rewinds));
-  const normalizedDeadEnds = Math.max(0, Math.round(deadEnds));
+  repeatNodeClicks = 0,
+}: Pick<CalculateLevelScoreInput, "turns" | "shuffles" | "rewinds" | "deadEnds" | "repeatNodeClicks">) {
+  const normalizedTurns = normalizeCount(turns);
+  const normalizedShuffles = normalizeCount(shuffles);
+  const normalizedRewinds = normalizeCount(rewinds);
+  const normalizedDeadEnds = normalizeCount(deadEnds);
+  const normalizedRepeatNodeClicks = normalizeCount(repeatNodeClicks);
 
-  return Math.max(1, normalizedTurns + normalizedShuffles + normalizedRewinds + normalizedDeadEnds);
+  return Math.max(1, normalizedTurns + normalizedShuffles + normalizedRewinds + normalizedDeadEnds + normalizedRepeatNodeClicks);
 }
 
 export function buildLevelScoreBreakdown({
   hops,
   optimalHops,
   turns,
-  suggestionAssists,
+  optimalTurns,
+  usedSuggestions = false,
+  usedFilteredSuggestions = false,
+  usedFullSuggestionList = false,
+  usedRandomSubset = false,
   shuffles,
   rewinds,
+  repeatNodeClicks = 0,
   deadEnds,
 }: CalculateLevelScoreInput): LevelScoreBreakdown {
-  const normalizedHops = Math.max(1, Math.round(hops));
-  const normalizedOptimalHops = Math.max(1, Math.round(optimalHops));
-  const effectiveTurns = getEffectiveTurnCount({
-    turns,
-    shuffles,
-    rewinds,
-    deadEnds,
-  });
-  const hopEfficiency = normalizedOptimalHops / Math.max(normalizedHops, normalizedOptimalHops);
-  const turnEfficiency = normalizedOptimalHops / Math.max(effectiveTurns, normalizedOptimalHops);
-  const suggestionPenalty = Math.max(0, Math.round(suggestionAssists)) * SUGGESTION_ASSIST_PENALTY;
-  const rawScore = (((hopEfficiency + turnEfficiency) / 2) * 100) - suggestionPenalty;
-  const finalScore = Math.round(clamp(rawScore, 0, 100) * 10) / 10;
+  const normalizedHops = Math.max(0, Math.round(hops));
+  const normalizedOptimalHops = Math.max(0, Math.round(optimalHops));
+  const normalizedTurns = normalizeCount(turns);
+  const normalizedOptimalTurns = Math.max(0, Math.round(optimalTurns ?? optimalHops));
+  const normalizedShuffles = normalizeCount(shuffles);
+  const normalizedRewinds = normalizeCount(rewinds);
+  const normalizedRepeatNodeClicks = normalizeCount(repeatNodeClicks);
+  const normalizedDeadEnds = normalizeCount(deadEnds);
+  const totalMistakes = normalizedRepeatNodeClicks + normalizedDeadEnds;
+  const failed = totalMistakes >= 5;
+  const tier = failed ? "FAIL" : getLevelScoreTier(normalizedHops, normalizedOptimalHops);
+  const extraTurns = Math.max(0, normalizedTurns - normalizedOptimalTurns);
+
+  const penalties = {
+    suggestions: usedSuggestions ? 10 : 0,
+    filteredSuggestions: usedFilteredSuggestions ? 5 : 0,
+    fullSuggestionList: usedFullSuggestionList ? 10 : 0,
+    randomSubset: usedRandomSubset ? 5 : 0,
+    shuffles: normalizedShuffles * 2,
+    rewinds: normalizedRewinds * 3,
+    extraTurns: extraTurns * 2,
+    mistakes: Math.min(totalMistakes * 5, 25),
+    total: 0,
+  };
+
+  penalties.total = penalties.suggestions
+    + penalties.filteredSuggestions
+    + penalties.fullSuggestionList
+    + penalties.randomSubset
+    + penalties.shuffles
+    + penalties.rewinds
+    + penalties.extraTurns
+    + penalties.mistakes;
+
+  const rawScore = failed ? 0 : 100 - penalties.total;
+  const score = clamp(Math.round(rawScore), 0, 100);
+  const stars = failed ? 0 : getLevelScoreStars(score);
 
   return {
-    hopEfficiency,
-    turnEfficiency,
-    effectiveTurns,
-    suggestionPenalty,
-    rawScore,
-    finalScore,
+    tier,
+    score,
+    stars,
+    optimalNodes: normalizedOptimalHops + 1,
+    playerNodes: normalizedHops + 1,
+    optimalTurns: normalizedOptimalTurns,
+    playerTurns: normalizedTurns,
+    effectiveTurns: getEffectiveTurnCount({
+      turns: normalizedTurns,
+      shuffles: normalizedShuffles,
+      rewinds: normalizedRewinds,
+      deadEnds: normalizedDeadEnds,
+      repeatNodeClicks: normalizedRepeatNodeClicks,
+    }),
+    extraTurns,
+    repeatNodeClicks: normalizedRepeatNodeClicks,
+    deadEnds: normalizedDeadEnds,
+    totalMistakes,
+    penalties,
+    failed,
   };
 }
 
-export function calculateLevelScore({
-  hops,
-  optimalHops,
-  turns,
-  suggestionAssists,
-  shuffles,
-  rewinds,
-  deadEnds,
-}: CalculateLevelScoreInput) {
-  return buildLevelScoreBreakdown({
-    hops,
-    optimalHops,
-    turns,
-    suggestionAssists,
-    shuffles,
-    rewinds,
-    deadEnds,
-  }).finalScore;
+export function calculateLevelScore(input: CalculateLevelScoreInput) {
+  return buildLevelScoreBreakdown(input).score;
 }

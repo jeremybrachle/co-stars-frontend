@@ -351,6 +351,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 6px;
 }
@@ -359,6 +360,74 @@
   margin-top: 0;
   font-size: 1.8rem;
   font-weight: 800;
+}
+
+.gameCompletionTierBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gameCompletionTierBadge--gold {
+  color: #fef3c7;
+  background: rgba(202, 138, 4, 0.24);
+  border-color: rgba(250, 204, 21, 0.34);
+}
+
+.gameCompletionTierBadge--silver {
+  color: #f8fafc;
+  background: rgba(148, 163, 184, 0.22);
+  border-color: rgba(203, 213, 225, 0.3);
+}
+
+.gameCompletionTierBadge--bronze {
+  color: #ffedd5;
+  background: rgba(180, 83, 9, 0.24);
+  border-color: rgba(251, 146, 60, 0.34);
+}
+
+.gameCompletionTierBadge--fail {
+  color: #fee2e2;
+  background: rgba(185, 28, 28, 0.24);
+  border-color: rgba(248, 113, 113, 0.34);
+}
+
+.gameCompletionRatingStars {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.22rem;
+  margin-top: 8px;
+}
+
+.gameCompletionRatingStar,
+.gameCompletionLeaderboardStar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.gameCompletionRatingStar {
+  font-size: 1rem;
+}
+
+.gameCompletionRatingStar--filled,
+.gameCompletionLeaderboardStar--filled {
+  color: #facc15;
+}
+
+.gameCompletionRatingStar--empty,
+.gameCompletionLeaderboardStar--empty {
+  color: rgba(255, 255, 255, 0.24);
 }
 
 .gameCompletionPinnedScoreActions {
@@ -716,11 +785,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 14px;
-}
-
-.gameCompletionHeroScoreRow .gameCompletionStar {
-  font-size: 2rem;
 }
 
 .gameCompletionHeroScore {
@@ -1030,6 +1096,7 @@
 .gameCompletionScoreBreakdownRow {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 16px;
   padding: 8px 0;
   color: rgba(255, 255, 255, 0.82);
@@ -1168,27 +1235,14 @@
 
 .gameCompletionLeaderboardStars {
   display: inline-flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 0.08rem;
-  max-width: min(100%, 210px);
+  align-items: center;
+  gap: 0.18rem;
+  max-width: min(100%, 120px);
 }
 
 .gameCompletionLeaderboardStar {
   font-size: 0.9rem;
   line-height: 1;
-}
-
-.gameCompletionLeaderboardStar--gold {
-  color: #facc15;
-}
-
-.gameCompletionLeaderboardStar--silver {
-  color: #d1d5db;
-}
-
-.gameCompletionLeaderboardStar--bronze {
-  color: #d97706;
 }
 
 .gameCompletionLeaderboardScore {

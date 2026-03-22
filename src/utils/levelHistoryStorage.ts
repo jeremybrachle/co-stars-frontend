@@ -1,10 +1,13 @@
 import type { NodeSummary } from "../types";
+import type { LevelScoreTier } from "./calculateLevelScore";
 
 export type SavedLevelAttempt = {
   id: string;
   signature: string;
   path: NodeSummary[];
   score: number;
+  tier?: LevelScoreTier;
+  stars?: number;
   hops: number;
   turns?: number;
   effectiveTurns?: number;
@@ -12,7 +15,9 @@ export type SavedLevelAttempt = {
   shuffleModeEnabled: boolean;
   appliedShufflePenaltyCount: number;
   rewinds: number;
+  repeatNodeClicks?: number;
   deadEnds: number;
+  totalMistakes?: number;
   popularityScore?: number;
   averageReleaseYear?: number | null;
   timestamp: number;
@@ -29,6 +34,8 @@ export type LevelHistoryCollection = Record<string, LevelHistoryRecord>;
 type SaveLevelAttemptInput = {
   path: NodeSummary[];
   score: number;
+  tier?: LevelScoreTier;
+  stars?: number;
   hops: number;
   turns: number;
   effectiveTurns: number;
@@ -36,7 +43,9 @@ type SaveLevelAttemptInput = {
   shuffleModeEnabled: boolean;
   appliedShufflePenaltyCount: number;
   rewinds: number;
+  repeatNodeClicks?: number;
   deadEnds: number;
+  totalMistakes?: number;
   popularityScore: number;
   averageReleaseYear: number | null;
   timestamp?: number;
@@ -70,11 +79,15 @@ function createAttemptSignature(input: SaveLevelAttemptInput) {
     input.turns,
     input.effectiveTurns,
     input.score.toFixed(1),
+    input.tier ?? "legacy-tier",
+    input.stars ?? "legacy-stars",
     input.shuffles,
     input.shuffleModeEnabled ? "shuffle-on" : "shuffle-off",
     input.appliedShufflePenaltyCount,
     input.rewinds,
+    input.repeatNodeClicks ?? 0,
     input.deadEnds,
+    input.totalMistakes ?? (input.repeatNodeClicks ?? 0) + input.deadEnds,
   ].join("|");
 }
 
@@ -132,6 +145,8 @@ function isSavedLevelAttempt(value: unknown): value is SavedLevelAttempt {
     && Array.isArray(candidate.path)
     && candidate.path.every(isNodeSummary)
     && typeof candidate.score === "number"
+    && (candidate.tier === undefined || candidate.tier === "GOLD" || candidate.tier === "SILVER" || candidate.tier === "BRONZE" || candidate.tier === "FAIL")
+    && (candidate.stars === undefined || typeof candidate.stars === "number")
     && typeof candidate.hops === "number"
     && (candidate.turns === undefined || typeof candidate.turns === "number")
     && (candidate.effectiveTurns === undefined || typeof candidate.effectiveTurns === "number")
@@ -139,7 +154,9 @@ function isSavedLevelAttempt(value: unknown): value is SavedLevelAttempt {
     && (candidate.shuffleModeEnabled === undefined || typeof candidate.shuffleModeEnabled === "boolean")
     && (candidate.appliedShufflePenaltyCount === undefined || typeof candidate.appliedShufflePenaltyCount === "number")
     && typeof candidate.rewinds === "number"
+    && (candidate.repeatNodeClicks === undefined || typeof candidate.repeatNodeClicks === "number")
     && typeof candidate.deadEnds === "number"
+    && (candidate.totalMistakes === undefined || typeof candidate.totalMistakes === "number")
     && (candidate.popularityScore === undefined || typeof candidate.popularityScore === "number")
     && (candidate.averageReleaseYear === undefined || candidate.averageReleaseYear === null || typeof candidate.averageReleaseYear === "number")
     && typeof candidate.timestamp === "number"
@@ -253,6 +270,8 @@ export function saveLevelAttempt(endpointA: string, endpointB: string, input: Sa
     signature,
     path: input.path,
     score: Math.round(input.score * 10) / 10,
+    tier: input.tier,
+    stars: input.stars,
     hops: input.hops,
     turns: input.turns,
     effectiveTurns: input.effectiveTurns,
@@ -260,7 +279,9 @@ export function saveLevelAttempt(endpointA: string, endpointB: string, input: Sa
     shuffleModeEnabled: input.shuffleModeEnabled,
     appliedShufflePenaltyCount: input.appliedShufflePenaltyCount,
     rewinds: input.rewinds,
+    repeatNodeClicks: input.repeatNodeClicks ?? 0,
     deadEnds: input.deadEnds,
+    totalMistakes: input.totalMistakes ?? (input.repeatNodeClicks ?? 0) + input.deadEnds,
     popularityScore: input.popularityScore,
     averageReleaseYear: input.averageReleaseYear,
     timestamp,

@@ -30,7 +30,7 @@ import {
   nodeFromSummary,
 } from "../gameplay";
 import { useDataSourceMode } from "../context/dataSourceMode";
-import { useGameSettings } from "../context/gameSettings";
+import { DEFAULT_DATA_FILTERS, useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
 import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
@@ -56,7 +56,14 @@ import {
 } from "../data/localGraph";
 import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/filterCounts";
 import { formatActorInlineMeta, formatActorLifespan, formatGameNodeMeta, formatMovieInlineMeta, getMovieBadges } from "../data/presentation";
-import { buildLevelScoreBreakdown, calculateLevelScore, getEffectiveTurnCount } from "../utils/calculateLevelScore.ts";
+import {
+  buildLevelScoreBreakdown,
+  calculateLevelScore,
+  getEffectiveTurnCount,
+  getLevelScoreStars,
+  getLevelScoreTier,
+  type LevelScoreTier,
+} from "../utils/calculateLevelScore.ts";
 import {
   isLevelCompleted,
   markLevelCompleted,
@@ -121,24 +128,31 @@ type GamePageRouteState = {
 
 type SelectedSide = "top" | "bottom";
 
-const MAX_DEAD_END_PENALTIES = 5;
+const MAX_MISTAKE_PENALTIES = 5;
 
 interface CompletionState {
   fullPath: GameNode[];
   usedHops: number;
+  score: number;
+  tier: LevelScoreTier;
+  stars: number;
   turns: number;
   effectiveTurns: number;
   winningSide: SelectedSide;
   source: string;
   isValidated: boolean | null;
   validationMessage?: string;
-  score?: number;
   shuffles: number;
   shuffleModeEnabled: boolean;
   appliedShufflePenaltyCount: number;
   appliedRewindPenaltyCount: number;
-  appliedSuggestionAssistPenaltyCount: number;
-  deadEnds?: number;
+  repeatNodeClicks: number;
+  deadEnds: number;
+  totalMistakes: number;
+  usedSuggestions: boolean;
+  usedFilteredSuggestions: boolean;
+  usedFullSuggestionList: boolean;
+  usedRandomSubset: boolean;
   popularityScore: number;
   averageReleaseYear: number | null;
 }
@@ -381,25 +395,6 @@ function formatTimestamp(timestamp: number) {
   return new Date(timestamp).toLocaleString();
 }
 
-function getDisplayedCompletionScore(
-  completion: CompletionState | null,
-  optimalHops: number | null,
-) {
-  if (!completion) {
-    return null;
-  }
-
-  return calculateLevelScore({
-    hops: completion.usedHops,
-    optimalHops: optimalHops ?? completion.usedHops,
-    turns: completion.turns,
-    suggestionAssists: completion.appliedSuggestionAssistPenaltyCount,
-    shuffles: completion.appliedShufflePenaltyCount,
-    rewinds: completion.appliedRewindPenaltyCount,
-    deadEnds: completion.deadEnds ?? 0,
-  });
-}
-
 function reorderBestPathSuggestions(suggestions: GameNode[]) {
   return suggestions
     .map((suggestion, index) => ({ suggestion, index }))
@@ -423,6 +418,10 @@ function formatPenaltyValue(value: number) {
   return value === 0 ? "0" : `-${value}`;
 }
 
+function formatExecutionScore(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}/100` : "--";
+}
+
 function getWriteInContextLabel(selection: GameNode | null) {
   if (!selection || selection.type === "actor") {
     return {
@@ -438,33 +437,31 @@ function getWriteInContextLabel(selection: GameNode | null) {
 }
 
 type DisplayStar = {
-  tone: "gold" | "silver" | "bronze";
+  filled: boolean;
 };
 
-function getCompletionStarTone(hops: number, optimalHops: number | null | undefined): DisplayStar["tone"] {
-  const safeHops = Math.max(0, Math.round(hops));
-  const safeOptimalHops = typeof optimalHops === "number" ? Math.max(0, Math.round(optimalHops)) : null;
-
-  if (safeOptimalHops === null) {
-    return "bronze";
-  }
-
-  if (safeHops <= safeOptimalHops) {
+function getTierTone(tier: LevelScoreTier): "gold" | "silver" | "bronze" | "fail" {
+  if (tier === "GOLD") {
     return "gold";
   }
 
-  if (safeHops <= safeOptimalHops + 2) {
+  if (tier === "SILVER") {
     return "silver";
   }
 
-  return "bronze";
+  if (tier === "BRONZE") {
+    return "bronze";
+  }
+
+  return "fail";
 }
 
-function buildDisplayedStars(hops: number, optimalHops: number | null | undefined) {
-  const safeHops = Math.max(0, Math.round(hops));
-  const tone = getCompletionStarTone(hops, optimalHops);
+function buildDisplayedStars(stars: number) {
+  const normalizedStars = Math.max(0, Math.min(3, Math.round(stars)));
 
-  return Array.from({ length: safeHops }, () => ({ tone } satisfies DisplayStar));
+  return Array.from({ length: 3 }, (_, index) => ({
+    filled: index < normalizedStars,
+  } satisfies DisplayStar));
 }
 
 function countPathNodeTypes(path: GameNode[]) {
@@ -607,6 +604,7 @@ function GamePage() {
   const [turns, setTurns] = useState(0);
   const [rewinds, setRewinds] = useState(0);
   const [deadEndPenalties, setDeadEndPenalties] = useState(0);
+  const [repeatNodeClickPenalties, setRepeatNodeClickPenalties] = useState(0);
   const [shuffles, setShuffles] = useState(0);
   const startWithSuggestionPanelVisible = helperSettings["start-with-suggestion-panel"];
   const isCompactPhoneViewport = useIsCompactPhoneViewport();
@@ -694,14 +692,6 @@ function GamePage() {
   const levelHistoryAttempts = levelHistory?.attempts ?? [];
   const latestAttempt = levelHistory?.attempts[0] ?? null;
   const isShuffleModeEnabled = suggestionDisplay.orderMode === "shuffled";
-  const displayedCompletionScore = useMemo(
-    () => getDisplayedCompletionScore(completion, optimalHops),
-    [completion, optimalHops],
-  );
-  const completionStarTone = useMemo(
-    () => (completion ? getCompletionStarTone(completion.usedHops, optimalHops) : "bronze"),
-    [completion, optimalHops],
-  );
   const completionPathSummary = useMemo(
     () => (completion ? formatCompletionPathSummary(completion.fullPath) : null),
     [completion],
@@ -715,13 +705,24 @@ function GamePage() {
       hops: completion.usedHops,
       optimalHops: optimalHops ?? completion.usedHops,
       turns: completion.turns,
-      suggestionAssists: completion.appliedSuggestionAssistPenaltyCount,
+      usedSuggestions: completion.usedSuggestions,
+      usedFilteredSuggestions: completion.usedFilteredSuggestions,
+      usedFullSuggestionList: completion.usedFullSuggestionList,
+      usedRandomSubset: completion.usedRandomSubset,
       shuffles: completion.appliedShufflePenaltyCount,
       rewinds: completion.appliedRewindPenaltyCount,
-      deadEnds: completion.deadEnds ?? 0,
+      repeatNodeClicks: completion.repeatNodeClicks,
+      deadEnds: completion.deadEnds,
     });
   }, [completion, optimalHops]);
-  const isDeadEndGameOver = deadEndPenalties >= MAX_DEAD_END_PENALTIES;
+  const displayedCompletionScore = completionScoreBreakdown?.score ?? completion?.score ?? null;
+  const displayedCompletionTier = completionScoreBreakdown?.tier ?? completion?.tier ?? null;
+  const displayedCompletionStars = completionScoreBreakdown?.stars ?? completion?.stars ?? null;
+  const completionTierTone = displayedCompletionTier ? getTierTone(displayedCompletionTier) : "bronze";
+  const totalMistakePenalties = deadEndPenalties + repeatNodeClickPenalties;
+  const isMistakeGameOver = totalMistakePenalties >= MAX_MISTAKE_PENALTIES;
+  const usesFilteredSuggestions = dataFilters.actorPopularityCutoff !== DEFAULT_DATA_FILTERS.actorPopularityCutoff
+    || dataFilters.releaseYearCutoff !== DEFAULT_DATA_FILTERS.releaseYearCutoff;
   const currentLevelCompleted = useMemo(() => {
     if (!currentLevelIdentity) {
       return false;
@@ -733,38 +734,49 @@ function GamePage() {
     <div className="gameCompletionHistoryEmpty">This level does not have any saved history yet.</div>
   ) : (
     <ol className="gameCompletionLeaderboardList gameCompletionLeaderboardList--flat">
-      {levelHistoryAttempts.map((attempt, attemptIndex) => (
-        <li key={attempt.id} className="gameCompletionLeaderboardItem">
-          <div className="gameCompletionLeaderboardTopRow">
-            <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
-            <span className="gameCompletionLeaderboardHops">{attempt.hops} hops</span>
-            <span className="gameCompletionLeaderboardTurns">{typeof attempt.turns === "number" ? `${attempt.turns} turns` : "-- turns"}</span>
-            <span className="gameCompletionLeaderboardStars">
-              {buildDisplayedStars(attempt.hops, optimalHops).map((star, starIndex) => (
-                <span
-                  key={starIndex}
-                  className={`gameCompletionLeaderboardStar gameCompletionLeaderboardStar--${star.tone}`}
-                >
-                  ★
-                </span>
-              ))}
-            </span>
-            <span className="gameCompletionLeaderboardScore">{attempt.score.toFixed(1)}%</span>
-          </div>
-          <div className="gameCompletionLeaderboardMetrics">
-            <span className="gameCompletionLeaderboardMetric">Effective turns {typeof attempt.effectiveTurns === "number" ? attempt.effectiveTurns : "--"}</span>
-            <span className="gameCompletionLeaderboardMetric">{attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`}</span>
-            <span className="gameCompletionLeaderboardMetric">rewinds {attempt.rewinds}</span>
-            <span className="gameCompletionLeaderboardMetric">dead ends {attempt.deadEnds}</span>
-            <span className="gameCompletionLeaderboardMetric">popularity avg {typeof attempt.popularityScore === "number" ? attempt.popularityScore : "--"}</span>
-            <span className="gameCompletionLeaderboardMetric">avg year {formatAverageReleaseYear(attempt.averageReleaseYear)}</span>
-          </div>
-          <div className="gameCompletionLeaderboardPath">
-            {attempt.path.map((node) => node.label).join(" → ")}
-          </div>
-          <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
-        </li>
-      ))}
+      {levelHistoryAttempts.map((attempt, attemptIndex) => {
+        const attemptTier = attempt.tier ?? (typeof optimalHops === "number"
+          ? getLevelScoreTier(attempt.hops, optimalHops)
+          : "BRONZE");
+        const attemptTierTone = getTierTone(attemptTier);
+        const attemptStars = typeof attempt.stars === "number" ? attempt.stars : getLevelScoreStars(attempt.score);
+
+        return (
+          <li key={attempt.id} className="gameCompletionLeaderboardItem">
+            <div className="gameCompletionLeaderboardTopRow">
+              <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
+              <span className="gameCompletionLeaderboardHops">{attempt.hops} hops</span>
+              <span className="gameCompletionLeaderboardTurns">{typeof attempt.turns === "number" ? `${attempt.turns} turns` : "-- turns"}</span>
+              <span className={`gameCompletionTierBadge gameCompletionTierBadge--${attemptTierTone}`}>{attemptTier}</span>
+              <span className="gameCompletionLeaderboardStars" aria-label={`${attemptStars} out of 3 stars`}>
+                {buildDisplayedStars(attemptStars).map((star, starIndex) => (
+                  <span
+                    key={starIndex}
+                    className={`gameCompletionLeaderboardStar${star.filled ? " gameCompletionLeaderboardStar--filled" : " gameCompletionLeaderboardStar--empty"}`}
+                  >
+                    ★
+                  </span>
+                ))}
+              </span>
+              <span className="gameCompletionLeaderboardScore">{formatExecutionScore(attempt.score)}</span>
+            </div>
+            <div className="gameCompletionLeaderboardMetrics">
+              <span className="gameCompletionLeaderboardMetric">effective turns {typeof attempt.effectiveTurns === "number" ? attempt.effectiveTurns : "--"}</span>
+              <span className="gameCompletionLeaderboardMetric">{attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`}</span>
+              <span className="gameCompletionLeaderboardMetric">rewinds {attempt.rewinds}</span>
+              <span className="gameCompletionLeaderboardMetric">repeat nodes {attempt.repeatNodeClicks ?? 0}</span>
+              <span className="gameCompletionLeaderboardMetric">dead ends {attempt.deadEnds}</span>
+              <span className="gameCompletionLeaderboardMetric">mistakes {attempt.totalMistakes ?? ((attempt.repeatNodeClicks ?? 0) + attempt.deadEnds)}</span>
+              <span className="gameCompletionLeaderboardMetric">popularity avg {typeof attempt.popularityScore === "number" ? attempt.popularityScore : "--"}</span>
+              <span className="gameCompletionLeaderboardMetric">avg year {formatAverageReleaseYear(attempt.averageReleaseYear)}</span>
+            </div>
+            <div className="gameCompletionLeaderboardPath">
+              {attempt.path.map((node) => node.label).join(" → ")}
+            </div>
+            <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
+          </li>
+        );
+      })}
     </ol>
   );
 
@@ -1060,6 +1072,7 @@ function GamePage() {
       setTurns(0);
       setRewinds(0);
       setDeadEndPenalties(0);
+      setRepeatNodeClickPenalties(0);
       setShuffles(0);
       setShuffleSeed(0);
       setIsNetworkUnavailable(false);
@@ -1285,22 +1298,38 @@ function GamePage() {
     );
   }, [boardNodes]);
 
-  const isInteractionDisabled = isPathLimitReached || isDeadEndGameOver || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
+  const isInteractionDisabled = isPathLimitReached || isMistakeGameOver || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
   const isGameComplete = !!completion;
 
   const applyDeadEndPenalty = useCallback((message: string) => {
     setDeadEndPenalties((currentPenalties) => {
-      const nextPenalties = Math.min(MAX_DEAD_END_PENALTIES, currentPenalties + 1);
+      const nextPenalties = Math.min(MAX_MISTAKE_PENALTIES, currentPenalties + 1);
+      const totalMistakes = nextPenalties + repeatNodeClickPenalties;
 
-      if (nextPenalties >= MAX_DEAD_END_PENALTIES) {
-        setSuggestionError(`Game over: ${message} You reached ${MAX_DEAD_END_PENALTIES} dead-end penalties. Retry the level to start over.`);
+      if (totalMistakes >= MAX_MISTAKE_PENALTIES) {
+        setSuggestionError(`Game over: ${message} You reached ${MAX_MISTAKE_PENALTIES} total mistakes. Retry the level to start over.`);
       } else {
         setSuggestionError(message);
       }
 
       return nextPenalties;
     });
-  }, []);
+  }, [repeatNodeClickPenalties]);
+
+  const applyRepeatNodePenalty = useCallback((message: string) => {
+    setRepeatNodeClickPenalties((currentPenalties) => {
+      const nextPenalties = Math.min(MAX_MISTAKE_PENALTIES, currentPenalties + 1);
+      const totalMistakes = deadEndPenalties + nextPenalties;
+
+      if (totalMistakes >= MAX_MISTAKE_PENALTIES) {
+        setSuggestionError(`Game over: ${message} You reached ${MAX_MISTAKE_PENALTIES} total mistakes. Retry the level to start over.`);
+      } else {
+        setSuggestionError(message);
+      }
+
+      return nextPenalties;
+    });
+  }, [deadEndPenalties]);
 
   const visibleSuggestions = useMemo(() => {
     return showVisitedSuggestions
@@ -1960,29 +1989,39 @@ function GamePage() {
     const turnsAtCompletion = turns;
     const shuffleModeEnabledAtCompletion = isShuffleModeEnabled;
     const shufflesCount = shuffles;
-    const appliedShufflePenaltyCount = shuffleAddsPenalty ? (shuffleModeEnabledAtCompletion ? shufflesCount : 1) : 0;
+    const appliedShufflePenaltyCount = shuffleAddsPenalty ? shufflesCount : 0;
     const appliedRewindPenaltyCount = rewindAddsPenalty ? rewinds : 0;
-    const appliedSuggestionAssistPenaltyCount = helperSettings["show-suggestions"] ? 1 : 0;
     const rewindsCount = rewinds;
+    const repeatNodeClicksCount = repeatNodeClickPenalties;
     const deadEndsCount = deadEndPenalties;
+    const usedSuggestions = helperSettings["show-suggestions"];
+    const usedFilteredSuggestions = usesFilteredSuggestions;
+    const usedFullSuggestionList = usedSuggestions && !shuffleModeEnabledAtCompletion;
+    const usedRandomSubset = usedSuggestions && shuffleModeEnabledAtCompletion;
     const effectiveTurns = getEffectiveTurnCount({
       turns: turnsAtCompletion,
       shuffles: appliedShufflePenaltyCount,
       rewinds: appliedRewindPenaltyCount,
+      repeatNodeClicks: repeatNodeClicksCount,
       deadEnds: deadEndsCount,
     });
     const popularityScore = calculatePathPopularityScore(hydratedFullPath);
     const averageReleaseYear = calculateAverageReleaseYear(hydratedFullPath);
     const optimalHopsValue = optimalHops ?? hops;
-    const score = calculateLevelScore({
+    const scoreBreakdown = buildLevelScoreBreakdown({
       hops,
       optimalHops: optimalHopsValue,
       turns: turnsAtCompletion,
-      suggestionAssists: appliedSuggestionAssistPenaltyCount,
+      usedSuggestions,
+      usedFilteredSuggestions,
+      usedFullSuggestionList,
+      usedRandomSubset,
       shuffles: appliedShufflePenaltyCount,
       rewinds: appliedRewindPenaltyCount,
+      repeatNodeClicks: repeatNodeClicksCount,
       deadEnds: deadEndsCount,
     });
+    const score = scoreBreakdown.score;
 
     // Only save if actorA and actorB are not null and have label or are strings
     const actorALabel = levelIdentityRef.current?.startLabel;
@@ -1992,6 +2031,8 @@ function GamePage() {
       const savedHistory = saveLevelAttempt(actorALabel, actorBLabel, {
         path: hydratedFullPath.filter(n => typeof n.id === "number").map(({ id, type, label }) => ({ id: id as number, type, label })),
         score,
+        tier: scoreBreakdown.tier,
+        stars: scoreBreakdown.stars,
         hops,
         turns: turnsAtCompletion,
         effectiveTurns,
@@ -1999,7 +2040,9 @@ function GamePage() {
         shuffleModeEnabled: shuffleModeEnabledAtCompletion,
         appliedShufflePenaltyCount,
         rewinds: rewindsCount,
+        repeatNodeClicks: repeatNodeClicksCount,
         deadEnds: deadEndsCount,
+        totalMistakes: scoreBreakdown.totalMistakes,
         popularityScore,
         averageReleaseYear,
         timestamp: Date.now(),
@@ -2010,6 +2053,9 @@ function GamePage() {
     const provisionalCompletion: CompletionState = {
       fullPath: hydratedFullPath,
       usedHops: hops,
+      score,
+      tier: scoreBreakdown.tier,
+      stars: scoreBreakdown.stars,
       turns: turnsAtCompletion,
       effectiveTurns,
       winningSide,
@@ -2019,11 +2065,15 @@ function GamePage() {
       shuffleModeEnabled: shuffleModeEnabledAtCompletion,
       appliedShufflePenaltyCount,
       appliedRewindPenaltyCount,
-      appliedSuggestionAssistPenaltyCount,
+      repeatNodeClicks: repeatNodeClicksCount,
       deadEnds: deadEndsCount,
+      totalMistakes: scoreBreakdown.totalMistakes,
+      usedSuggestions,
+      usedFilteredSuggestions,
+      usedFullSuggestionList,
+      usedRandomSubset,
       popularityScore,
       averageReleaseYear,
-      score,
     };
 
     setCompletion(provisionalCompletion);
@@ -2067,7 +2117,7 @@ function GamePage() {
         validationMessage: error instanceof Error ? error.message : "Path validation could not be completed.",
       } : prev);
     }
-  }, [activeDataSource, actorA, actorB, deadEndPenalties, helperSettings, isShuffleModeEnabled, optimalHops, resolveSnapshotResources, rewindAddsPenalty, rewinds, shuffles, shuffleAddsPenalty, turns]);
+  }, [activeDataSource, actorA, actorB, deadEndPenalties, helperSettings, isShuffleModeEnabled, optimalHops, repeatNodeClickPenalties, resolveSnapshotResources, rewindAddsPenalty, rewinds, shuffles, shuffleAddsPenalty, turns, usesFilteredSuggestions]);
 
   const handleSuggestion = useCallback(async (choice: GameNode) => {
     if (!actorA || !actorB || !targetNode || isInteractionDisabled) {
@@ -2087,7 +2137,7 @@ function GamePage() {
     const cycleNode = findLoopedNode([choice, ...autoCompletionTail], blockedLoopNodeKeys);
 
     if (cycleNode) {
-      applyDeadEndPenalty(`Cycle detected: ${cycleNode.label} is already in your path. Please rewind and make a different selection.`);
+      applyRepeatNodePenalty(`Cycle detected: ${cycleNode.label} is already in your path. Repeat-node penalty applied.`);
       return;
     }
 
@@ -2187,6 +2237,7 @@ function GamePage() {
     setTurns(0);
     setRewinds(0);
     setDeadEndPenalties(0);
+    setRepeatNodeClickPenalties(0);
     setShuffles(0);
     setShuffleSeed((currentSeed) => currentSeed + 1);
     setSuggestionError(null);
@@ -2613,9 +2664,9 @@ function GamePage() {
       ) : null}
 
       {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
-      {isDeadEndGameOver ? (
+      {isMistakeGameOver ? (
         <div className="gamePageStatus gamePageStatus--error gamePageStatusRetryPanel">
-          <div>Game over: you reached the dead-end limit of {MAX_DEAD_END_PENALTIES}.</div>
+          <div>Game over: you reached the mistake limit of {MAX_MISTAKE_PENALTIES}.</div>
           <button type="button" className="gamePageStatusRetryButton" onClick={handleResetBoard}>
             Retry level
           </button>
@@ -2709,10 +2760,22 @@ function GamePage() {
               <div className="gameCompletionPinnedScoreContent">
                 <div className="gameCompletionPinnedScoreTitle">Level complete</div>
                 <div className="gameCompletionPinnedScoreHeadline">
-                  <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
+                  {displayedCompletionTier ? (
+                    <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
+                  ) : null}
                   <span className="gameCompletionPinnedScoreValue">
-                    {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+                    {formatExecutionScore(displayedCompletionScore)}
                   </span>
+                </div>
+                <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                  {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
+                    <span
+                      key={starIndex}
+                      className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
+                    >
+                      ★
+                    </span>
+                  ))}
                 </div>
               </div>
               <div className="gameCompletionPinnedScoreActions">
@@ -2753,10 +2816,22 @@ function GamePage() {
                 <div className="gameCompletionPinnedScoreContent">
                   <div className="gameCompletionPinnedScoreTitle">Level complete</div>
                   <div className="gameCompletionPinnedScoreHeadline">
-                    <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
+                    {displayedCompletionTier ? (
+                      <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
+                    ) : null}
                     <span className="gameCompletionPinnedScoreValue">
-                      {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+                      {formatExecutionScore(displayedCompletionScore)}
                     </span>
+                  </div>
+                  <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                    {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
+                      <span
+                        key={starIndex}
+                        className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
+                      >
+                        ★
+                      </span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -2943,10 +3018,22 @@ function GamePage() {
 
             <div className="gameCompletionHero">
               <div className="gameCompletionHeroScoreRow">
-                <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
-                <span className="gameCompletionHeroScore">{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+                {displayedCompletionTier ? (
+                  <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
+                ) : null}
+                <span className="gameCompletionHeroScore">{formatExecutionScore(displayedCompletionScore)}</span>
               </div>
-              <div className="gameCompletionHeroMeta">{completionPathSummary ?? "--"} in the final path</div>
+              <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
+                  <span
+                    key={starIndex}
+                    className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
+                  >
+                    ★
+                  </span>
+                ))}
+              </div>
+              <div className="gameCompletionHeroMeta">{completionPathSummary ?? "--"} in the final path • {completion.totalMistakes} total mistakes</div>
               <button
                 type="button"
                 className="gameCompletionInfoButton"
@@ -3053,31 +3140,71 @@ function GamePage() {
                   <h3 className="gameRulesTitle">Score Details</h3>
                   <div className="gameCompletionHero gameCompletionHero--nested">
                     <div className="gameCompletionHeroScoreRow">
-                      <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
-                      <span className="gameCompletionHeroScore">{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+                      {displayedCompletionTier ? (
+                        <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
+                      ) : null}
+                      <span className="gameCompletionHeroScore">{formatExecutionScore(displayedCompletionScore)}</span>
+                    </div>
+                    <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                      {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
+                        <span
+                          key={starIndex}
+                          className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
+                        >
+                          ★
+                        </span>
+                      ))}
                     </div>
                     <div className="gameCompletionHeroMeta">{completionPathSummary ?? "--"} in the final path</div>
                   </div>
                   <div className="gameCompletionScoreBreakdown">
                     <div className="gameCompletionScoreBreakdownRow">
-                      <span>Hop efficiency</span>
-                      <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
+                      <span>Tier</span>
+                      <span>{displayedCompletionTier ?? "--"}</span>
                     </div>
                     <div className="gameCompletionScoreBreakdownRow">
-                      <span>Turn efficiency</span>
-                      <span>{optimalHops ?? completion.usedHops} / {completion.effectiveTurns}</span>
+                      <span>Path efficiency</span>
+                      <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerNodes} nodes vs ${completionScoreBreakdown.optimalNodes} optimal` : "--"}</span>
                     </div>
                     <div className="gameCompletionScoreBreakdownRow">
-                      <span>Suggestion assist penalty</span>
-                      <span>{formatPenaltyValue(completionScoreBreakdown?.suggestionPenalty ?? 0)}</span>
+                      <span>Suggestions shown</span>
+                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.suggestions ?? 0)}</span>
                     </div>
                     <div className="gameCompletionScoreBreakdownRow">
-                      <span>Turn load</span>
-                      <span>{completion.turns} base + {completion.appliedShufflePenaltyCount} shuffle + {completion.appliedRewindPenaltyCount} rewind + {completion.deadEnds ?? 0} dead-end</span>
+                      <span>Filtered suggestions</span>
+                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.filteredSuggestions ?? 0)}</span>
                     </div>
                     <div className="gameCompletionScoreBreakdownRow">
-                      <span>Base efficiency score</span>
-                      <span>{completionScoreBreakdown ? `${(((completionScoreBreakdown.hopEfficiency + completionScoreBreakdown.turnEfficiency) / 2) * 100).toFixed(1)}%` : "--"}</span>
+                      <span>Full suggestion list</span>
+                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.fullSuggestionList ?? 0)}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Random subset</span>
+                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.randomSubset ?? 0)}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Shuffle penalty</span>
+                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.shuffles ?? 0)}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Rewind penalty</span>
+                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.rewinds ?? 0)}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Extra turns</span>
+                      <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerTurns} vs ${completionScoreBreakdown.optimalTurns} optimal (${formatPenaltyValue(completionScoreBreakdown.penalties.extraTurns)})` : "--"}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Mistake penalty</span>
+                      <span>{completionScoreBreakdown ? `${completion.repeatNodeClicks} repeat + ${completion.deadEnds} dead-end = ${completionScoreBreakdown.totalMistakes} (${formatPenaltyValue(completionScoreBreakdown.penalties.mistakes)})` : "--"}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Effective turns</span>
+                      <span>{completion.effectiveTurns}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Stars</span>
+                      <span>{displayedCompletionStars ?? 0} / 3</span>
                     </div>
                     <div className="gameCompletionScoreBreakdownRow">
                       <span>Popularity average</span>
@@ -3103,9 +3230,15 @@ function GamePage() {
                         <span>{completion.validationMessage}</span>
                       </div>
                     ) : null}
+                    {completionScoreBreakdown?.failed ? (
+                      <div className="gameCompletionScoreBreakdownRow">
+                        <span>Fail state</span>
+                        <span>Triggered at 5 total mistakes</span>
+                      </div>
+                    ) : null}
                     <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
-                      <span>Final score</span>
-                      <span>{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+                      <span>Execution score</span>
+                      <span>{formatExecutionScore(displayedCompletionScore)}</span>
                     </div>
                   </div>
                 </div>

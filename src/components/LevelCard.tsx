@@ -2,6 +2,7 @@ import { useState } from "react";
 import EntityArtwork from "./EntityArtwork";
 import type { Level } from "../types";
 import type { LevelHistoryRecord } from "../utils/levelHistoryStorage";
+import { getLevelScoreStars } from "../utils/calculateLevelScore";
 import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import styles from "./LevelCard.module.css";
 
@@ -42,6 +43,18 @@ function buildDisplayedStars(hops: number, optimalHops: number | null | undefine
 	const tone = getStarTone(safeHops, optimalHops);
 
 	return Array.from({ length: safeHops }, () => ({ tone } satisfies DisplayStar));
+}
+
+function buildExecutionStars(stars: number) {
+	const normalizedStars = Math.max(0, Math.min(3, Math.round(stars)));
+
+	return Array.from({ length: 3 }, (_, index) => ({
+		filled: index < normalizedStars,
+	}));
+}
+
+function formatExecutionScore(score: number) {
+	return `${Math.round(score)}/100`;
 }
 
 function getToneClassSuffix(tone: StarTone) {
@@ -262,7 +275,7 @@ function LevelCard({
 								<>
 									<span className={styles.leaderboardSummaryPill}>Best {bestAttempt.hops} hops</span>
 									<span className={styles.leaderboardSummaryPill}>Best turns {bestAttempt.turns ?? "--"}</span>
-									<span className={styles.leaderboardSummaryPill}>Best score {bestAttempt.score.toFixed(1)}%</span>
+									<span className={styles.leaderboardSummaryPill}>Best score {formatExecutionScore(bestAttempt.score)}</span>
 								</>
 							) : (
 								<span className={styles.leaderboardSummaryPill}>No saved runs yet</span>
@@ -274,6 +287,14 @@ function LevelCard({
 							<ol className={styles.leaderboardList}>
 								{leaderboardAttempts.map((attempt, index) => {
 									const attemptToneClass = getToneClassSuffix(getStarTone(attempt.hops, level.optimalHops));
+									const attemptTier = attempt.tier ?? (level.optimalHops === null || level.optimalHops === undefined
+										? "BRONZE"
+										: attempt.hops <= level.optimalHops
+											? "GOLD"
+											: attempt.hops <= level.optimalHops + 2
+												? "SILVER"
+												: "BRONZE");
+									const attemptStars = typeof attempt.stars === "number" ? attempt.stars : getLevelScoreStars(attempt.score);
 
 									return (
 									<li key={attempt.id} className={styles.leaderboardItem}>
@@ -281,26 +302,29 @@ function LevelCard({
 											<span className={styles.leaderboardRank}>#{index + 1}</span>
 											<span className={styles.leaderboardHops}>{attempt.hops} hops</span>
 											<span className={styles.leaderboardTurns}>{typeof attempt.turns === "number" ? `${attempt.turns} turns` : "-- turns"}</span>
+											<span className={`${styles.leaderboardTierBadge} ${styles[`leaderboardTierBadge${attemptTier.charAt(0)}${attemptTier.slice(1).toLowerCase()}`]}`}>{attemptTier}</span>
 											<span className={`${styles.leaderboardAttemptTrophy} ${styles[`leaderboardAttemptTrophyTone${attemptToneClass}`]} ${styles[`leaderboardAttemptTrophySize${attemptToneClass}`]}`} aria-hidden="true">
 												🏆
 											</span>
 											<span className={styles.leaderboardStars}>
-												{buildDisplayedStars(attempt.hops, level.optimalHops).map((star, starIndex) => (
+												{buildExecutionStars(attemptStars).map((star, starIndex) => (
 													<span
 														key={starIndex}
-														className={`${styles.leaderboardStar} ${styles[`leaderboardStarTone${getToneClassSuffix(star.tone)}`]}`}
+														className={`${styles.leaderboardStar} ${star.filled ? styles.leaderboardStarFilled : styles.leaderboardStarEmpty}`}
 													>
 														★
 													</span>
 												))}
 											</span>
-											<span className={styles.leaderboardScore}>{attempt.score.toFixed(1)}%</span>
+											<span className={styles.leaderboardScore}>{formatExecutionScore(attempt.score)}</span>
 										</div>
 										<div className={styles.leaderboardMetrics}>
 											<span className={styles.leaderboardMetric}>effective turns {typeof attempt.effectiveTurns === "number" ? attempt.effectiveTurns : "--"}</span>
 											<span className={styles.leaderboardMetric}>{attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`}</span>
 											<span className={styles.leaderboardMetric}>rewinds {attempt.rewinds}</span>
+											<span className={styles.leaderboardMetric}>repeat nodes {attempt.repeatNodeClicks ?? 0}</span>
 											<span className={styles.leaderboardMetric}>dead ends {attempt.deadEnds}</span>
+											<span className={styles.leaderboardMetric}>mistakes {attempt.totalMistakes ?? ((attempt.repeatNodeClicks ?? 0) + attempt.deadEnds)}</span>
 											<span className={styles.leaderboardMetric}>popularity avg {typeof attempt.popularityScore === "number" ? attempt.popularityScore : "--"}</span>
 											<span className={styles.leaderboardMetric}>avg year {formatAverageReleaseYear(attempt.averageReleaseYear)}</span>
 										</div>
