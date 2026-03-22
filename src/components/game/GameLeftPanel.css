@@ -137,6 +137,27 @@
   padding: 14px 16px;
 }
 
+.game-left-panel__endpoint-inspect {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.game-left-panel__endpoint-inspect:hover,
+.game-left-panel__endpoint-inspect:focus-visible {
+  transform: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 .game-left-panel__actor-box--selected-side-top {
   border-color: #38bdf8;
   background: rgba(14, 165, 233, 0.22);
@@ -816,26 +837,26 @@
   .game-left-panel {
     height: 100%;
     min-height: 0;
-    gap: 10px;
-    padding: 12px 12px 10px;
+    gap: 7px;
+    padding: 9px 9px 7px;
     border-width: 2px;
     margin-top: 0;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     overflow: hidden;
   }
 
   .game-left-panel--suggestions-hidden {
-    gap: 9px;
+    gap: 8px;
   }
 
   .game-left-panel__status-row {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    gap: 8px;
+    gap: 6px;
   }
 
   .game-left-panel__status-pill {
-    padding: 6px 8px;
-    font-size: 0.74rem;
+    padding: 5px 7px;
+    font-size: 0.7rem;
   }
 
   .game-left-panel__panel-toggle {
@@ -853,28 +874,28 @@
   }
 
   .game-left-panel__actor-box {
-    padding: 10px;
+    padding: 8px;
     border-width: 2px;
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .game-left-panel__endpoint {
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
 
   .game-left-panel__endpoint-artwork {
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
   }
 
   .game-left-panel__endpoint-label {
-    font-size: 0.94rem;
+    font-size: 0.84rem;
   }
 
   .game-left-panel__path-area {
     flex: 1 1 auto;
-    padding: 8px 6px 4px;
+    padding: 4px 3px 1px;
     overflow: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
@@ -883,33 +904,33 @@
 
   .game-left-panel__board {
     min-height: max-content;
-    gap: 8px 18px;
+    gap: 4px 10px;
   }
 
   .game-left-panel__board-box {
-    width: calc(100% - 8px);
-    min-height: 42px;
-    padding: 5px;
-    border-radius: 8px;
+    width: calc(100% - 4px);
+    min-height: 34px;
+    padding: 3px;
+    border-radius: 7px;
   }
 
   .game-left-panel__board-box--past {
-    width: 42px;
-    min-width: 42px;
-    min-height: 42px;
-    padding: 3px;
-    border-radius: 12px;
-  }
-
-  .game-left-panel__board-box--current {
-    width: min(100%, 74px);
-    min-height: 58px;
-    padding: 7px 8px;
+    width: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 2px;
     border-radius: 10px;
   }
 
+  .game-left-panel__board-box--current {
+    width: min(100%, 62px);
+    min-height: 46px;
+    padding: 5px 6px;
+    border-radius: 9px;
+  }
+
   .game-left-panel__node-identity {
-    gap: 7px;
+    gap: 5px;
   }
 
   .game-left-panel__node-identity--past {
@@ -919,29 +940,29 @@
   .game-left-panel__node-identity--current {
     flex-direction: column;
     justify-content: center;
-    gap: 6px;
+    gap: 4px;
   }
 
   .game-left-panel__node-artwork {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
   }
 
   .game-left-panel__board-box--past .game-left-panel__node-artwork {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
   }
 
   .game-left-panel__board-box--current .game-left-panel__node-artwork {
-    width: 38px;
-    height: 38px;
-    border-radius: 11px;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
   }
 
   .game-left-panel__node-label {
-    font-size: 0.68em;
+    font-size: 0.62em;
   }
 
   .game-left-panel__node-label--past {
@@ -952,8 +973,8 @@
     display: block;
     width: 100%;
     flex: 0 0 auto;
-    font-size: 0.61em;
-    line-height: 1.1;
+    font-size: 0.52em;
+    line-height: 1.02;
     text-align: center;
     white-space: normal;
     overflow: hidden;
@@ -969,15 +990,15 @@
   }
 
   .game-left-panel__board-arrow {
-    font-size: 0.92rem;
+    font-size: 0.74rem;
   }
 
   .game-left-panel__board-arrow--right {
-    right: -12px;
+    right: -8px;
   }
 
   .game-left-panel__board-arrow--left {
-    left: -12px;
+    left: -8px;
   }
 
   .game-left-panel__hidden-message {
@@ -986,21 +1007,21 @@
   }
 
   .game-left-panel__footer {
-    gap: 14px;
-    margin-top: 4px;
-    padding-bottom: 4px;
+    gap: 8px;
+    margin-top: 2px;
+    padding-bottom: 0;
   }
 
   .game-left-panel__score-panel {
-    padding: 8px 6px;
+    padding: 5px 3px;
   }
 
   .game-left-panel__score-label {
-    font-size: 0.68rem;
+    font-size: 0.58rem;
   }
 
   .game-left-panel__score-value {
-    font-size: 0.9rem;
+    font-size: 0.76rem;
   }
 
   .game-left-panel__write-in-panel {

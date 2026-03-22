@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import "./GameLeftPanel.css";
 import EntityArtwork from "../EntityArtwork";
 import WriteInAutosuggestField from "./WriteInAutosuggestField";
@@ -672,23 +672,55 @@ function renderCompletedBoard(completedPath: GameNode[], onInspectNode: (node: G
   );
 }
 
-function renderEndpoint(node: GameNode, side: SelectedSide, isSelected: boolean, onInspectNode: (node: GameNode) => void) {
+function renderEndpoint(
+  node: GameNode,
+  side: SelectedSide,
+  isSelected: boolean,
+  onSelectSide: ((side: SelectedSide) => void) | null,
+  onInspectNode: (node: GameNode) => void,
+) {
+  const handleSelect = () => {
+    onSelectSide?.(side);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    handleSelect();
+  };
+
   return (
     <div
       className={`game-left-panel__actor-box game-left-panel__endpoint${side === "top" ? " game-left-panel__actor-box--top" : " game-left-panel__actor-box--bottom"}${isSelected ? ` game-left-panel__actor-box--selected-side-${side}` : ""}`}
-      onClick={() => onInspectNode(node)}
+      onClick={handleSelect}
+      role={onSelectSide ? "button" : undefined}
+      tabIndex={onSelectSide ? 0 : undefined}
+      onKeyDown={onSelectSide ? handleKeyDown : undefined}
     >
-      <div className="game-left-panel__node-identity game-left-panel__node-identity--endpoint">
-        <EntityArtwork
-          type={node.type}
-          label={node.label}
-          imageUrl={node.imageUrl}
-          className="game-left-panel__endpoint-artwork"
-          imageClassName="game-left-panel__node-artwork-image"
-          placeholderClassName="game-left-panel__node-artwork-emoji"
-        />
-        <span className="game-left-panel__endpoint-label">{node.label}</span>
-      </div>
+      <button
+        type="button"
+        className="game-left-panel__endpoint-inspect"
+        onClick={(event) => {
+          event.stopPropagation();
+          onInspectNode(node);
+        }}
+        aria-label={`View details for ${node.label}`}
+      >
+        <div className="game-left-panel__node-identity game-left-panel__node-identity--endpoint">
+          <EntityArtwork
+            type={node.type}
+            label={node.label}
+            imageUrl={node.imageUrl}
+            className="game-left-panel__endpoint-artwork"
+            imageClassName="game-left-panel__node-artwork-image"
+            placeholderClassName="game-left-panel__node-artwork-emoji"
+          />
+          <span className="game-left-panel__endpoint-label">{node.label}</span>
+        </div>
+      </button>
     </div>
   );
 }
@@ -881,14 +913,14 @@ function GameLeftPanel({
 
       {completedPath ? (
         <>
-          {renderEndpoint(actorA, "top", false, onInspectNode)}
+          {renderEndpoint(actorA, "top", false, null, onInspectNode)}
           <div className="game-left-panel__completion-heading">Completed path</div>
           {renderCompletedBoard(completedPath, onInspectNode)}
-          {renderEndpoint(actorB, "bottom", false, onInspectNode)}
+          {renderEndpoint(actorB, "bottom", false, null, onInspectNode)}
         </>
       ) : (
         <>
-          {renderEndpoint(actorA, "top", selectedSide === "top", onInspectNode)}
+          {renderEndpoint(actorA, "top", selectedSide === "top", onSelectSide, onInspectNode)}
 
           {shouldShowTopWarning ? <div className="game-left-panel__hidden-message game-left-panel__hidden-message--top">{hiddenPanelMessage}</div> : null}
 
@@ -943,7 +975,7 @@ function GameLeftPanel({
 
           {shouldShowBottomWarning ? <div className="game-left-panel__hidden-message game-left-panel__hidden-message--bottom">{hiddenPanelMessage}</div> : null}
 
-          {renderEndpoint(actorB, "bottom", selectedSide === "bottom", onInspectNode)}
+          {renderEndpoint(actorB, "bottom", selectedSide === "bottom", onSelectSide, onInspectNode)}
 
           {shouldShowHiddenPanelFooter ? (
             <div className="game-left-panel__footer">

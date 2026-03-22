@@ -1,10 +1,9 @@
 import { useCountdownTimer } from "../context/useCountdownTimer";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import HomeButton from "../components/HomeButton";
 import LevelCard from "../components/LevelCard";
 import FullDataWaitingMessage from "../components/FullDataWaitingMessage";
-import PageBackButton from "../components/PageBackButton";
+import PageNavigationHeader from "../components/PageNavigationHeader";
 import { fetchActors, fetchLevels, generatePath } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
@@ -258,10 +257,7 @@ function AdventurePage() {
 
 	return (
 		<div className={styles.adventurePageWrapper}>
-			<PageBackButton to="/play-now" label="Back" />
-			<div className={styles.adventureHomeBtn}>
-				<HomeButton />
-			</div>
+			<PageNavigationHeader backTo="/play-now" backLabel="Back" />
 			<div className={styles.adventureContent}>
 				<h1 className={styles.adventureTitle}>🎭 Adventure Mode</h1>
 				<div className={styles.adventureSubtitle}>Choose a level</div>

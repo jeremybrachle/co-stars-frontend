@@ -10,7 +10,7 @@ import { useSnapshotData } from "../context/snapshotData"
 import { getDemoSnapshotBundle } from "../data/demoSnapshot"
 import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/filterCounts"
 import { isOfflineDemoMode } from "../data/dataSourcePreferences"
-import PageBackButton from "../components/PageBackButton"
+import PageNavigationHeader from "../components/PageNavigationHeader"
 
 type SettingsTabId = "info" | "how-to-play" | "data-settings" | "gameplay-settings"
 
@@ -92,7 +92,7 @@ function SettingsPage() {
 
   return (
     <div className="settingsPage" onWheelCapture={handleSettingsWheelCapture}>
-      <PageBackButton to={routeState?.returnTo ?? "/"} label="Back" />
+      <PageNavigationHeader backTo={routeState?.returnTo ?? "/"} backLabel="Back" />
       <div className="settingsPanel">
         <div className="settingsPanelHeader">
           <h1>Settings</h1>

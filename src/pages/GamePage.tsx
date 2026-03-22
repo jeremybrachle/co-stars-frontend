@@ -6,11 +6,10 @@ import EntityDetailsDialog, {
   type EntityDetailsRelatedEntity,
 } from "../components/EntityDetailsDialog";
 import GameplaySettingsSectionLayout from "../components/GameplaySettingsSectionLayout";
-import HomeButton from "../components/HomeButton";
 import GameLogo from "../components/GameLogo";
 import EntityArtwork from "../components/EntityArtwork";
+import PageNavigationHeader from "../components/PageNavigationHeader";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
-import PageBackButton from "../components/PageBackButton";
 import type { GameplaySectionId } from "../components/gameplaySettingsSections";
 import {
   fetchActorByName,
@@ -2653,6 +2652,9 @@ function GamePage() {
           onSuggestion={(choice) => {
             void handleSuggestion(choice);
           }}
+          onInspectSuggestion={(choice) => {
+            void handleInspectNode(choice);
+          }}
           onSelectWriteInSuggestion={async (choice) => {
             await handleSuggestion(choice);
           }}
@@ -2665,22 +2667,18 @@ function GamePage() {
 
   return (
     <div className="gamePage">
-      <PageBackButton to={backDestination} label="Back" />
-      <div className="topBar">
-        <div className="topBarSide topBarSideLeft">
-        </div>
-        <div className="topBarCenter">
-          <div className="gameTopCenterStack">
+      <PageNavigationHeader
+        backTo={backDestination}
+        backLabel="Back"
+        centerContent={(
+          <div className="gamePageHeaderLogo">
             <button type="button" className="gameLogoButton" onClick={handleResetBoard} aria-label="Reset board" title="Reset board">
               <GameLogo className="gameLogo" />
               <span className="gameLogoResetHint" aria-hidden="true">Reset board</span>
             </button>
           </div>
-        </div>
-        <div className="topBarSide topBarSideRight homeWrapper">
-          <HomeButton />
-        </div>
-      </div>
+        )}
+      />
 
       <div className={`gameContainer${completion && !isCompletionDialogOpen ? " gameContainer--with-pinned-summary" : ""}${!isSuggestionPanelVisible ? " gameContainer--solo-panel" : ""}`}>
         {isSuggestionPanelVisible ? (isPanelOrderSwapped ? suggestionPanel : gameGridPanel) : gameGridPanel}
@@ -2701,9 +2699,13 @@ function GamePage() {
       </div>
 
       {completion && !isCompletionDialogOpen ? (
-        <div className={`gameCompletionPinnedArea${!isSuggestionPanelVisible ? " gameCompletionPinnedArea--solo" : ""}`}>
+        <div className={`gameCompletionPinnedArea ${isSuggestionPanelVisible ? "gameCompletionPinnedArea--with-sidebar" : "gameCompletionPinnedArea--solo"}`}>
           {isCompactPhoneViewport ? (
-            <div className="gameCompletionPinnedScore gameCompletionPinnedScore--compact" role="status" aria-live="polite">
+            <div
+              className={`gameCompletionPinnedScore gameCompletionPinnedScore--compact ${isSuggestionPanelVisible ? "gameCompletionPinnedScore--with-sidebar" : "gameCompletionPinnedScore--solo"}`}
+              role="status"
+              aria-live="polite"
+            >
               <div className="gameCompletionPinnedScoreContent">
                 <div className="gameCompletionPinnedScoreTitle">Level complete</div>
                 <div className="gameCompletionPinnedScoreHeadline">
@@ -2733,7 +2735,11 @@ function GamePage() {
               </div>
             </div>
           ) : (
-            <div className="gameCompletionPinnedScore" role="status" aria-live="polite">
+            <div
+              className={`gameCompletionPinnedScore ${isSuggestionPanelVisible ? "gameCompletionPinnedScore--with-sidebar" : "gameCompletionPinnedScore--solo"}`}
+              role="status"
+              aria-live="polite"
+            >
               <div className="gameCompletionPinnedSection gameCompletionPinnedSection--summary">
                 <button
                   type="button"

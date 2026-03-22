@@ -6,7 +6,7 @@ import EntityDetailsDialog, {
   type EntityDetailsRelatedEntity,
 } from "../components/EntityDetailsDialog"
 import EntityArtwork from "../components/EntityArtwork"
-import PageBackButton from "../components/PageBackButton"
+import PageNavigationHeader from "../components/PageNavigationHeader"
 import FullDataWaitingMessage from "../components/FullDataWaitingMessage"
 import {
   buildCatalogDetailDialogData,
@@ -276,7 +276,7 @@ function GameDataPage() {
 
   return (
     <div className="utilityPage">
-      <PageBackButton to="/" label="Back" />
+      <PageNavigationHeader backTo="/" backLabel="Back" />
       <div className="utilityPanel utilityPanel--wide">
         <div className="pageEyebrow">Game Data</div>
         <h1>Browse the game catalog</h1>

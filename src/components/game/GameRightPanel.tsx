@@ -36,6 +36,7 @@ type Props = {
   onCompletePanelClick: () => void;
   onReverse: () => void;
   onSuggestion: (choice: GameNode) => void;
+  onInspectSuggestion: (choice: GameNode) => void;
   onSelectWriteInSuggestion: (choice: GameNode) => Promise<void>;
   onShuffle: () => void;
   onWriteIn: (value: string, type: NodeType, allowedOptions: GameNode[], sourceLabel: string) => Promise<boolean>;
@@ -100,6 +101,7 @@ function GameRightPanel({
   onCompletePanelClick,
   onReverse,
   onSuggestion,
+  onInspectSuggestion,
   onSelectWriteInSuggestion,
   onShuffle,
   onWriteIn,
@@ -305,25 +307,57 @@ function GameRightPanel({
                   }
 
                   const shouldUseFallbackBlue = canShowHintState && !hasBlueSuggestionInCurrentList && !suggestion.highlight;
+                  const isSuggestionDisabled = isDisabled || isLoading;
 
                   return (
-                    <button
+                    <div
                       key={`${suggestion.type}-${suggestion.label}-${idx}`}
+                      role="button"
+                      tabIndex={isSuggestionDisabled ? -1 : 0}
+                      aria-disabled={isSuggestionDisabled}
                       className={`game-right-panel__suggestion-button${canShowHintState ? ` ${getSuggestionSizeClass(suggestion)}` : ""}${canShowHintState && suggestion.highlight ? ` game-right-panel__suggestion-button--${suggestion.highlight.kind}` : ""}${shouldUseFallbackBlue ? " game-right-panel__suggestion-button--fallback-blue" : ""}${showSuggestionValues ? "" : " game-right-panel__suggestion-button--concealed"}`}
-                      disabled={isDisabled || isLoading}
-                      onClick={() => onSuggestion(suggestion)}
+                      onClick={() => {
+                        if (isSuggestionDisabled) {
+                          return;
+                        }
+
+                        onSuggestion(suggestion);
+                      }}
+                      onKeyDown={(event) => {
+                        if (isSuggestionDisabled) {
+                          return;
+                        }
+
+                        if (event.key !== "Enter" && event.key !== " ") {
+                          return;
+                        }
+
+                        event.preventDefault();
+                        onSuggestion(suggestion);
+                      }}
                       title={canShowHintState ? suggestion.highlight?.description : undefined}
                     >
                       {showSuggestionValues ? (
                         <div className="game-right-panel__suggestion-main">
-                          <EntityArtwork
-                            type={suggestion.type}
-                            label={suggestion.label}
-                            imageUrl={suggestion.imageUrl}
-                            className="game-right-panel__suggestion-artwork"
-                            imageClassName="game-right-panel__suggestion-artwork-image"
-                            placeholderClassName="game-right-panel__suggestion-artwork-emoji"
-                          />
+                          <button
+                            type="button"
+                            className="game-right-panel__suggestion-artwork-button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onInspectSuggestion(suggestion);
+                            }}
+                            disabled={isSuggestionDisabled}
+                            aria-label={`View details for ${suggestion.label}`}
+                          >
+                            <EntityArtwork
+                              type={suggestion.type}
+                              label={suggestion.label}
+                              imageUrl={suggestion.imageUrl}
+                              className="game-right-panel__suggestion-artwork"
+                              imageClassName="game-right-panel__suggestion-artwork-image"
+                              placeholderClassName="game-right-panel__suggestion-artwork-emoji"
+                            />
+                          </button>
                           <div className="game-right-panel__suggestion-content">
                             <span className="game-right-panel__suggestion-label">{suggestion.label}</span>
                             <span className={`game-right-panel__suggestion-meta${suggestion.type === "actor" ? " game-right-panel__suggestion-meta--actor" : ""}`}>
@@ -355,7 +389,7 @@ function GameRightPanel({
                           <span className="game-right-panel__suggestion-hidden-text">Hidden suggestion</span>
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
