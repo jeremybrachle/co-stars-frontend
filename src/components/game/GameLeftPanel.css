@@ -549,6 +549,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-top: 122px;
   padding: 8px;
   border-radius: 12px;
   border: 1px solid rgba(125, 211, 252, 0.28);
@@ -556,6 +557,52 @@
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22);
   position: relative;
   z-index: 12;
+}
+
+.game-left-panel__write-in-suggestion-shell {
+  position: relative;
+  width: 100%;
+}
+
+.game-left-panel__write-in-suggestion-shell::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 36px;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.94));
+  pointer-events: none;
+}
+
+.game-left-panel__write-in-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 212px;
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  background: rgba(15, 23, 42, 0.94);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.game-left-panel__write-in-suggestion-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.game-left-panel__write-in-suggestion-empty {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.84rem;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .game-left-panel__write-in-title {
@@ -574,6 +621,10 @@
   border-color: rgba(125, 211, 252, 0.34);
   background: rgba(15, 23, 42, 0.98);
   box-shadow: none;
+}
+
+.game-left-panel__write-in-panel--dialog .game-left-panel__write-in-suggestion-list {
+  max-height: min(300px, 40vh);
 }
 
 .game-left-panel__write-in-panel--dialog .write-in-autosuggest__dropdown {
@@ -636,6 +687,29 @@
   border-radius: 14px;
   border: 1px solid rgba(125, 211, 252, 0.22);
   background: rgba(15, 23, 42, 0.94);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.game-left-panel__mobile-picker-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.game-left-panel__mobile-picker-sheet {
+  position: relative;
+}
+
+.game-left-panel__mobile-picker-sheet::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 68px;
+  height: 34px;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.96));
+  pointer-events: none;
 }
 
 .game-left-panel__mobile-picker-empty {
@@ -666,7 +740,7 @@
 }
 
 .game-left-panel__write-in-panel--bottom {
-  transform: translateY(-28px);
+  transform: translateY(-14px);
 }
 
 .game-left-panel__write-in-panel--bottom .write-in-autosuggest__dropdown {
@@ -932,6 +1006,7 @@
   .game-left-panel__write-in-panel {
     width: calc(100% - 6px);
     max-width: none;
+    margin-top: 0;
     padding: 10px;
     margin: 0 auto;
     position: relative;

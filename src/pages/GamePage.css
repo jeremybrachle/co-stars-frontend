@@ -293,6 +293,10 @@
   align-items: start;
 }
 
+.gameCompletionPinnedArea--solo {
+  width: min(100%, 760px);
+}
+
 .gamePageStatusRetryPanel {
   display: flex;
   flex-direction: column;
@@ -326,12 +330,12 @@
 
 .gameCompletionPinnedScore {
   margin: 0;
-  width: 100%;
+  width: min(100%, 940px);
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 20px;
   align-items: center;
-  padding: 16px 18px;
+  padding: 12px 16px;
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background:
@@ -342,15 +346,9 @@
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.24);
 }
 
-.gameCompletionPinnedScoreIcon {
-  width: 52px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 1.5rem;
+.gameCompletionPinnedScoreContent {
+  min-width: 0;
+  text-align: center;
 }
 
 .gameCompletionPinnedScoreTitle {
@@ -360,15 +358,25 @@
   color: rgba(255, 255, 255, 0.66);
 }
 
+.gameCompletionPinnedScoreHeadline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
 .gameCompletionPinnedScoreValue {
-  margin-top: 4px;
-  font-size: 1.4rem;
+  margin-top: 0;
+  font-size: 1.8rem;
   font-weight: 800;
 }
 
-.gameCompletionPinnedScoreMeta {
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.72);
+.gameCompletionPinnedScoreActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .gameCompletionPinnedScoreButton {
@@ -384,6 +392,26 @@
 .gameCompletionPinnedScoreButton--next {
   border-color: rgba(134, 239, 172, 0.28);
   background: rgba(22, 101, 52, 0.28);
+}
+
+.gameCompletionStar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
+}
+
+.gameCompletionStar--gold {
+  color: #facc15;
+}
+
+.gameCompletionStar--silver {
+  color: #d1d5db;
+}
+
+.gameCompletionStar--bronze {
+  color: #d97706;
 }
 
 .gameCompletionPinnedScoreSpacer {
@@ -641,9 +669,9 @@
   position: fixed;
   inset: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 32px 36px 72px;
+  padding: 56px 36px 36px;
   overflow-y: auto;
   background: rgba(2, 6, 23, 0.68);
   backdrop-filter: blur(10px);
@@ -656,6 +684,7 @@
   max-height: calc(100vh - 84px);
   margin: 0 auto;
   overflow-y: auto;
+  transform: translateY(20px);
   padding: 30px 32px 36px;
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -675,6 +704,64 @@
   font-size: 0.96rem;
   color: rgba(255, 255, 255, 0.82);
   margin-bottom: 16px;
+}
+
+.gameCompletionHero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 18px;
+  padding: 22px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  text-align: center;
+}
+
+.gameCompletionHero--nested {
+  margin-top: 0;
+}
+
+.gameCompletionHeroScoreRow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.gameCompletionHeroScoreRow .gameCompletionStar {
+  font-size: 2rem;
+}
+
+.gameCompletionHeroScore {
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.gameCompletionHeroMeta {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.94rem;
+}
+
+.gameCompletionInfoButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.6rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gameCompletionInfoButton:hover,
+.gameCompletionInfoButton:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .gameCompletionStats {
@@ -741,37 +828,74 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   cursor: pointer;
   list-style: none;
-  font-size: 0.94rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.84);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .gameCompletionExpandableSummary::-webkit-details-marker {
   display: none;
 }
 
+.gameCompletionExpandableSummaryMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gameCompletionExpandableTitle {
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .gameCompletionExpandableHint {
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
   color: rgba(255, 255, 255, 0.62);
 }
 
+.gameCompletionExpandablePlus {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 1.34rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.gameCompletionExpandable[open] .gameCompletionExpandablePlus {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 .gameCompletionExpandableBody {
-  padding: 0 18px 18px;
+  padding: 0 16px 16px;
 }
 
 .gameCompletionPreview {
-  padding: 14px 14px 12px;
+  padding: 12px 12px 10px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gameCompletionLeaderboardOverview {
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .gameCompletionPreviewTitle {
@@ -908,10 +1032,10 @@
 
 .gameCompletionScoreBreakdown {
   margin-bottom: 0;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  border: none;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .gameCompletionScoreBreakdownRow {
@@ -1113,11 +1237,19 @@
 
 .gameCompletionActions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
   justify-content: center;
-  align-items: center;
+  margin-top: 18px;
+}
+
+.gameCompletionActionGrid {
+  width: min(100%, 520px);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gameCompletionActionSpacer {
+  min-height: 1px;
 }
 
 .gameCompletionActionButton {
@@ -1160,6 +1292,38 @@
   min-width: 190px;
   padding: 0.92rem 1.5rem;
   font-size: 1rem;
+}
+
+.gameCompletionActionButtonNext--wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+  min-height: 58px;
+  font-size: 1.08rem;
+}
+
+.gameCompletionNestedOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.68);
+  backdrop-filter: blur(8px);
+  border-radius: 22px;
+}
+
+.gameCompletionNestedDialog {
+  position: relative;
+  width: min(100%, 620px);
+  max-height: min(80vh, 720px);
+  overflow-y: auto;
+  padding: 28px 24px 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.98);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.34);
 }
 
 .gameInspectorOverlay {
@@ -1353,9 +1517,18 @@
     padding: 0 20px 28px;
   }
 
+  .gameCompletionPinnedArea--solo {
+    width: min(100%, 760px);
+  }
+
   .gameCompletionPinnedScore {
+    width: 100%;
     grid-template-columns: 1fr;
-    text-align: left;
+    text-align: center;
+  }
+
+  .gameCompletionPinnedScoreActions {
+    justify-content: center;
   }
 
   .gameSidebar {
@@ -1391,7 +1564,11 @@
   }
 
   .gameCompletionActions {
-    flex-direction: column;
+    width: 100%;
+  }
+
+  .gameCompletionActionGrid {
+    width: 100%;
   }
 
   .gameCompletionScoreBreakdownRow,
@@ -1511,8 +1688,9 @@
 
   .gameCompletionPinnedScore {
     position: relative;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 10px;
     padding: 8px 8px;
     border-radius: 12px;
     box-shadow: none;
@@ -1521,7 +1699,7 @@
   }
 
   .gameCompletionPinnedScore--compact {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 10px;
     padding: 14px 14px;
     border-width: 2px;
@@ -1531,34 +1709,27 @@
 
   .gameCompletionPinnedScoreContent {
     min-width: 0;
-    padding-right: 90px;
+    padding-right: 0;
   }
 
   .gameCompletionPinnedScoreValue {
     margin-top: 0;
-    font-size: 0.94rem;
+    font-size: 1.34rem;
     line-height: 1.1;
   }
 
-  .gameCompletionPinnedScore--compact .gameCompletionPinnedScoreValue {
-    display: inline-flex;
-    align-items: center;
+  .gameCompletionPinnedScoreHeadline {
     justify-content: center;
-    min-width: 0;
-    width: 100%;
-    min-height: 48px;
-    padding: 0 10px;
-    border-radius: 14px;
-    border: 2px solid rgba(255, 255, 255, 0.24);
-    background: rgba(255, 255, 255, 0.08);
-    font-size: 1.46rem;
-    font-weight: 900;
-    line-height: 1;
-    text-align: center;
   }
 
-  .gameCompletionPinnedScore--compact .gameCompletionPinnedScoreContent {
-    padding-right: 0;
+  .gameCompletionPinnedScore--compact .gameCompletionPinnedScoreValue {
+    font-size: 1.72rem;
+  }
+
+  .gameCompletionPinnedScoreActions {
+    justify-content: stretch;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .gameCompletionPinnedScoreButton {
@@ -1568,23 +1739,10 @@
   }
 
   .gameCompletionPinnedScore--compact .gameCompletionPinnedScoreButton {
-    position: static;
-    transform: none;
     width: 100%;
     min-height: 44px;
     padding: 0.58rem 0.5rem;
     text-align: center;
-  }
-
-  .gameCompletionPinnedScoreButton--next {
-    left: auto;
-    right: 8px;
-    transform: translateY(-50%);
-  }
-
-  .gameCompletionPinnedScore--compact .gameCompletionPinnedScoreButton--next {
-    right: auto;
-    transform: none;
   }
 
   .gameRulesOverlay {
@@ -1626,6 +1784,23 @@
     margin: 8px 0 10px;
   }
 
+  .gameCompletionHero {
+    margin: 4px 0 14px;
+    padding: 18px 14px;
+  }
+
+  .gameCompletionHeroScoreRow .gameCompletionStar {
+    font-size: 1.7rem;
+  }
+
+  .gameCompletionHeroScore {
+    font-size: 2.2rem;
+  }
+
+  .gameCompletionHeroMeta {
+    font-size: 0.82rem;
+  }
+
   .gameCompletionStat {
     padding: 8px 6px;
     border-radius: 12px;
@@ -1663,6 +1838,9 @@
   .gameCompletionExpandableSummary {
     gap: 8px;
     padding: 10px 12px;
+  }
+
+  .gameCompletionExpandableTitle {
     font-size: 0.76rem;
   }
 
@@ -1670,8 +1848,18 @@
     font-size: 0.66rem;
   }
 
+  .gameCompletionExpandablePlus {
+    width: 34px;
+    height: 34px;
+    font-size: 1.28rem;
+  }
+
   .gameCompletionExpandableBody {
     padding: 0 12px 12px;
+  }
+
+  .gameCompletionLeaderboardOverview {
+    font-size: 0.74rem;
   }
 
   .gameCompletionHistory {
@@ -1691,12 +1879,33 @@
     font-size: 0.88rem;
   }
 
-  .gameCompletionActions--compact-priority {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 10px;
-    align-items: stretch;
+  .gameCompletionActionGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .gameCompletionActionButtonNext--wide {
+    min-height: 52px;
+  }
+
+  .gameCompletionNestedOverlay {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .gameCompletionNestedDialog {
+    width: 100%;
+    max-height: calc(100vh - 52px);
+    padding: 20px 16px 16px;
+  }
+
+  .gameCompletionOverlay {
+    align-items: center;
+    padding: 28px 14px 18px;
+  }
+
+  .gameCompletionDialog {
+    transform: translateY(12px);
   }
 
   .gameCompletionActions--compact-secondary {

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import EntityArtwork from "../EntityArtwork";
 import WriteInAutosuggestField from "./WriteInAutosuggestField";
+import { useIsCompactPhoneViewport } from "../../hooks/useIsCompactPhoneViewport";
 import { formatYear, getMovieBadges } from "../../data/presentation";
 import { shuffleSuggestionsWithSeed } from "../../gameplay";
 import type { GameNode, NodeType, SuggestionDisplaySettings } from "../../types";
@@ -106,11 +107,16 @@ function GameRightPanel({
   const [isWriteInOpen, setIsWriteInOpen] = useState(false);
   const [writeInValue, setWriteInValue] = useState("");
   const [isSubmittingWriteIn, setIsSubmittingWriteIn] = useState(false);
+  const writeInPanelRef = useRef<HTMLDivElement | null>(null);
+  const writeInTriggerRef = useRef<HTMLDivElement | null>(null);
+  const isCompactPhoneViewport = useIsCompactPhoneViewport();
   const selectionContext = getSuggestionContextLabel(currentSelection);
   const isCycleWarning = errorMessage?.startsWith("Cycle detected:") ?? false;
   const isScrollMode = !isShuffleModeEnabled;
   const isShuffleDisabled = isCycleWarning || isDisabled || isLoading || isComplete;
   const canShowHintState = showSuggestionValues && showHintColors;
+  const showWriteInSuggestionList = isCompactPhoneViewport && showSuggestionValues;
+  const rightPanelAutoSuggestEnabled = isCompactPhoneViewport && writeInAutoSuggestEnabled;
   const windowSize = suggestionDisplay.subsetCount;
   const orderedSuggestions = useMemo(() => {
     if (!isShuffleModeEnabled) {
@@ -148,6 +154,32 @@ function GameRightPanel({
       setWriteInValue("");
     }
   }, [isComplete, isDisabled, isLoading]);
+
+  useEffect(() => {
+    if (!isWriteInOpen || isCompactPhoneViewport) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (writeInPanelRef.current?.contains(target) || writeInTriggerRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsWriteInOpen(false);
+      setWriteInValue("");
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isCompactPhoneViewport, isWriteInOpen]);
 
   const handleCloseWriteIn = () => {
     setIsWriteInOpen(false);
@@ -328,7 +360,45 @@ function GameRightPanel({
                 })}
               </div>
               {isWriteInOpen ? (
-                <div className="game-right-panel__write-in-panel">
+                <div ref={writeInPanelRef} className="game-right-panel__write-in-panel">
+                  {showWriteInSuggestionList ? (
+                    <div className="game-right-panel__write-in-suggestion-shell">
+                      <div className="game-right-panel__write-in-suggestion-list" role="listbox" aria-label={`${selectionContext.writeInType} write in suggestions`}>
+                        {writeInSuggestions.length > 0 ? (
+                          writeInSuggestions.map((suggestion) => (
+                            <button
+                              key={`${suggestion.type}-${suggestion.id ?? suggestion.label}`}
+                              type="button"
+                              className="write-in-autosuggest__option"
+                              onClick={() => {
+                                void handleSelectWriteInSuggestion(suggestion);
+                              }}
+                              disabled={isDisabled || isLoading || isSubmittingWriteIn}
+                            >
+                              <EntityArtwork
+                                type={suggestion.type}
+                                label={suggestion.label}
+                                imageUrl={suggestion.imageUrl}
+                                className="write-in-autosuggest__artwork"
+                                imageClassName="write-in-autosuggest__artwork-image"
+                                placeholderClassName="write-in-autosuggest__artwork-emoji"
+                              />
+                              <span className="write-in-autosuggest__option-copy">
+                                <span className="write-in-autosuggest__option-label">{suggestion.label}</span>
+                                <span className="write-in-autosuggest__option-meta">
+                                  {suggestion.type === "movie"
+                                    ? ([formatYear(suggestion.releaseDate ?? null), suggestion.contentRating].filter(Boolean).join(" • ") || "Movie")
+                                    : "Actor"}
+                                </span>
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="game-right-panel__write-in-suggestion-empty">No filtered options are available right now.</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                   <WriteInAutosuggestField
                     value={writeInValue}
                     onChange={setWriteInValue}
@@ -337,8 +407,9 @@ function GameRightPanel({
                     }}
                     placeholder={selectionContext.placeholder}
                     suggestions={writeInSuggestions}
-                    autoSuggestEnabled={writeInAutoSuggestEnabled}
+                    autoSuggestEnabled={rightPanelAutoSuggestEnabled}
                     disabled={isDisabled || isLoading || isSubmittingWriteIn}
+                    autoFocus
                     inputClassName="game-right-panel__write-in-input"
                     dropdownLabel={`${selectionContext.writeInType} write in suggestions`}
                     emptyMessage={`No matching ${selectionContext.writeInType === "actor" ? "actors" : "movies"}.`}
@@ -347,7 +418,9 @@ function GameRightPanel({
                     }}
                   />
                   <div className="game-right-panel__write-in-hint">
-                    {writeInAutoSuggestEnabled ? "Autosuggest is on. Pick a match or enter a partial name." : "Autosuggest is off. Submit the exact title or actor name you want to try."}
+                    {rightPanelAutoSuggestEnabled
+                      ? "Type-ahead is on. Pick a match or submit a fuzzy search."
+                      : "Enter a name and press Go for fuzzy matching."}
                   </div>
                   <div className="game-right-panel__write-in-actions">
                     <button
@@ -368,7 +441,7 @@ function GameRightPanel({
                   </div>
                 </div>
               ) : (
-                <div className="game-right-panel__write-in-trigger">
+                <div ref={writeInTriggerRef} className="game-right-panel__write-in-trigger">
                   <button
                     className="game-right-panel__suggestion-button game-right-panel__wide-button"
                     disabled={isDisabled || isLoading}

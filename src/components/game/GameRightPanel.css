@@ -635,6 +635,53 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 28px;
+}
+
+.game-right-panel__write-in-suggestion-shell {
+  position: relative;
+  width: 100%;
+}
+
+.game-right-panel__write-in-suggestion-shell::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  border-radius: 0 0 14px 14px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.96));
+  pointer-events: none;
+}
+
+.game-right-panel__write-in-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 272px;
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  background: rgba(15, 23, 42, 0.94);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.game-right-panel__write-in-suggestion-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.game-right-panel__write-in-suggestion-empty {
+  min-height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .game-right-panel__write-in-hint {
@@ -809,6 +856,7 @@
 @media (max-width: 440px) {
   .game-right-panel__write-in-panel {
     gap: 10px;
+    margin-top: 0;
   }
 
   .game-right-panel__write-in-hint {

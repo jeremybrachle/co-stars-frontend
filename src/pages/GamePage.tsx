@@ -382,26 +382,6 @@ function formatTimestamp(timestamp: number) {
   return new Date(timestamp).toLocaleString();
 }
 
-function getCompletionScoreSymbol(score: number | undefined) {
-  if (typeof score !== "number") {
-    return "✅";
-  }
-
-  if (score >= 90) {
-    return "🏆";
-  }
-
-  if (score >= 75) {
-    return "⭐";
-  }
-
-  if (score >= 50) {
-    return "🎉";
-  }
-
-  return "✅";
-}
-
 function getDisplayedCompletionScore(
   completion: CompletionState | null,
   optimalHops: number | null,
@@ -462,19 +442,53 @@ type DisplayStar = {
   tone: "gold" | "silver" | "bronze";
 };
 
-function buildDisplayedStars(hops: number, optimalHops: number | null | undefined) {
+function getCompletionStarTone(hops: number, optimalHops: number | null | undefined): DisplayStar["tone"] {
   const safeHops = Math.max(0, Math.round(hops));
   const safeOptimalHops = typeof optimalHops === "number" ? Math.max(0, Math.round(optimalHops)) : null;
 
-  const tone: DisplayStar["tone"] = safeOptimalHops === null
-    ? "bronze"
-    : safeHops <= safeOptimalHops
-      ? "gold"
-      : safeHops <= safeOptimalHops + 2
-        ? "silver"
-        : "bronze";
+  if (safeOptimalHops === null) {
+    return "bronze";
+  }
+
+  if (safeHops <= safeOptimalHops) {
+    return "gold";
+  }
+
+  if (safeHops <= safeOptimalHops + 2) {
+    return "silver";
+  }
+
+  return "bronze";
+}
+
+function buildDisplayedStars(hops: number, optimalHops: number | null | undefined) {
+  const safeHops = Math.max(0, Math.round(hops));
+  const tone = getCompletionStarTone(hops, optimalHops);
 
   return Array.from({ length: safeHops }, () => ({ tone } satisfies DisplayStar));
+}
+
+function countPathNodeTypes(path: GameNode[]) {
+  return path.reduce(
+    (counts, node) => {
+      if (node.type === "movie") {
+        counts.movies += 1;
+      } else {
+        counts.actors += 1;
+      }
+
+      return counts;
+    },
+    { movies: 0, actors: 0 },
+  );
+}
+
+function formatCompletionPathSummary(path: GameNode[]) {
+  const { movies, actors } = countPathNodeTypes(path);
+  const movieLabel = movies === 1 ? "movie" : "movies";
+  const actorLabel = actors === 1 ? "actor" : "actors";
+
+  return `${movies} ${movieLabel} • ${actors} ${actorLabel}`;
 }
 
 function toInspectorDetail(node: GameNode, relatedCount: number, detailLines: string[], description: string | null): EntityDetailsDialogData {
@@ -617,7 +631,7 @@ function GamePage() {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [completion, setCompletion] = useState<CompletionState | null>(null);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
-  const [isCompletionHistoryOpen, setIsCompletionHistoryOpen] = useState(false);
+  const [isCompletionInfoDialogOpen, setIsCompletionInfoDialogOpen] = useState(false);
   const [isSavedHistoryDialogOpen, setIsSavedHistoryDialogOpen] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
   const [currentLevelIdentity, setCurrentLevelIdentity] = useState<{ startLabel: string; endLabel: string } | null>(null);
@@ -684,6 +698,14 @@ function GamePage() {
   const displayedCompletionScore = useMemo(
     () => getDisplayedCompletionScore(completion, optimalHops),
     [completion, optimalHops],
+  );
+  const completionStarTone = useMemo(
+    () => (completion ? getCompletionStarTone(completion.usedHops, optimalHops) : "bronze"),
+    [completion, optimalHops],
+  );
+  const completionPathSummary = useMemo(
+    () => (completion ? formatCompletionPathSummary(completion.fullPath) : null),
+    [completion],
   );
   const completionScoreBreakdown = useMemo(() => {
     if (!completion) {
@@ -895,6 +917,7 @@ function GamePage() {
     if (completion) {
       setLeftPanelWriteInSide(null);
       setLeftPanelWriteInValue("");
+      setIsCompletionInfoDialogOpen(false);
     }
   }, [completion]);
 
@@ -1883,7 +1906,7 @@ function GamePage() {
   }, [actorA, actorB, actorsCatalogById, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, finalizeSuggestionOrder, isNetworkUnavailable, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode, topPath]);
 
   useEffect(() => {
-    if (!writeInAutoSuggestEnabled || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
+    if (!currentSelection || !targetNode || completion || isNetworkUnavailable) {
       setRightWriteInSuggestionPool([]);
       return;
     }
@@ -1902,10 +1925,10 @@ function GamePage() {
     return () => {
       didCancel = true;
     };
-  }, [completion, currentSelection, isNetworkUnavailable, loadWriteInSuggestionPool, targetNode, writeInAutoSuggestEnabled]);
+  }, [completion, currentSelection, isNetworkUnavailable, loadWriteInSuggestionPool, targetNode]);
 
   useEffect(() => {
-    if (!writeInAutoSuggestEnabled || !leftPanelWriteInSide || completion || isNetworkUnavailable) {
+    if (!leftPanelWriteInSide || completion || isNetworkUnavailable) {
       setLeftWriteInSuggestionPool([]);
       return;
     }
@@ -1930,7 +1953,7 @@ function GamePage() {
     return () => {
       didCancel = true;
     };
-  }, [bottomSelection, completion, isNetworkUnavailable, leftPanelWriteInSide, loadWriteInSuggestionPool, targetNode, topSelection, writeInAutoSuggestEnabled]);
+  }, [bottomSelection, completion, isNetworkUnavailable, leftPanelWriteInSide, loadWriteInSuggestionPool, targetNode, topSelection]);
 
   const finalizeCompletion = useCallback(async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
@@ -2006,7 +2029,7 @@ function GamePage() {
 
     setCompletion(provisionalCompletion);
     setIsCompletionDialogOpen(true);
-    setIsCompletionHistoryOpen(false);
+    setIsCompletionInfoDialogOpen(false);
     setIsRulesOpen(false);
 
     try {
@@ -2171,7 +2194,7 @@ function GamePage() {
     setFilterValidationMessage(null);
     setCompletion(null);
     setIsCompletionDialogOpen(false);
-    setIsCompletionHistoryOpen(false);
+    setIsCompletionInfoDialogOpen(false);
     setIsSavedHistoryDialogOpen(false);
   };
 
@@ -2403,7 +2426,7 @@ function GamePage() {
       const matchedOption = resolveWriteInOption(
         value,
         allowedOptions.filter((option) => option.type === type),
-        writeInAutoSuggestEnabled,
+        true,
       );
 
       if (!matchedOption) {
@@ -2417,7 +2440,7 @@ function GamePage() {
       setSuggestionError(error instanceof Error ? error.message : "The write-in value could not be resolved.");
       return false;
     }
-  }, [handleSuggestion, writeInAutoSuggestEnabled]);
+  }, [handleSuggestion]);
 
   const handleOpenLeftPanelWriteIn = useCallback((side: SelectedSide) => {
     setSelectedSide(side);
@@ -2482,7 +2505,6 @@ function GamePage() {
   const hasNextLevel = typeof routeState?.levelIndex === "number"
     && typeof routeState?.totalLevels === "number"
     && routeState.levelIndex < routeState.totalLevels - 1;
-  const completionScoreSymbol = getCompletionScoreSymbol(displayedCompletionScore ?? undefined);
   const shouldShowMobileHistoryTab = isCompactPhoneViewport && currentLevelCompleted;
   const inspectorHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
     return inspectorTrail.map((node) => ({
@@ -2549,6 +2571,7 @@ function GamePage() {
       writeInPlaceholder={leftPanelWriteInContext.placeholder}
       writeInSuggestions={leftWriteInSuggestionPool}
       writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
+      showWriteInSuggestions={helperSettings["show-suggestions"]}
       isSubmittingWriteIn={isSubmittingLeftPanelWriteIn}
       isSuggestionPanelVisible={isSuggestionPanelVisible}
       showSuggestionToggle={!isCompactPhoneViewport}
@@ -2678,21 +2701,57 @@ function GamePage() {
       </div>
 
       {completion && !isCompletionDialogOpen ? (
-        <div className="gameCompletionPinnedArea">
+        <div className={`gameCompletionPinnedArea${!isSuggestionPanelVisible ? " gameCompletionPinnedArea--solo" : ""}`}>
           {isCompactPhoneViewport ? (
             <div className="gameCompletionPinnedScore gameCompletionPinnedScore--compact" role="status" aria-live="polite">
+              <div className="gameCompletionPinnedScoreContent">
+                <div className="gameCompletionPinnedScoreTitle">Level complete</div>
+                <div className="gameCompletionPinnedScoreHeadline">
+                  <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
+                  <span className="gameCompletionPinnedScoreValue">
+                    {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+                  </span>
+                </div>
+              </div>
+              <div className="gameCompletionPinnedScoreActions">
+                <button
+                  type="button"
+                  className="gameCompletionPinnedScoreButton"
+                  onClick={() => setIsCompletionDialogOpen(true)}
+                >
+                  View summary
+                </button>
+                {hasNextLevel ? (
+                  <button
+                    type="button"
+                    className="gameCompletionPinnedScoreButton gameCompletionPinnedScoreButton--next"
+                    onClick={handleNextLevel}
+                  >
+                    Next level
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className="gameCompletionPinnedScore" role="status" aria-live="polite">
               <div className="gameCompletionPinnedSection gameCompletionPinnedSection--summary">
                 <button
                   type="button"
                   className="gameCompletionPinnedScoreButton"
                   onClick={() => setIsCompletionDialogOpen(true)}
                 >
-                  Summary
+                  View summary
                 </button>
               </div>
               <div className="gameCompletionPinnedSection gameCompletionPinnedSection--score">
-                <div className="gameCompletionPinnedScoreValue">
-                  {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+                <div className="gameCompletionPinnedScoreContent">
+                  <div className="gameCompletionPinnedScoreTitle">Level complete</div>
+                  <div className="gameCompletionPinnedScoreHeadline">
+                    <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
+                    <span className="gameCompletionPinnedScoreValue">
+                      {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="gameCompletionPinnedSection gameCompletionPinnedSection--next">
@@ -2708,26 +2767,6 @@ function GamePage() {
                   <div className="gameCompletionPinnedScoreSpacer" aria-hidden="true" />
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="gameCompletionPinnedScore" role="status" aria-live="polite">
-              <div className="gameCompletionPinnedScoreIcon" aria-hidden="true">{completionScoreSymbol}</div>
-              <div className="gameCompletionPinnedScoreContent">
-                <div className="gameCompletionPinnedScoreTitle">Level completed</div>
-                <div className="gameCompletionPinnedScoreValue">
-                  Score: {typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}
-                </div>
-                <div className="gameCompletionPinnedScoreMeta">
-                  {completion.usedHops} hops • {completion.turns} turns{optimalHops !== null ? ` • optimal ${optimalHops}` : ""} • popularity avg {completion.popularityScore} • avg year {formatAverageReleaseYear(completion.averageReleaseYear)}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="gameCompletionPinnedScoreButton"
-                onClick={() => setIsCompletionDialogOpen(true)}
-              >
-                View summary
-              </button>
             </div>
           )}
         </div>
@@ -2877,91 +2916,49 @@ function GamePage() {
       ) : null}
 
       {completion && isCompletionDialogOpen ? (
-        <div className="gameCompletionOverlay" onClick={() => setIsCompletionDialogOpen(false)}>
+        <div className="gameCompletionOverlay" onClick={() => {
+          setIsCompletionDialogOpen(false);
+          setIsCompletionInfoDialogOpen(false);
+        }}>
           <div className="gameCompletionDialog" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="gameRulesCloseButton" onClick={() => setIsCompletionDialogOpen(false)} aria-label="Close completion dialog">
+            <button
+              type="button"
+              className="gameRulesCloseButton"
+              onClick={() => {
+                setIsCompletionDialogOpen(false);
+                setIsCompletionInfoDialogOpen(false);
+              }}
+              aria-label="Close completion dialog"
+            >
               ×
             </button>
             <h2 className="gameRulesTitle">Level Complete</h2>
             <p className="gameRulesText gameCompletionLead">{completion.source}</p>
 
-            <div className="gameCompletionStats">
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Score</span>
-                <span className="gameCompletionStatValue">{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+            <div className="gameCompletionHero">
+              <div className="gameCompletionHeroScoreRow">
+                <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
+                <span className="gameCompletionHeroScore">{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
               </div>
-              <div className="gameCompletionStat gameCompletionStat--turns">
-                <span className="gameCompletionStatIcon" aria-hidden="true">↺</span>
-                <span className="gameCompletionStatLabel">Turns used</span>
-                <span className="gameCompletionStatValue gameCompletionStatValue--turns">{completion.turns}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Completed hops</span>
-                <span className="gameCompletionStatValue">{completion.usedHops}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Optimal hops</span>
-                <span className="gameCompletionStatValue">{optimalHops ?? "--"}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Effective turns</span>
-                <span className="gameCompletionStatValue">{completion.effectiveTurns}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Popularity avg</span>
-                <span className="gameCompletionStatValue">{completion.popularityScore}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Average release year</span>
-                <span className="gameCompletionStatValue">{formatAverageReleaseYear(completion.averageReleaseYear)}</span>
-              </div>
-            </div>
-
-            {isCompactPhoneViewport ? (
-              <div className="gameCompletionActions gameCompletionActions--compact-priority">
-                <button type="button" className="gameCompletionActionButton gameCompletionActionButtonSecondary" onClick={handleRetryCompletedLevel}>
-                  Retry level
-                </button>
-                {canOpenLevelList ? (
-                  <button
-                    type="button"
-                    className={`gameCompletionActionButton gameCompletionActionButtonList${!hasNextLevel ? " gameCompletionActionButtonPrimary" : ""}`}
-                    onClick={handleReturnToLevelList}
-                  >
-                    Main level list
-                  </button>
-                ) : null}
-                {hasNextLevel ? (
-                  <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary gameCompletionActionButtonNext" onClick={handleNextLevel}>
-                    Next level
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            <p className="gameCompletionFormula">
-              This level is now marked completed and will show as completed on the Adventure level list.
-            </p>
-
-            <div className="gameCompletionValidation">
-              {completion.isValidated === true ? "Path validated successfully." : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
-              {completion.validationMessage ? ` ${completion.validationMessage}` : ""}
+              <div className="gameCompletionHeroMeta">{completionPathSummary ?? "--"} in the final path</div>
+              <button
+                type="button"
+                className="gameCompletionInfoButton"
+                onClick={() => setIsCompletionInfoDialogOpen(true)}
+              >
+                Score info
+              </button>
             </div>
 
             <details className="gameCompletionExpandable">
               <summary className="gameCompletionExpandableSummary">
-                <span>Route details</span>
-                <span className="gameCompletionExpandableHint">Path preview and misc metrics</span>
+                <span className="gameCompletionExpandableSummaryMain">
+                  <span className="gameCompletionExpandableTitle">Route details</span>
+                  <span className="gameCompletionExpandableHint">Path preview and misc metrics</span>
+                </span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true">+</span>
               </summary>
               <div className="gameCompletionExpandableBody">
-                <div className="gameCompletionHistorySummary gameCompletionHistorySummary--dense">
-                  <span className="gameCompletionHistorySummaryPill" title={completion.shuffleModeEnabled ? undefined : "penalty will be applied for non-shuffled game"}>
-                    {completion.shuffleModeEnabled ? `Shuffles ${completion.shuffles}` : "Shuffles N/A"}
-                  </span>
-                  <span className="gameCompletionHistorySummaryPill">Suggestions {completion.appliedSuggestionAssistPenaltyCount > 0 ? "On" : "Off"}</span>
-                  <span className="gameCompletionHistorySummaryPill">Rewinds {completion.appliedRewindPenaltyCount}</span>
-                  <span className="gameCompletionHistorySummaryPill">Dead ends {completion.deadEnds ?? 0}</span>
-                </div>
                 <div className="gameCompletionPreview">
                   <div className="gameCompletionPreviewTitle">Completed path preview</div>
                   {isCompactPhoneViewport ? (
@@ -3000,89 +2997,114 @@ function GamePage() {
               </div>
             </details>
 
-            <details className="gameCompletionExpandable" open={!isCompactPhoneViewport}>
+            <details className="gameCompletionExpandable">
               <summary className="gameCompletionExpandableSummary">
-                <span>Score breakdown</span>
-                <span className="gameCompletionExpandableHint">See the full scoring formula</span>
+                <span className="gameCompletionExpandableSummaryMain">
+                  <span className="gameCompletionExpandableTitle">Leaderboard</span>
+                  <span className="gameCompletionExpandableHint">View path rankings</span>
+                </span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true">+</span>
               </summary>
               <div className="gameCompletionExpandableBody">
-                <div className="gameCompletionScoreBreakdown">
-                  <div className="gameCompletionScoreBreakdownRow">
-                    <span>Hop efficiency</span>
-                    <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
-                  </div>
-                  <div className="gameCompletionScoreBreakdownRow">
-                    <span>Turn efficiency</span>
-                    <span>{optimalHops ?? completion.usedHops} / {completion.effectiveTurns}</span>
-                  </div>
-                  <div className="gameCompletionScoreBreakdownRow">
-                    <span>Suggestion assist penalty</span>
-                    <span>{formatPenaltyValue(completionScoreBreakdown?.suggestionPenalty ?? 0)}</span>
-                  </div>
-                  <div className="gameCompletionScoreBreakdownRow">
-                    <span>Turn load</span>
-                    <span>{completion.turns} base + {completion.appliedShufflePenaltyCount} shuffle + {completion.appliedRewindPenaltyCount} rewind + {completion.deadEnds ?? 0} dead-end</span>
-                  </div>
-                  <div className="gameCompletionScoreBreakdownRow">
-                    <span>Base efficiency score</span>
-                    <span>{completionScoreBreakdown ? `${(((completionScoreBreakdown.hopEfficiency + completionScoreBreakdown.turnEfficiency) / 2) * 100).toFixed(1)}%` : "--"}</span>
-                  </div>
-                  <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
-                    <span>Final score</span>
-                    <span>{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
-                  </div>
+                <div className="gameCompletionLeaderboardOverview">
+                  {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
+                  {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
                 </div>
+                {levelHistoryContent}
               </div>
             </details>
 
-            <div className="gameCompletionHistory">
-              <div className="gameCompletionHistorySummary">
-                <span className="gameCompletionHistorySummaryPill">Optimal {optimalHops ?? completion.usedHops} hops</span>
-                <span className="gameCompletionHistorySummaryPill">Best {latestAttempt ? `${latestAttempt.hops} hops` : "--"}</span>
-                <span className="gameCompletionHistorySummaryPill">Latest turns {latestAttempt?.turns ?? "--"}</span>
-                <span className="gameCompletionHistorySummaryPill">Latest popularity avg {latestAttempt?.popularityScore ?? "--"}</span>
-                <span className="gameCompletionHistorySummaryPill">Latest avg year {formatAverageReleaseYear(latestAttempt?.averageReleaseYear)}</span>
+            <div className="gameCompletionActions">
+              <div className="gameCompletionActionGrid">
+                <button type="button" className="gameCompletionActionButton gameCompletionActionButtonSecondary" onClick={handleRetryCompletedLevel}>
+                  Retry level
+                </button>
+                {canOpenLevelList ? (
+                  <button
+                    type="button"
+                    className="gameCompletionActionButton gameCompletionActionButtonList"
+                    onClick={handleReturnToLevelList}
+                  >
+                    Main level list
+                  </button>
+                ) : (
+                  <div className="gameCompletionActionSpacer" aria-hidden="true" />
+                )}
+                {hasNextLevel ? (
+                  <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary gameCompletionActionButtonNext gameCompletionActionButtonNext--wide" onClick={handleNextLevel}>
+                    Next level
+                  </button>
+                ) : null}
               </div>
-              <button
-                type="button"
-                className="gameCompletionHistoryToggle"
-                onClick={() => setIsCompletionHistoryOpen((currentValue) => !currentValue)}
-                aria-expanded={isCompletionHistoryOpen}
-              >
-                <div>
-                  <div className="gameCompletionHistoryTitle">Saved history for this level</div>
-                  <div className="gameCompletionHistoryMeta">
-                    {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
-                    {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
+            </div>
+
+            {isCompletionInfoDialogOpen ? (
+              <div className="gameCompletionNestedOverlay" onClick={() => setIsCompletionInfoDialogOpen(false)}>
+                <div className="gameCompletionNestedDialog" onClick={(event) => event.stopPropagation()}>
+                  <button type="button" className="gameRulesCloseButton" onClick={() => setIsCompletionInfoDialogOpen(false)} aria-label="Close score details">
+                    ×
+                  </button>
+                  <h3 className="gameRulesTitle">Score Details</h3>
+                  <div className="gameCompletionHero gameCompletionHero--nested">
+                    <div className="gameCompletionHeroScoreRow">
+                      <span className={`gameCompletionStar gameCompletionStar--${completionStarTone}`} aria-hidden="true">★</span>
+                      <span className="gameCompletionHeroScore">{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+                    </div>
+                    <div className="gameCompletionHeroMeta">{completionPathSummary ?? "--"} in the final path</div>
+                  </div>
+                  <div className="gameCompletionScoreBreakdown">
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Hop efficiency</span>
+                      <span>{optimalHops ?? completion.usedHops} / {completion.usedHops}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Turn efficiency</span>
+                      <span>{optimalHops ?? completion.usedHops} / {completion.effectiveTurns}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Suggestion assist penalty</span>
+                      <span>{formatPenaltyValue(completionScoreBreakdown?.suggestionPenalty ?? 0)}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Turn load</span>
+                      <span>{completion.turns} base + {completion.appliedShufflePenaltyCount} shuffle + {completion.appliedRewindPenaltyCount} rewind + {completion.deadEnds ?? 0} dead-end</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Base efficiency score</span>
+                      <span>{completionScoreBreakdown ? `${(((completionScoreBreakdown.hopEfficiency + completionScoreBreakdown.turnEfficiency) / 2) * 100).toFixed(1)}%` : "--"}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Popularity average</span>
+                      <span>{completion.popularityScore}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Average release year</span>
+                      <span>{formatAverageReleaseYear(completion.averageReleaseYear)}</span>
+                    </div>
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Validation</span>
+                      <span>
+                        {completion.isValidated === true
+                          ? "Validated"
+                          : completion.isValidated === false
+                            ? "Issue reported"
+                            : "Unavailable"}
+                      </span>
+                    </div>
+                    {completion.validationMessage ? (
+                      <div className="gameCompletionScoreBreakdownRow">
+                        <span>Validation note</span>
+                        <span>{completion.validationMessage}</span>
+                      </div>
+                    ) : null}
+                    <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
+                      <span>Final score</span>
+                      <span>{typeof displayedCompletionScore === "number" ? `${displayedCompletionScore.toFixed(1)}%` : "--"}</span>
+                    </div>
                   </div>
                 </div>
-                <span className="gameCompletionHistoryToggleLabel">
-                  {isCompletionHistoryOpen ? "Hide leaderboard" : "Show leaderboard"}
-                </span>
-              </button>
-
-              {isCompletionHistoryOpen ? levelHistoryContent : null}
-            </div>
-
-            <div className={`gameCompletionActions${isCompactPhoneViewport ? " gameCompletionActions--compact-secondary" : ""}`}>
-              <button type="button" className="gameCompletionActionButton gameCompletionActionButtonSecondary" onClick={handleRetryCompletedLevel}>
-                Retry level
-              </button>
-              {canOpenLevelList ? (
-                <button
-                  type="button"
-                  className={`gameCompletionActionButton gameCompletionActionButtonList${!hasNextLevel ? " gameCompletionActionButtonPrimary" : ""}`}
-                  onClick={handleReturnToLevelList}
-                >
-                  Main level list
-                </button>
-              ) : null}
-              {hasNextLevel ? (
-                <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary gameCompletionActionButtonNext" onClick={handleNextLevel}>
-                  Next level
-                </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

@@ -59,8 +59,8 @@ exports.CUSTOM_SETTING_DEFINITIONS = [
     },
     {
         id: "write-in-autosuggest",
-        label: "Autosuggest write-ins",
-        hint: "Offer type-ahead matches in the write-in field and resolve partial names to the closest catalog match.",
+        label: "Autosuggest while typing",
+        hint: "Show live type-ahead matches in the write-in field. Submit matching still stays fuzzy even when this is off.",
         section: "helpers",
     },
     {
