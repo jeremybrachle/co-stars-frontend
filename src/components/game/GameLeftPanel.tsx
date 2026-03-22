@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./GameLeftPanel.css";
 import EntityArtwork from "../EntityArtwork";
 import WriteInAutosuggestField from "./WriteInAutosuggestField";
@@ -750,15 +750,15 @@ function GameLeftPanel({
   const shouldShowBottomWarning = shouldShowHiddenPanelFooter && Boolean(hiddenPanelMessage) && selectedSide === "bottom";
   const mobileWriteInSide = isCompactPhoneViewport ? activeWriteInSide : null;
 
-  const handleOpenWriteIn = (side: SelectedSide) => {
+  const handleOpenWriteIn = useCallback((side: SelectedSide) => {
     setIsMobileWriteInInputMode(false);
     onOpenWriteIn(side);
-  };
+  }, [onOpenWriteIn]);
 
-  const handleCloseWriteIn = () => {
+  const handleCloseWriteIn = useCallback(() => {
     setIsMobileWriteInInputMode(false);
     onCloseWriteIn();
-  };
+  }, [onCloseWriteIn]);
 
   useEffect(() => {
     if (!activeWriteInSide || isCompactPhoneViewport) {
@@ -790,7 +790,7 @@ function GameLeftPanel({
     return () => {
       window.removeEventListener("mousedown", handlePointerDown);
     };
-  }, [activeWriteInSide, isCompactPhoneViewport]);
+  }, [activeWriteInSide, handleCloseWriteIn, isCompactPhoneViewport]);
 
   const topBoardState = buildBoardTokens({
     path: topPath,
