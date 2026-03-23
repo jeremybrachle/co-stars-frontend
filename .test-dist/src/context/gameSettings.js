@@ -37,7 +37,7 @@ exports.CUSTOM_SETTING_DEFINITIONS = [
     {
         id: "show-optimal-tracking",
         label: "Track optimal path",
-        hint: "Keep hop comparison and shortest-path guidance visible during the run.",
+        hint: "Keep intermediate-count comparison and shortest-path guidance visible during the run.",
     },
     {
         id: "show-suggestions",
@@ -121,6 +121,7 @@ exports.DEFAULT_GAME_SETTINGS = {
     customSettings: { ...exports.DEFAULT_CUSTOM_SETTINGS },
     dataFilters: { ...exports.DEFAULT_DATA_FILTERS },
     suggestionDisplay: { ...exports.DEFAULT_SUGGESTION_DISPLAY },
+    completionDarkMode: false,
 };
 exports.GameSettingsContext = (0, react_1.createContext)(null);
 function isDifficultyOption(value) {
@@ -238,6 +239,7 @@ function readStoredGameSettings() {
             suggestionDisplay: isSuggestionDisplaySettings(parsed.suggestionDisplay)
                 ? parsed.suggestionDisplay
                 : { ...exports.DEFAULT_SUGGESTION_DISPLAY },
+            completionDarkMode: parsed.completionDarkMode === true,
         };
     }
     catch {

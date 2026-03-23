@@ -23,9 +23,8 @@ import {
 	subscribeToLevelHistoryUpdates,
 	type LevelHistoryCollection,
 } from "../utils/levelHistoryStorage";
+import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import styles from "./AdventurePage.module.css";
-
-const LEVELS_PER_PAGE = 4;
 const DEMO_BUNDLE = getDemoSnapshotBundle();
 
 type AdventurePageRouteState = {
@@ -84,6 +83,8 @@ function AdventurePage() {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const { mode, setMode } = useDataSourceMode();
 	const { snapshot, indexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData();
+	const isCompactPhoneViewport = useIsCompactPhoneViewport();
+	const levelsPerPage = isCompactPhoneViewport ? 2 : 3;
 	const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !indexes);
 	const routeState = (location.state as AdventurePageRouteState | null) ?? null;
 	const handledAutoStartLevelRef = useRef<number | null>(null);
@@ -191,9 +192,9 @@ function AdventurePage() {
 		});
 	}, []);
 
-	const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
-	const startIdx = page * LEVELS_PER_PAGE;
-	const endIdx = startIdx + LEVELS_PER_PAGE;
+	const totalPages = Math.max(1, Math.ceil(levels.length / levelsPerPage));
+	const startIdx = page * levelsPerPage;
+	const endIdx = startIdx + levelsPerPage;
 	const pageLevels = useMemo(() => levels.slice(startIdx, endIdx), [endIdx, levels, startIdx]);
 
 	useEffect(() => {
@@ -230,8 +231,8 @@ function AdventurePage() {
 		}
 
 		const safeLevelIndex = Math.max(0, Math.min(requestedFocusLevel, levels.length - 1));
-		setPage(Math.floor(safeLevelIndex / LEVELS_PER_PAGE));
-	}, [levels.length, routeState?.focusLevelIndex]);
+		setPage(Math.floor(safeLevelIndex / levelsPerPage));
+	}, [levels.length, levelsPerPage, routeState?.focusLevelIndex]);
 
 	useEffect(() => {
 		if (isSnapshotLoading || isWaitingForFullData || levels.length === 0) {
@@ -299,10 +300,10 @@ function AdventurePage() {
             aria-label="Previous page"
 						disabled={isSnapshotLoading || isWaitingForFullData || levels.length === 0}
           >
-            ←
+						{isCompactPhoneViewport ? "‹" : "←"}
           </button>
           <span className={styles.paginationLabel}>
-            Page {page + 1} of {totalPages}
+						{isCompactPhoneViewport ? `${page + 1}/${totalPages}` : `Page ${page + 1} of ${totalPages}`}
           </span>
           <button
             className={styles.paginationArrow}
@@ -310,7 +311,7 @@ function AdventurePage() {
             aria-label="Next page"
 						disabled={isSnapshotLoading || isWaitingForFullData || levels.length === 0}
           >
-            →
+						{isCompactPhoneViewport ? "›" : "→"}
           </button>
         </div>
       </div>

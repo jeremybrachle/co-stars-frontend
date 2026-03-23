@@ -260,6 +260,14 @@ function renderHiddenPanelStat(label: string, value: number | "N/A", isPenalty =
   );
 }
 
+function getIntermediateCount(count: number | null | undefined) {
+  if (typeof count !== "number" || !Number.isFinite(count)) {
+    return null;
+  }
+
+  return Math.max(0, Math.round(count) - 1);
+}
+
 function MobileWriteInSheet({
   side,
   value,
@@ -462,7 +470,6 @@ function buildBoardTokens({
       fontSize,
       side,
       coord,
-      startArrow: index === 0 ? (side === "top" ? "↓" : "↑") : undefined,
       outgoingArrow: nextCoord ? getDirectionalArrow(coord, nextCoord) : undefined,
       isCurrent,
       isDimmed: !isActivePath,
@@ -872,12 +879,14 @@ function GameLeftPanel({
       bottomEllipsis,
     };
   });
+  const currentIntermediates = getIntermediateCount(currentHops);
+  const optimalIntermediates = getIntermediateCount(optimalHops);
 
   return (
     <section ref={leftPanelRef} className={`game-left-panel${shouldShowHiddenPanelFooter ? " game-left-panel--suggestions-hidden" : ""}`}>
       <div className="game-left-panel__status-row">
         <div className="game-left-panel__status-slot game-left-panel__status-slot--left">
-          <span className="game-left-panel__status-pill">Current hops: {currentHops}</span>
+          <span className="game-left-panel__status-pill">Current intermediates: {currentIntermediates ?? "--"}</span>
         </div>
         {showSuggestionToggle ? (
           <button
@@ -905,7 +914,7 @@ function GameLeftPanel({
         <div className="game-left-panel__status-slot game-left-panel__status-slot--right">
           {showOptimalTracking ? (
             <span className="game-left-panel__status-pill game-left-panel__status-pill--muted">
-              Optimal hops: {optimalHops ?? "--"}
+              Optimal intermediates: {optimalIntermediates ?? "--"}
             </span>
           ) : null}
         </div>

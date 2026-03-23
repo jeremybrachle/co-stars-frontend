@@ -210,6 +210,7 @@ export type GameDifficultySettings = {
 	customSettings: DifficultySettings;
 	dataFilters: GameDataFilters;
 	suggestionDisplay: SuggestionDisplaySettings;
+	completionDarkMode: boolean;
 };
 
 export type DataIndicatorVariant =

@@ -49,7 +49,7 @@ export const CUSTOM_SETTING_DEFINITIONS: CustomSettingDefinition[] = [
 	{
 		id: "show-optimal-tracking",
 		label: "Track optimal path",
-		hint: "Keep hop comparison and shortest-path guidance visible during the run.",
+		hint: "Keep intermediate-count comparison and shortest-path guidance visible during the run.",
 	},
 	{
 		id: "show-suggestions",
@@ -138,12 +138,14 @@ export const DEFAULT_GAME_SETTINGS: GameDifficultySettings = {
 	customSettings: { ...DEFAULT_CUSTOM_SETTINGS },
 	dataFilters: { ...DEFAULT_DATA_FILTERS },
 	suggestionDisplay: { ...DEFAULT_SUGGESTION_DISPLAY },
+	completionDarkMode: false,
 };
 
 export type GameSettingsContextValue = {
 	settings: GameDifficultySettings;
 	setDifficulty: (difficulty: DifficultyOption) => void;
 	setCustomSetting: (settingId: keyof DifficultySettings, enabled: boolean) => void;
+	setCompletionDarkMode: (enabled: boolean) => void;
 	setActorPopularityCutoff: (cutoff: number | null) => void;
 	setReleaseYearCutoff: (year: number | null) => void;
 	setMovieSortMode: (mode: GameDataFilters["movieSortMode"]) => void;
@@ -306,6 +308,7 @@ export function readStoredGameSettings(): GameDifficultySettings {
 			suggestionDisplay: isSuggestionDisplaySettings(parsed.suggestionDisplay)
 				? parsed.suggestionDisplay
 				: { ...DEFAULT_SUGGESTION_DISPLAY },
+			completionDarkMode: parsed.completionDarkMode === true,
 		};
 	} catch {
 		return DEFAULT_GAME_SETTINGS;

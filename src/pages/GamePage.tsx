@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type WheelEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type WheelEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import EntityDetailsDialog, {
   type EntityDetailsDialogData,
@@ -58,7 +58,6 @@ import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/
 import { formatActorInlineMeta, formatActorLifespan, formatGameNodeMeta, formatMovieInlineMeta, getMovieBadges } from "../data/presentation";
 import {
   buildLevelScoreBreakdown,
-  calculateLevelScore,
   getEffectiveTurnCount,
   getLevelScoreStars,
   getLevelScoreTier,
@@ -419,7 +418,7 @@ function formatPenaltyValue(value: number) {
 }
 
 function formatExecutionScore(value: number | null | undefined) {
-  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}/100` : "--";
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}%` : "--";
 }
 
 function getWriteInContextLabel(selection: GameNode | null) {
@@ -462,29 +461,6 @@ function buildDisplayedStars(stars: number) {
   return Array.from({ length: 3 }, (_, index) => ({
     filled: index < normalizedStars,
   } satisfies DisplayStar));
-}
-
-function countPathNodeTypes(path: GameNode[]) {
-  return path.reduce(
-    (counts, node) => {
-      if (node.type === "movie") {
-        counts.movies += 1;
-      } else {
-        counts.actors += 1;
-      }
-
-      return counts;
-    },
-    { movies: 0, actors: 0 },
-  );
-}
-
-function formatCompletionPathSummary(path: GameNode[]) {
-  const { movies, actors } = countPathNodeTypes(path);
-  const movieLabel = movies === 1 ? "movie" : "movies";
-  const actorLabel = actors === 1 ? "actor" : "actors";
-
-  return `${movies} ${movieLabel} • ${actors} ${actorLabel}`;
 }
 
 function toInspectorDetail(node: GameNode, relatedCount: number, detailLines: string[], description: string | null): EntityDetailsDialogData {
@@ -583,6 +559,7 @@ function GamePage() {
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
   const dataFilters = settings.dataFilters;
+  const completionThemeClassName = settings.completionDarkMode ? "gameCompletionTheme--dark" : "gameCompletionTheme--light";
   const shouldGuaranteeBestPathSuggestion = helperSettings["guarantee-best-path-suggestion"];
   const showVisitedSuggestions = helperSettings["show-visited-suggestions"];
   const shuffleAddsPenalty = helperSettings["shuffle-adds-penalty"];
@@ -628,7 +605,6 @@ function GamePage() {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [completion, setCompletion] = useState<CompletionState | null>(null);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
-  const [isCompletionInfoDialogOpen, setIsCompletionInfoDialogOpen] = useState(false);
   const [isSavedHistoryDialogOpen, setIsSavedHistoryDialogOpen] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
   const [currentLevelIdentity, setCurrentLevelIdentity] = useState<{ startLabel: string; endLabel: string } | null>(null);
@@ -692,10 +668,6 @@ function GamePage() {
   const levelHistoryAttempts = levelHistory?.attempts ?? [];
   const latestAttempt = levelHistory?.attempts[0] ?? null;
   const isShuffleModeEnabled = suggestionDisplay.orderMode === "shuffled";
-  const completionPathSummary = useMemo(
-    () => (completion ? formatCompletionPathSummary(completion.fullPath) : null),
-    [completion],
-  );
   const completionScoreBreakdown = useMemo(() => {
     if (!completion) {
       return null;
@@ -718,7 +690,40 @@ function GamePage() {
   const displayedCompletionScore = completionScoreBreakdown?.score ?? completion?.score ?? null;
   const displayedCompletionTier = completionScoreBreakdown?.tier ?? completion?.tier ?? null;
   const displayedCompletionStars = completionScoreBreakdown?.stars ?? completion?.stars ?? null;
+  const displayedCompletionPercent = typeof displayedCompletionScore === "number" && Number.isFinite(displayedCompletionScore)
+    ? Math.max(0, Math.min(100, Math.round(displayedCompletionScore)))
+    : 0;
   const completionTierTone = displayedCompletionTier ? getTierTone(displayedCompletionTier) : "bronze";
+  const completionScoreDialStyle = {
+    "--completion-score-progress": displayedCompletionPercent,
+  } as CSSProperties;
+  const completionScoreFormula = useMemo(() => {
+    if (!completionScoreBreakdown) {
+      return "--";
+    }
+
+    const terms = [
+      completionScoreBreakdown.penalties.suggestions,
+      completionScoreBreakdown.penalties.filteredSuggestions,
+      completionScoreBreakdown.penalties.fullSuggestionList,
+      completionScoreBreakdown.penalties.randomSubset,
+      completionScoreBreakdown.penalties.shuffles,
+      completionScoreBreakdown.penalties.rewinds,
+      completionScoreBreakdown.penalties.extraTurns,
+      completionScoreBreakdown.penalties.mistakes,
+    ];
+
+    return `100% - (${terms.map((term) => `${term}%`).join(" + ")}) = ${formatExecutionScore(displayedCompletionScore)}`;
+  }, [completionScoreBreakdown, displayedCompletionScore]);
+  const renderCompletionScoreDial = (className: string) => (
+    <span className={`gameCompletionScoreDial gameCompletionScoreDial--${completionTierTone} ${className}`.trim()} style={completionScoreDialStyle}>
+      <span className="gameCompletionScoreDialTrack" aria-hidden="true" />
+      <span className="gameCompletionScoreDialArc" aria-hidden="true" />
+      <span className="gameCompletionScoreDialInner">
+        <span className="gameCompletionScoreDialValue">{formatExecutionScore(displayedCompletionScore)}</span>
+      </span>
+    </span>
+  );
   const totalMistakePenalties = deadEndPenalties + repeatNodeClickPenalties;
   const isMistakeGameOver = totalMistakePenalties >= MAX_MISTAKE_PENALTIES;
   const usesFilteredSuggestions = dataFilters.actorPopularityCutoff !== DEFAULT_DATA_FILTERS.actorPopularityCutoff
@@ -928,7 +933,6 @@ function GamePage() {
     if (completion) {
       setLeftPanelWriteInSide(null);
       setLeftPanelWriteInValue("");
-      setIsCompletionInfoDialogOpen(false);
     }
   }, [completion]);
 
@@ -2078,7 +2082,6 @@ function GamePage() {
 
     setCompletion(provisionalCompletion);
     setIsCompletionDialogOpen(true);
-    setIsCompletionInfoDialogOpen(false);
     setIsRulesOpen(false);
 
     try {
@@ -2173,7 +2176,7 @@ function GamePage() {
         : "The target node was selected directly.";
       await finalizeCompletion(winningPath, selectedSide, source);
     }
-  }, [actorA, actorB, applyDeadEndPenalty, blockedLoopNodeKeys, bottomPath, cycleRiskClickAddsPenalty, finalizeCompletion, isInteractionDisabled, selectedSide, targetNode, topPath]);
+  }, [actorA, actorB, applyDeadEndPenalty, applyRepeatNodePenalty, blockedLoopNodeKeys, bottomPath, cycleRiskClickAddsPenalty, finalizeCompletion, isInteractionDisabled, selectedSide, targetNode, topPath]);
 
   const handleRemoveTopPathItem = () => {
     if (topPath.length === 0 || completion) {
@@ -2244,7 +2247,6 @@ function GamePage() {
     setFilterValidationMessage(null);
     setCompletion(null);
     setIsCompletionDialogOpen(false);
-    setIsCompletionInfoDialogOpen(false);
     setIsSavedHistoryDialogOpen(false);
   };
 
@@ -2750,7 +2752,7 @@ function GamePage() {
       </div>
 
       {completion && !isCompletionDialogOpen ? (
-        <div className={`gameCompletionPinnedArea ${isSuggestionPanelVisible ? "gameCompletionPinnedArea--with-sidebar" : "gameCompletionPinnedArea--solo"}`}>
+        <div className={`gameCompletionPinnedArea ${isSuggestionPanelVisible ? "gameCompletionPinnedArea--with-sidebar" : "gameCompletionPinnedArea--solo"} ${completionThemeClassName}`}>
           {isCompactPhoneViewport ? (
             <div
               className={`gameCompletionPinnedScore gameCompletionPinnedScore--compact ${isSuggestionPanelVisible ? "gameCompletionPinnedScore--with-sidebar" : "gameCompletionPinnedScore--solo"}`}
@@ -2759,15 +2761,15 @@ function GamePage() {
             >
               <div className="gameCompletionPinnedScoreContent">
                 <div className="gameCompletionPinnedScoreTitle">Level complete</div>
-                <div className="gameCompletionPinnedScoreHeadline">
-                  {displayedCompletionTier ? (
-                    <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
-                  ) : null}
-                  <span className="gameCompletionPinnedScoreValue">
-                    {formatExecutionScore(displayedCompletionScore)}
-                  </span>
-                </div>
-                <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                <button
+                  type="button"
+                  className="gameCompletionPinnedScoreDialButton"
+                  onClick={() => setIsCompletionDialogOpen(true)}
+                  aria-label="Open level complete summary"
+                >
+                  {renderCompletionScoreDial("gameCompletionScoreDial--compactBanner")}
+                </button>
+                <div className={`gameCompletionRatingStars gameCompletionRatingStars--${completionTierTone} gameCompletionPinnedRatingStars`} aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
                   {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
                     <span
                       key={starIndex}
@@ -2782,9 +2784,9 @@ function GamePage() {
                 <button
                   type="button"
                   className="gameCompletionPinnedScoreButton"
-                  onClick={() => setIsCompletionDialogOpen(true)}
+                  onClick={handleRetryCompletedLevel}
                 >
-                  View summary
+                  Replay
                 </button>
                 {hasNextLevel ? (
                   <button
@@ -2807,23 +2809,23 @@ function GamePage() {
                 <button
                   type="button"
                   className="gameCompletionPinnedScoreButton"
-                  onClick={() => setIsCompletionDialogOpen(true)}
+                  onClick={handleRetryCompletedLevel}
                 >
-                  View summary
+                  Replay
                 </button>
               </div>
               <div className="gameCompletionPinnedSection gameCompletionPinnedSection--score">
                 <div className="gameCompletionPinnedScoreContent">
                   <div className="gameCompletionPinnedScoreTitle">Level complete</div>
-                  <div className="gameCompletionPinnedScoreHeadline">
-                    {displayedCompletionTier ? (
-                      <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
-                    ) : null}
-                    <span className="gameCompletionPinnedScoreValue">
-                      {formatExecutionScore(displayedCompletionScore)}
-                    </span>
-                  </div>
-                  <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                  <button
+                    type="button"
+                    className="gameCompletionPinnedScoreDialButton"
+                    onClick={() => setIsCompletionDialogOpen(true)}
+                    aria-label="Open level complete summary"
+                  >
+                    {renderCompletionScoreDial("gameCompletionScoreDial--banner")}
+                  </button>
+                  <div className={`gameCompletionRatingStars gameCompletionRatingStars--${completionTierTone} gameCompletionPinnedRatingStars`} aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
                     {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
                       <span
                         key={starIndex}
@@ -2997,9 +2999,8 @@ function GamePage() {
       ) : null}
 
       {completion && isCompletionDialogOpen ? (
-        <div className="gameCompletionOverlay" onClick={() => {
+        <div className={`gameCompletionOverlay ${completionThemeClassName}`} onClick={() => {
           setIsCompletionDialogOpen(false);
-          setIsCompletionInfoDialogOpen(false);
         }}>
           <div className="gameCompletionDialog" onClick={(event) => event.stopPropagation()}>
             <button
@@ -3007,7 +3008,6 @@ function GamePage() {
               className="gameRulesCloseButton"
               onClick={() => {
                 setIsCompletionDialogOpen(false);
-                setIsCompletionInfoDialogOpen(false);
               }}
               aria-label="Close completion dialog"
             >
@@ -3017,13 +3017,15 @@ function GamePage() {
             <p className="gameRulesText gameCompletionLead">{completion.source}</p>
 
             <div className="gameCompletionHero">
-              <div className="gameCompletionHeroScoreRow">
-                {displayedCompletionTier ? (
+              {displayedCompletionTier ? (
+                <div className="gameCompletionHeroTierLine">
                   <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
-                ) : null}
-                <span className="gameCompletionHeroScore">{formatExecutionScore(displayedCompletionScore)}</span>
+                </div>
+              ) : null}
+              <div className="gameCompletionHeroScoreRow">
+                {renderCompletionScoreDial("gameCompletionScoreDial--hero")}
               </div>
-              <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+              <div className={`gameCompletionRatingStars gameCompletionRatingStars--${completionTierTone}`} aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
                 {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
                   <span
                     key={starIndex}
@@ -3033,15 +3035,119 @@ function GamePage() {
                   </span>
                 ))}
               </div>
-              <div className="gameCompletionHeroMeta">{completionPathSummary ?? "--"} in the final path • {completion.totalMistakes} total mistakes</div>
-              <button
-                type="button"
-                className="gameCompletionInfoButton"
-                onClick={() => setIsCompletionInfoDialogOpen(true)}
-              >
-                Score info
-              </button>
             </div>
+
+            <details className="gameCompletionExpandable">
+              <summary className="gameCompletionExpandableSummary">
+                <span className="gameCompletionExpandableSummaryMain">
+                  <span className="gameCompletionExpandableTitle">Score info</span>
+                  <span className="gameCompletionExpandableHint">Exact formula, penalties, and why the result is a whole percent</span>
+                </span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true" />
+              </summary>
+              <div className="gameCompletionExpandableBody">
+                <div className="gameCompletionScoreBreakdown">
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Base score</span>
+                    <span>100%</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Exact formula</span>
+                    <span className="gameCompletionScoreBreakdownExpression">{completionScoreFormula}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Why no fractions?</span>
+                    <span className="gameCompletionScoreBreakdownNote">Turns, shuffles, rewinds, repeat nodes, and dead ends are all normalized to whole counts before scoring. Every deduction is a whole-number percentage, so the final score is a whole percent too.</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Tier</span>
+                    <span>{displayedCompletionTier ?? "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Path efficiency</span>
+                    <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerNodes} nodes vs ${completionScoreBreakdown.optimalNodes} optimal` : "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Suggestions shown</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.suggestions ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Filtered suggestions</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.filteredSuggestions ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Full suggestion list</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.fullSuggestionList ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Random subset</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.randomSubset ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Shuffle penalty</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.shuffles ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Rewind penalty</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.rewinds ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Extra turns</span>
+                    <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerTurns} vs ${completionScoreBreakdown.optimalTurns} optimal (${formatPenaltyValue(completionScoreBreakdown.penalties.extraTurns)})` : "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Mistake penalty</span>
+                    <span>{completionScoreBreakdown ? `${completion.repeatNodeClicks} repeat + ${completion.deadEnds} dead-end = ${completionScoreBreakdown.totalMistakes} (${formatPenaltyValue(completionScoreBreakdown.penalties.mistakes)})` : "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Total penalties</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.total ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Effective turns</span>
+                    <span>{completion.effectiveTurns}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Stars</span>
+                    <span>{displayedCompletionStars ?? 0} / 3</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Popularity average</span>
+                    <span>{completion.popularityScore}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Average release year</span>
+                    <span>{formatAverageReleaseYear(completion.averageReleaseYear)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Validation</span>
+                    <span>
+                      {completion.isValidated === true
+                        ? "Validated"
+                        : completion.isValidated === false
+                          ? "Issue reported"
+                          : "Unavailable"}
+                    </span>
+                  </div>
+                  {completion.validationMessage ? (
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Validation note</span>
+                      <span>{completion.validationMessage}</span>
+                    </div>
+                  ) : null}
+                  {completionScoreBreakdown?.failed ? (
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Fail state</span>
+                      <span>Triggered at 5 total mistakes, which forces the score to 0%</span>
+                    </div>
+                  ) : null}
+                  <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
+                    <span>Execution score</span>
+                    <span>{formatExecutionScore(displayedCompletionScore)}</span>
+                  </div>
+                </div>
+              </div>
+            </details>
 
             <details className="gameCompletionExpandable">
               <summary className="gameCompletionExpandableSummary">
@@ -3049,7 +3155,7 @@ function GamePage() {
                   <span className="gameCompletionExpandableTitle">Route details</span>
                   <span className="gameCompletionExpandableHint">Path preview and misc metrics</span>
                 </span>
-                <span className="gameCompletionExpandablePlus" aria-hidden="true">+</span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true" />
               </summary>
               <div className="gameCompletionExpandableBody">
                 <div className="gameCompletionPreview">
@@ -3096,7 +3202,7 @@ function GamePage() {
                   <span className="gameCompletionExpandableTitle">Leaderboard</span>
                   <span className="gameCompletionExpandableHint">View path rankings</span>
                 </span>
-                <span className="gameCompletionExpandablePlus" aria-hidden="true">+</span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true" />
               </summary>
               <div className="gameCompletionExpandableBody">
                 <div className="gameCompletionLeaderboardOverview">
@@ -3131,119 +3237,6 @@ function GamePage() {
               </div>
             </div>
 
-            {isCompletionInfoDialogOpen ? (
-              <div className="gameCompletionNestedOverlay" onClick={() => setIsCompletionInfoDialogOpen(false)}>
-                <div className="gameCompletionNestedDialog" onClick={(event) => event.stopPropagation()}>
-                  <button type="button" className="gameRulesCloseButton" onClick={() => setIsCompletionInfoDialogOpen(false)} aria-label="Close score details">
-                    ×
-                  </button>
-                  <h3 className="gameRulesTitle">Score Details</h3>
-                  <div className="gameCompletionHero gameCompletionHero--nested">
-                    <div className="gameCompletionHeroScoreRow">
-                      {displayedCompletionTier ? (
-                        <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
-                      ) : null}
-                      <span className="gameCompletionHeroScore">{formatExecutionScore(displayedCompletionScore)}</span>
-                    </div>
-                    <div className="gameCompletionRatingStars" aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
-                      {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
-                        <span
-                          key={starIndex}
-                          className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
-                        >
-                          ★
-                        </span>
-                      ))}
-                    </div>
-                    <div className="gameCompletionHeroMeta">{completionPathSummary ?? "--"} in the final path</div>
-                  </div>
-                  <div className="gameCompletionScoreBreakdown">
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Tier</span>
-                      <span>{displayedCompletionTier ?? "--"}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Path efficiency</span>
-                      <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerNodes} nodes vs ${completionScoreBreakdown.optimalNodes} optimal` : "--"}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Suggestions shown</span>
-                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.suggestions ?? 0)}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Filtered suggestions</span>
-                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.filteredSuggestions ?? 0)}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Full suggestion list</span>
-                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.fullSuggestionList ?? 0)}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Random subset</span>
-                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.randomSubset ?? 0)}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Shuffle penalty</span>
-                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.shuffles ?? 0)}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Rewind penalty</span>
-                      <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.rewinds ?? 0)}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Extra turns</span>
-                      <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerTurns} vs ${completionScoreBreakdown.optimalTurns} optimal (${formatPenaltyValue(completionScoreBreakdown.penalties.extraTurns)})` : "--"}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Mistake penalty</span>
-                      <span>{completionScoreBreakdown ? `${completion.repeatNodeClicks} repeat + ${completion.deadEnds} dead-end = ${completionScoreBreakdown.totalMistakes} (${formatPenaltyValue(completionScoreBreakdown.penalties.mistakes)})` : "--"}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Effective turns</span>
-                      <span>{completion.effectiveTurns}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Stars</span>
-                      <span>{displayedCompletionStars ?? 0} / 3</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Popularity average</span>
-                      <span>{completion.popularityScore}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Average release year</span>
-                      <span>{formatAverageReleaseYear(completion.averageReleaseYear)}</span>
-                    </div>
-                    <div className="gameCompletionScoreBreakdownRow">
-                      <span>Validation</span>
-                      <span>
-                        {completion.isValidated === true
-                          ? "Validated"
-                          : completion.isValidated === false
-                            ? "Issue reported"
-                            : "Unavailable"}
-                      </span>
-                    </div>
-                    {completion.validationMessage ? (
-                      <div className="gameCompletionScoreBreakdownRow">
-                        <span>Validation note</span>
-                        <span>{completion.validationMessage}</span>
-                      </div>
-                    ) : null}
-                    {completionScoreBreakdown?.failed ? (
-                      <div className="gameCompletionScoreBreakdownRow">
-                        <span>Fail state</span>
-                        <span>Triggered at 5 total mistakes</span>
-                      </div>
-                    ) : null}
-                    <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
-                      <span>Execution score</span>
-                      <span>{formatExecutionScore(displayedCompletionScore)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
       ) : null}

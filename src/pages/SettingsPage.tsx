@@ -34,7 +34,7 @@ function SettingsPage() {
   const routeState = (location.state as { returnTo?: string } | null) ?? null
   const { mode } = useDataSourceMode()
   const { indexes } = useSnapshotData()
-  const { settings, setDifficulty, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings()
+  const { settings, setDifficulty, setCustomSetting, setCompletionDarkMode, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const requestedTab = searchParams.get("tab")
   const requestedSection = searchParams.get("section")
@@ -156,6 +156,30 @@ function SettingsPage() {
             <section className="settingsSection settingsTabPanel" role="tabpanel" id="settings-panel-gameplay-settings" aria-labelledby="settings-tab-gameplay-settings">
               <h2>Gameplay Settings</h2>
               <p className="settingsHint">Current helper preset: {difficultyLabel}{difficulty === "custom" ? ` • ${activeCustomLabel || "No helpers selected"}` : ""}.</p>
+              <div className="settingsToggleSection settingsToggleSection--carded">
+              <h3 className="settingsToggleSectionTitle">Appearance</h3>
+              <div className="settingsToggleGrid">
+                <article className="settingsToggleCard">
+                <div className="settingsToggleCardTop">
+                  <div className="settingsToggleCardLabelWrap">
+                  <strong>Dark mode for level-complete menus</strong>
+                  <span className="settingsHint">Off by default. This only changes the level-complete popup and pinned completion banner.</span>
+                  </div>
+                  <div className="settingsToggleControl">
+                  <span className={`settingsToggleState${settings.completionDarkMode ? " settingsToggleState--on" : ""}`}>{settings.completionDarkMode ? "On" : "Off"}</span>
+                  <button
+                    type="button"
+                    className={`settingsToggleSwitch${settings.completionDarkMode ? " settingsToggleSwitch--on" : ""}`}
+                    onClick={() => setCompletionDarkMode(!settings.completionDarkMode)}
+                    aria-pressed={settings.completionDarkMode}
+                  >
+                    <span className="settingsToggleThumb" aria-hidden="true" />
+                  </button>
+                  </div>
+                </div>
+                </article>
+              </div>
+              </div>
               {/* <p className="settingsWarning">Speed note: the settings most likely to slow gameplay are the cast-lock risk overlay, full ranked suggestion lists, and removing suggestion filters.</p> */}
 
               <GameplaySettingsSectionLayout

@@ -11,66 +11,110 @@ const calculateLevelScore_1 = require("../../src/utils/calculateLevelScore");
         hops: 3,
         optimalHops: 3,
         turns: 3,
-        suggestionAssists: 0,
+        usedSuggestions: false,
+        usedFilteredSuggestions: false,
+        usedFullSuggestionList: false,
+        usedRandomSubset: false,
         shuffles: 0,
         rewinds: 0,
+        repeatNodeClicks: 0,
         deadEnds: 0,
     }), 100);
 });
-(0, node_test_1.default)("calculateLevelScore penalizes extra hops and mistakes", () => {
+(0, node_test_1.default)("calculateLevelScore applies flat and incremental penalties", () => {
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 5,
         optimalHops: 3,
         turns: 5,
-        suggestionAssists: 1,
+        usedSuggestions: true,
+        usedFilteredSuggestions: true,
+        usedFullSuggestionList: true,
+        usedRandomSubset: false,
         shuffles: 1,
         rewinds: 2,
+        repeatNodeClicks: 1,
         deadEnds: 1,
-    }), 41.7);
+    }), 53);
 });
 (0, node_test_1.default)("calculateLevelScore never drops below zero", () => {
     strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
         hops: 10,
         optimalHops: 2,
         turns: 10,
-        suggestionAssists: 4,
+        usedSuggestions: true,
+        usedFilteredSuggestions: true,
+        usedFullSuggestionList: true,
+        usedRandomSubset: true,
         shuffles: 10,
         rewinds: 10,
+        repeatNodeClicks: 4,
         deadEnds: 10,
     }), 0);
 });
-(0, node_test_1.default)("calculateLevelScore applies a flat suggestion-assist penalty", () => {
-    strict_1.default.equal((0, calculateLevelScore_1.calculateLevelScore)({
-        hops: 3,
-        optimalHops: 3,
-        turns: 3,
-        suggestionAssists: 1,
-        shuffles: 0,
-        rewinds: 0,
-        deadEnds: 0,
-    }), 95);
+(0, node_test_1.default)("getLevelScoreTier uses gold, silver, and bronze hop bands", () => {
+    strict_1.default.equal((0, calculateLevelScore_1.getLevelScoreTier)(3, 3), "GOLD");
+    strict_1.default.equal((0, calculateLevelScore_1.getLevelScoreTier)(5, 3), "SILVER");
+    strict_1.default.equal((0, calculateLevelScore_1.getLevelScoreTier)(6, 3), "BRONZE");
+});
+(0, node_test_1.default)("getLevelScoreStars maps score thresholds to 0-3 stars", () => {
+    strict_1.default.equal((0, calculateLevelScore_1.getLevelScoreStars)(95), 3);
+    strict_1.default.equal((0, calculateLevelScore_1.getLevelScoreStars)(80), 2);
+    strict_1.default.equal((0, calculateLevelScore_1.getLevelScoreStars)(60), 1);
+    strict_1.default.equal((0, calculateLevelScore_1.getLevelScoreStars)(59), 0);
 });
 (0, node_test_1.default)("getEffectiveTurnCount normalizes negative and fractional counts", () => {
     strict_1.default.equal((0, calculateLevelScore_1.getEffectiveTurnCount)({
         turns: -2,
         shuffles: 1.7,
         rewinds: 2.2,
+        repeatNodeClicks: 1.2,
         deadEnds: -4,
-    }), 4);
+    }), 5);
 });
-(0, node_test_1.default)("buildLevelScoreBreakdown reports raw components used in the final score", () => {
+(0, node_test_1.default)("buildLevelScoreBreakdown reports the new tier, penalties, and stars", () => {
     const breakdown = (0, calculateLevelScore_1.buildLevelScoreBreakdown)({
         hops: 4,
         optimalHops: 2,
         turns: 3,
-        suggestionAssists: 2,
+        usedSuggestions: true,
+        usedFilteredSuggestions: false,
+        usedFullSuggestionList: false,
+        usedRandomSubset: true,
         shuffles: 1,
         rewinds: 0,
+        repeatNodeClicks: 1,
         deadEnds: 1,
     });
-    strict_1.default.equal(breakdown.effectiveTurns, 5);
-    strict_1.default.equal(breakdown.suggestionPenalty, 10);
-    strict_1.default.equal(breakdown.hopEfficiency, 0.5);
-    strict_1.default.equal(breakdown.turnEfficiency, 0.4);
-    strict_1.default.equal(breakdown.finalScore, 35);
+    strict_1.default.equal(breakdown.tier, "SILVER");
+    strict_1.default.equal(breakdown.playerNodes, 5);
+    strict_1.default.equal(breakdown.optimalNodes, 3);
+    strict_1.default.equal(breakdown.extraTurns, 1);
+    strict_1.default.equal(breakdown.totalMistakes, 2);
+    strict_1.default.equal(breakdown.effectiveTurns, 6);
+    strict_1.default.equal(breakdown.penalties.suggestions, 10);
+    strict_1.default.equal(breakdown.penalties.randomSubset, 5);
+    strict_1.default.equal(breakdown.penalties.shuffles, 2);
+    strict_1.default.equal(breakdown.penalties.extraTurns, 2);
+    strict_1.default.equal(breakdown.penalties.mistakes, 10);
+    strict_1.default.equal(breakdown.score, 71);
+    strict_1.default.equal(breakdown.stars, 1);
+});
+(0, node_test_1.default)("buildLevelScoreBreakdown returns FAIL once total mistakes reaches five", () => {
+    const breakdown = (0, calculateLevelScore_1.buildLevelScoreBreakdown)({
+        hops: 3,
+        optimalHops: 3,
+        turns: 3,
+        usedSuggestions: false,
+        usedFilteredSuggestions: false,
+        usedFullSuggestionList: false,
+        usedRandomSubset: false,
+        shuffles: 0,
+        rewinds: 0,
+        repeatNodeClicks: 2,
+        deadEnds: 3,
+    });
+    strict_1.default.equal(breakdown.failed, true);
+    strict_1.default.equal(breakdown.tier, "FAIL");
+    strict_1.default.equal(breakdown.score, 0);
+    strict_1.default.equal(breakdown.stars, 0);
 });

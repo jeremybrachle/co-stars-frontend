@@ -37,7 +37,7 @@ test("calculateLevelScore applies flat and incremental penalties", () => {
     rewinds: 2,
     repeatNodeClicks: 1,
     deadEnds: 1,
-  }), 57);
+  }), 53);
 });
 
 test("calculateLevelScore never drops below zero", () => {

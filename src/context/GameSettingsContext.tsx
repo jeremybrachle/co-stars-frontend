@@ -42,6 +42,12 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					customSettings: nextCustomSettings,
 				});
 			},
+			setCompletionDarkMode: (enabled: boolean) => {
+				persistSettings({
+					...settings,
+					completionDarkMode: enabled,
+				});
+			},
 				setActorPopularityCutoff: (cutoff: number | null) => {
 				persistSettings({
 					...settings,

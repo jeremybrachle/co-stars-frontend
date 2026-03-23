@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Link, useLocation } from "react-router-dom"
 import EntityDetailsDialog, {
   type EntityDetailsDialogData,
   type EntityDetailsHistoryEntry,
@@ -20,6 +20,15 @@ import { isOnlineSnapshotMode } from "../data/dataSourcePreferences"
 import { buildNextDetailTrail, sortMoviesByReleaseDateDescending } from "../data/entityDetails"
 import { formatActorInlineMeta, formatMovieInlineMeta } from "../data/presentation"
 import type { Actor, EffectiveDataSource, Movie, SnapshotIndexes } from "../types"
+
+type GameDataPageRouteState = {
+  backTo?: string
+  backLabel?: string
+  focusEntity?: {
+    type: "actor" | "movie"
+    label: string
+  }
+}
 
 type ActorSortMode = "name-asc" | "name-desc" | "popularity-desc" | "popularity-asc"
 
@@ -64,6 +73,9 @@ function formatMovieMeta(movie: Movie) {
 }
 
 function GameDataPage() {
+  const location = useLocation()
+  const routeState = (location.state as GameDataPageRouteState | null) ?? null
+  const handledRouteEntityKeyRef = useRef<string | null>(null)
   const { mode, setMode } = useDataSourceMode()
   const { snapshot, indexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData()
   const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !indexes)
@@ -274,9 +286,41 @@ function GameDataPage() {
     }
   }
 
+  useEffect(() => {
+    const focusEntity = routeState?.focusEntity
+    if (!focusEntity) {
+      return
+    }
+
+    const normalizedLabel = normalizeSearchValue(focusEntity.label)
+    const requestKey = `${focusEntity.type}:${normalizedLabel}`
+    if (handledRouteEntityKeyRef.current === requestKey) {
+      return
+    }
+
+    if (focusEntity.type === "actor") {
+      const actor = actors.find((candidate) => normalizeSearchValue(candidate.name) === normalizedLabel)
+      if (!actor) {
+        return
+      }
+
+      handledRouteEntityKeyRef.current = requestKey
+      setDetailTrail([{ type: "actor", item: actor }])
+      return
+    }
+
+    const movie = movies.find((candidate) => normalizeSearchValue(candidate.title) === normalizedLabel)
+    if (!movie) {
+      return
+    }
+
+    handledRouteEntityKeyRef.current = requestKey
+    setDetailTrail([{ type: "movie", item: movie }])
+  }, [actors, movies, routeState?.focusEntity])
+
   return (
     <div className="utilityPage">
-      <PageNavigationHeader backTo="/" backLabel="Back" />
+      <PageNavigationHeader backTo={routeState?.backTo ?? "/"} backLabel={routeState?.backLabel ?? "Back"} />
       <div className="utilityPanel utilityPanel--wide">
         <div className="pageEyebrow">Game Data</div>
         <h1>Browse the game catalog</h1>
