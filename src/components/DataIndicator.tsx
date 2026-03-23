@@ -79,7 +79,7 @@ function DataIndicator() {
 			{isOpen ? (
 				<div className="footerPopover footerPopover--compactData">
 					<div className="footerPopoverHeader">
-						<a href="/settings?tab=data-settings" className="footerPopoverHeaderLink" title="Open advanced data settings">
+						<a href="/settings?tab=data" className="footerPopoverHeaderLink" title="Open advanced data settings">
 							<h3>Data Controls</h3>
 							
 						</a>

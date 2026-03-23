@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type WheelEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import DataSettingsPanel from "../components/DataSettingsPanel";
+import DisplaySettingsPanel from "../components/DisplaySettingsPanel";
 import EntityDetailsDialog, {
   type EntityDetailsDialogData,
   type EntityDetailsHistoryEntry,
@@ -86,7 +88,7 @@ import { resolveWriteInOption } from "../utils/writeInOptions.ts";
 import type { Actor, EffectiveDataSource, GameDataFilters, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
 
-type RulesTabId = "how-to-play" | "gameplay-settings" | "saved-history";
+type RulesTabId = "how-to-play" | "display" | "data" | "gameplay" | "saved-history";
 
 const MOBILE_GAME_DIFFERENCE_NOTES = [
   "On iPhone-sized screens, the game board stays focused on play and hides the in-game info button.",
@@ -555,7 +557,7 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
-  const { settings, setDifficulty, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
+  const { settings, setDifficulty, setCustomSetting, setCompletionDarkMode, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
   const dataFilters = settings.dataFilters;
@@ -2577,7 +2579,7 @@ function GamePage() {
   }, [activeRulesTab, shouldShowMobileHistoryTab]);
 
   useEffect(() => {
-    if (isCompactPhoneViewport && activeRulesTab === "gameplay-settings") {
+    if (isCompactPhoneViewport && (activeRulesTab === "gameplay" || activeRulesTab === "data" || activeRulesTab === "display")) {
       setActiveRulesTab("how-to-play");
     }
   }, [activeRulesTab, isCompactPhoneViewport]);
@@ -2898,11 +2900,29 @@ function GamePage() {
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={activeRulesTab === "gameplay-settings"}
-                  className={`gameRulesTab${activeRulesTab === "gameplay-settings" ? " gameRulesTab--active" : ""}`}
-                  onClick={() => setActiveRulesTab("gameplay-settings")}
+                  aria-selected={activeRulesTab === "display"}
+                  className={`gameRulesTab${activeRulesTab === "display" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("display")}
                 >
-                  Gameplay settings
+                  Display
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "data"}
+                  className={`gameRulesTab${activeRulesTab === "data" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("data")}
+                >
+                  Data
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "gameplay"}
+                  className={`gameRulesTab${activeRulesTab === "gameplay" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("gameplay")}
+                >
+                  Gameplay
                 </button>
                 {shouldShowMobileHistoryTab ? (
                   <button
@@ -2946,9 +2966,32 @@ function GamePage() {
                   </>
                 ) : null}
 
-                {activeRulesTab === "gameplay-settings" ? (
+                {activeRulesTab === "display" ? (
                   <div className="gameRulesDifficultySection">
-                    <div className="gameRulesDifficultyTitle">Gameplay Settings</div>
+                    <div className="gameRulesDifficultyTitle">Display</div>
+                    <p className="gameRulesText">
+                      These appearance settings apply immediately while you are still in the current level.
+                    </p>
+                    <DisplaySettingsPanel
+                      completionDarkMode={settings.completionDarkMode}
+                      onCompletionDarkModeChange={setCompletionDarkMode}
+                    />
+                  </div>
+                ) : null}
+
+                {activeRulesTab === "data" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Data</div>
+                    <p className="gameRulesText">
+                      Change the current data source and refresh behavior without leaving the desktop game board.
+                    </p>
+                    <DataSettingsPanel showHeading={false} />
+                  </div>
+                ) : null}
+
+                {activeRulesTab === "gameplay" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Gameplay</div>
                     <GameplaySettingsSectionLayout
                       activeSection={activeRulesGameplaySection}
                       onSectionSelect={setActiveRulesGameplaySection}

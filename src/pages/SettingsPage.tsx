@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState, type WheelEvent } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { APP_VERSION } from "../appVersion"
 import DataSettingsPanel from "../components/DataSettingsPanel"
+import DisplaySettingsPanel from "../components/DisplaySettingsPanel"
 import GameplaySettingsSectionLayout from "../components/GameplaySettingsSectionLayout"
 import { GAMEPLAY_SETTINGS_SECTIONS, type GameplaySectionId } from "../components/gameplaySettingsSections"
 import { CUSTOM_SETTING_DEFINITIONS, useGameSettings } from "../context/gameSettings"
@@ -12,14 +13,31 @@ import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/
 import { isOfflineDemoMode } from "../data/dataSourcePreferences"
 import PageNavigationHeader from "../components/PageNavigationHeader"
 
-type SettingsTabId = "info" | "how-to-play" | "data-settings" | "gameplay-settings"
+type SettingsTabId = "info" | "how-to-play" | "display" | "data" | "gameplay"
 
 const SETTINGS_TABS: Array<{ id: SettingsTabId; label: string }> = [
   { id: "info", label: "Info" },
   { id: "how-to-play", label: "How to Play" },
-  { id: "data-settings", label: "Data Settings" },
-  { id: "gameplay-settings", label: "Gameplay Settings" },
+  { id: "display", label: "Display" },
+  { id: "data", label: "Data" },
+  { id: "gameplay", label: "Gameplay" },
 ]
+
+function normalizeSettingsTab(requestedTab: string | null): SettingsTabId | null {
+  if (requestedTab === "gameplay-settings") {
+    return "gameplay"
+  }
+
+  if (requestedTab === "data-settings") {
+    return "data"
+  }
+
+  if (requestedTab === "info" || requestedTab === "how-to-play" || requestedTab === "display" || requestedTab === "data" || requestedTab === "gameplay") {
+    return requestedTab
+  }
+
+  return null
+}
 
 const MOBILE_GAME_DIFFERENCE_NOTES = [
   "On iPhone-sized screens, the game page removes the in-game info button so the board has more room.",
@@ -38,9 +56,7 @@ function SettingsPage() {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const requestedTab = searchParams.get("tab")
   const requestedSection = searchParams.get("section")
-  const requestedTabId = requestedTab === "gameplay-settings" || requestedTab === "data-settings" || requestedTab === "how-to-play" || requestedTab === "info"
-    ? requestedTab
-    : null
+  const requestedTabId = normalizeSettingsTab(requestedTab)
   const requestedSectionId = useMemo(() => {
     const matchedSection = GAMEPLAY_SETTINGS_SECTIONS.find((section) => section.id === requestedSection)
     return matchedSection?.id ?? null
@@ -144,42 +160,29 @@ function SettingsPage() {
             </section>
           ) : null}
 
-          {activeTab === "data-settings" ? (
-            <section className="settingsSection settingsTabPanel" role="tabpanel" id="settings-panel-data-settings" aria-labelledby="settings-tab-data-settings">
-              <h2>Data Settings</h2>
+          {activeTab === "display" ? (
+            <section className="settingsSection settingsTabPanel" role="tabpanel" id="settings-panel-display" aria-labelledby="settings-tab-display">
+              <h2>Display</h2>
+              <p className="settingsHint settingsTabHint">Adjust interface appearance options that can also be changed mid-game from the desktop info menu.</p>
+              <DisplaySettingsPanel
+                completionDarkMode={settings.completionDarkMode}
+                onCompletionDarkModeChange={setCompletionDarkMode}
+              />
+            </section>
+          ) : null}
+
+          {activeTab === "data" ? (
+            <section className="settingsSection settingsTabPanel" role="tabpanel" id="settings-panel-data" aria-labelledby="settings-tab-data">
+              <h2>Data</h2>
               <p className="settingsHint settingsTabHint">Pick your data source mode and manage snapshot refresh controls.</p>
               <DataSettingsPanel showHeading={false} />
             </section>
           ) : null}
 
-          {activeTab === "gameplay-settings" ? (
-            <section className="settingsSection settingsTabPanel" role="tabpanel" id="settings-panel-gameplay-settings" aria-labelledby="settings-tab-gameplay-settings">
-              <h2>Gameplay Settings</h2>
+          {activeTab === "gameplay" ? (
+            <section className="settingsSection settingsTabPanel" role="tabpanel" id="settings-panel-gameplay" aria-labelledby="settings-tab-gameplay">
+              <h2>Gameplay</h2>
               <p className="settingsHint">Current helper preset: {difficultyLabel}{difficulty === "custom" ? ` • ${activeCustomLabel || "No helpers selected"}` : ""}.</p>
-              <div className="settingsToggleSection settingsToggleSection--carded">
-              <h3 className="settingsToggleSectionTitle">Appearance</h3>
-              <div className="settingsToggleGrid">
-                <article className="settingsToggleCard">
-                <div className="settingsToggleCardTop">
-                  <div className="settingsToggleCardLabelWrap">
-                  <strong>Dark mode for level-complete menus</strong>
-                  <span className="settingsHint">Off by default. This only changes the level-complete popup and pinned completion banner.</span>
-                  </div>
-                  <div className="settingsToggleControl">
-                  <span className={`settingsToggleState${settings.completionDarkMode ? " settingsToggleState--on" : ""}`}>{settings.completionDarkMode ? "On" : "Off"}</span>
-                  <button
-                    type="button"
-                    className={`settingsToggleSwitch${settings.completionDarkMode ? " settingsToggleSwitch--on" : ""}`}
-                    onClick={() => setCompletionDarkMode(!settings.completionDarkMode)}
-                    aria-pressed={settings.completionDarkMode}
-                  >
-                    <span className="settingsToggleThumb" aria-hidden="true" />
-                  </button>
-                  </div>
-                </div>
-                </article>
-              </div>
-              </div>
               {/* <p className="settingsWarning">Speed note: the settings most likely to slow gameplay are the cast-lock risk overlay, full ranked suggestion lists, and removing suggestion filters.</p> */}
 
               <GameplaySettingsSectionLayout

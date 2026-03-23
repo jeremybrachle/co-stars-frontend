@@ -265,7 +265,7 @@ function AdventurePage() {
 				<button
 					type="button"
 					className={styles.adventureSettingsButton}
-					onClick={() => navigate("/settings?tab=gameplay-settings", { state: { returnTo: "/adventure" } })}
+					onClick={() => navigate("/settings?tab=gameplay", { state: { returnTo: "/adventure" } })}
 				>
 					Open gameplay settings
 				</button>
