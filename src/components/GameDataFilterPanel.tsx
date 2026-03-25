@@ -69,8 +69,8 @@ export default function GameDataFilterPanel({
         <p className="settingsWarning">Performance warning: Removing the actor cutoff allows more candidates into each turn, which can increase render and analysis work.</p>
       ) : null}
 
-      <br></br>
-      <br></br>
+      <br />
+      <br />
 
       <div className="settingsDataFilterRow">
         <label className="settingsDataFilterField">

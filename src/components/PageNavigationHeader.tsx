@@ -12,7 +12,7 @@ function PageNavigationHeader({ backTo, backLabel = "Back", centerContent = null
   const [backLink, homeLink] = buildPageNavigationLinks(backTo, backLabel)
 
   return (
-    <div className="pageNavHeader" aria-label="Page navigation">
+    <nav className="pageNavHeader" aria-label="Page navigation">
       <div className="pageNavHeader__side pageNavHeader__side--left">
         <Link to={backLink.to} className="pageNavHeader__button pageNavHeader__button--back" aria-label={backLink.label}>
           <span aria-hidden="true">{backLink.icon}</span>
@@ -25,7 +25,7 @@ function PageNavigationHeader({ backTo, backLabel = "Back", centerContent = null
           <span aria-hidden="true" className="pageNavHeader__homeIcon">{homeLink.icon}</span>
         </Link>
       </div>
-    </div>
+    </nav>
   )
 }
 
