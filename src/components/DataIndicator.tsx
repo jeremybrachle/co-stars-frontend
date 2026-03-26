@@ -27,7 +27,7 @@ function DataIndicator() {
 	const [isOpen, setIsOpen] = useState(false);
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const { mode } = useDataSourceMode();
-	const { snapshot, isLoading, errorSource, errorMessage } = useSnapshotData();
+	const { snapshot, isLoading } = useSnapshotData();
 	const apiConnectionState = useSyncExternalStore(subscribeToApiConnectionState, getApiConnectionState, getApiConnectionState);
 	const isBrowserOnline = useBrowserOnlineStatus();
 	const isApiUnavailable = mode.connectionMode === "online"
