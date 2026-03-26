@@ -77,12 +77,13 @@ function WriteInAutosuggestField({
         autoFocus={autoFocus}
       />
       {canShowDropdown ? (
-        <div className="write-in-autosuggest__dropdown" role="listbox" aria-label={dropdownLabel}>
+        <div className="write-in-autosuggest__dropdown" role="menu" aria-label={dropdownLabel}>
           {visibleSuggestions.length > 0 ? (
             visibleSuggestions.map((suggestion) => (
               <button
                 key={`${suggestion.type}-${suggestion.id ?? suggestion.label}`}
                 type="button"
+                role="menuitem"
                 className="write-in-autosuggest__option"
                 onMouseDown={(event) => {
                   event.preventDefault();

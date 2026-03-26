@@ -50,7 +50,9 @@ function writeCollectionToStorage(collection: CompletedLevelsCollection) {
   }
 
   window.localStorage.setItem(LEVEL_COMPLETION_STORAGE_KEY, JSON.stringify(collection));
-  window.dispatchEvent(new Event(LEVEL_COMPLETION_UPDATED_EVENT));
+  if (typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new Event(LEVEL_COMPLETION_UPDATED_EVENT));
+  }
 }
 
 function estimateStringStorageBytes(value: string) {
@@ -101,7 +103,9 @@ export function clearCompletedLevelsStorage() {
   }
 
   window.localStorage.removeItem(LEVEL_COMPLETION_STORAGE_KEY);
-  window.dispatchEvent(new Event(LEVEL_COMPLETION_UPDATED_EVENT));
+  if (typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new Event(LEVEL_COMPLETION_UPDATED_EVENT));
+  }
 }
 
 export function subscribeToLevelCompletionUpdates(listener: () => void) {
