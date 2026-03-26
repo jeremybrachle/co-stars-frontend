@@ -7,7 +7,7 @@ import PageNavigationHeader from "../components/PageNavigationHeader";
 import { fetchActors, fetchLevels, generatePath } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
-import { isOfflineDemoMode, isOnlineApiMode, isOnlineSnapshotMode } from "../data/dataSourcePreferences";
+import { isOfflineDemoMode, isOnlineApiMode } from "../data/dataSourcePreferences";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
 import type { Actor, Level, SnapshotIndexes } from "../types";
@@ -82,10 +82,10 @@ function AdventurePage() {
 	const [levelHistoryCollection, setLevelHistoryCollection] = useState<LevelHistoryCollection>(() => readAllLevelHistory());
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const { mode, setMode } = useDataSourceMode();
-	const { snapshot, indexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData();
+	const { snapshot, indexes, isLoading: isSnapshotLoading } = useSnapshotData();
 	const isCompactPhoneViewport = useIsCompactPhoneViewport();
 	const levelsPerPage = isCompactPhoneViewport ? 2 : 3;
-	const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !indexes);
+	const isWaitingForFullData = !isOfflineDemoMode(mode) && !isOnlineApiMode(mode) && (!snapshot || !indexes) && isSnapshotLoading;
 	const routeState = (location.state as AdventurePageRouteState | null) ?? null;
 	const handledAutoStartLevelRef = useRef<number | null>(null);
 
@@ -269,7 +269,7 @@ function AdventurePage() {
 				>
 					Open gameplay settings
 				</button>
-				{isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
+				{isWaitingForFullData ? <FullDataWaitingMessage onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 				<div className={styles.levelsListWrapper}>
 					{isSnapshotLoading && !isWaitingForFullData ? <div className={styles.stateMessage}>Loading Adventure Mode data…</div> : null}
 					{loadError ? <div className={styles.errorMessage}>{loadError}</div> : null}

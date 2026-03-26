@@ -40,8 +40,6 @@ import {
   getConfiguredPrimarySource,
   isOfflineDemoMode,
   isOnlineApiMode,
-  isOnlineSnapshotMode,
-  shouldAutoSwitchToOfflineDemo,
 } from "../data/dataSourcePreferences";
 import {
   buildNextDetailTrail,
@@ -556,7 +554,7 @@ function GamePage() {
     isLoading: isSnapshotLoading,
     errorMessage: snapshotError,
   } = useSnapshotData();
-  const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
+  const { mode } = useDataSourceMode();
   const { settings, setDifficulty, setCustomSetting, setCompletionDarkMode, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
@@ -1031,7 +1029,7 @@ function GamePage() {
       setSetupError(NETWORK_UNAVAILABLE_MESSAGE);
     };
 
-  const applyDemoSetup = async (shouldPersistDemoMode: boolean) => {
+	const applyDemoSetup = async () => {
     const demoSetup = await buildLocalSetup("demo");
     if (!demoSetup || !isMounted) {
       applyPlaceholderState();
@@ -1057,11 +1055,6 @@ function GamePage() {
     setResolvedDataSource("demo");
     setSetupError(null);
     setIsNetworkUnavailable(false);
-
-    if (shouldPersistDemoMode && shouldAutoSwitchToOfflineDemo(mode)) {
-      setConnectionMode("offline");
-      setOfflineSource("demo");
-    }
   };
 
     const loadGameSetup = async () => {
@@ -1084,12 +1077,12 @@ function GamePage() {
       setIsNetworkUnavailable(false);
 
       try {
-      if (isOnlineSnapshotMode(mode) && !snapshot && isSnapshotLoading) {
+      if (!isOfflineDemoMode(mode) && !isOnlineApiMode(mode) && !snapshot && isSnapshotLoading) {
         return;
       }
 
       if (isOfflineDemoMode(mode)) {
-        await applyDemoSetup(false);
+        await applyDemoSetup();
         return;
       }
 
@@ -1145,7 +1138,7 @@ function GamePage() {
               return;
             }
 
-				await applyDemoSetup(false);
+        await applyDemoSetup();
 				return;
           }
         }
@@ -1176,10 +1169,10 @@ function GamePage() {
           return;
         }
 
-        await applyDemoSetup(isOnlineSnapshotMode(mode));
+  			await applyDemoSetup();
       } catch {
         if (isMounted) {
-			await applyDemoSetup(isOnlineSnapshotMode(mode));
+  			await applyDemoSetup();
         }
       } finally {
         if (isMounted) {
@@ -1193,7 +1186,7 @@ function GamePage() {
     return () => {
       isMounted = false;
     };
-  }, [isSnapshotLoading, mode, resolveSnapshotResources, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, setConnectionMode, setOfflineSource, snapshot]);
+  }, [isSnapshotLoading, mode, resolveSnapshotResources, routeState?.actorA, routeState?.actorB, routeState?.movieA, routeState?.movieB, routeState?.optimalHops, routeState?.optimalPath, routeState?.startA, routeState?.startB, snapshot]);
 
   const totalSelections = topPath.length + bottomPath.length;
   const hasPlacedSelections = totalSelections > 0;

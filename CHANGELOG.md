@@ -10,6 +10,15 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.9] - 2026-03-26
+
+Data Load Default
+
+### Changed
+
+- Data will now default to loading the current snapshot locally without any external data lookup to s3 or an API
+- API connection will display a flashing symbol until successful connection. NOTE: you might be able to implement a better refresh logic since you had to do the whole "turn it off and on again" manually until it updated
+
 ## [2.0.8] - 2026-03-19
 
 Scoring and mobile layout resizing

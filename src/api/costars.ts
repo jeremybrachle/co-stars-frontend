@@ -15,6 +15,68 @@ import { sortMoviesByReleaseDateDescending } from "../data/entityDetails";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
+export type ApiConnectionStatus = "idle" | "attempting" | "available" | "unavailable";
+
+export type ApiConnectionState = {
+	status: ApiConnectionStatus;
+	lastError: string | null;
+	lastAttemptAt: string | null;
+};
+
+let apiConnectionState: ApiConnectionState = {
+	status: "idle",
+	lastError: null,
+	lastAttemptAt: null,
+};
+
+const apiConnectionListeners = new Set<() => void>();
+
+function emitApiConnectionState() {
+	for (const listener of apiConnectionListeners) {
+		listener();
+	}
+}
+
+function setApiConnectionState(nextState: ApiConnectionState) {
+	apiConnectionState = nextState;
+	emitApiConnectionState();
+}
+
+function markApiAttemptStarted() {
+	setApiConnectionState({
+		status: "attempting",
+		lastError: null,
+		lastAttemptAt: new Date().toISOString(),
+	});
+}
+
+function markApiAttemptSucceeded() {
+	setApiConnectionState({
+		status: "available",
+		lastError: null,
+		lastAttemptAt: new Date().toISOString(),
+	});
+}
+
+function markApiAttemptFailed(message: string) {
+	setApiConnectionState({
+		status: "unavailable",
+		lastError: message,
+		lastAttemptAt: new Date().toISOString(),
+	});
+}
+
+export function getApiConnectionState() {
+	return apiConnectionState;
+}
+
+export function subscribeToApiConnectionState(listener: () => void) {
+	apiConnectionListeners.add(listener);
+	return () => {
+		apiConnectionListeners.delete(listener);
+	};
+}
+
 type ApiNodeSummary = {
 	id: number;
 	type: NodeType;
@@ -70,16 +132,23 @@ type ApiGeneratedPath = {
 
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 	let response: Response;
+	markApiAttemptStarted();
 
 	try {
 		response = await fetch(`${API_BASE_URL}${path}`, init);
 	} catch {
-		throw new Error(`Network connection couldn't be established for ${path}`);
+		const message = `Network connection couldn't be established for ${path}`;
+		markApiAttemptFailed(message);
+		throw new Error(message);
 	}
 
 	if (!response.ok) {
-		throw new Error(`API request failed (${response.status}) for ${path}`);
+		const message = `API request failed (${response.status}) for ${path}`;
+		markApiAttemptFailed(message);
+		throw new Error(message);
 	}
+
+	markApiAttemptSucceeded();
 
 	return response.json() as Promise<T>;
 }

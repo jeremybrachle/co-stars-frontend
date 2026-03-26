@@ -18,7 +18,7 @@ import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
 import { formatActorInlineMeta, formatMovieInlineMeta, formatYear, getMovieBadges } from "../data/presentation"
 import { resolveCatalogSource } from "../data/catalogSource"
-import { isOnlineSnapshotMode } from "../data/dataSourcePreferences"
+import { isOfflineDemoMode, isOnlineApiMode } from "../data/dataSourcePreferences"
 import { buildNextDetailTrail, compareNullableDateDescending } from "../data/entityDetails"
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph"
 import type { Actor, EffectiveDataSource, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types"
@@ -184,8 +184,8 @@ function FindPathPage() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
   const { mode, setMode } = useDataSourceMode()
-  const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData()
-  const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !snapshotIndexes)
+  const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading } = useSnapshotData()
+  const isWaitingForFullData = !isOfflineDemoMode(mode) && !isOnlineApiMode(mode) && (!snapshot || !snapshotIndexes) && isSnapshotLoading
   const [actors, setActors] = useState<Actor[]>([])
   const [movies, setMovies] = useState<Movie[]>([])
   const [activeSource, setActiveSource] = useState<EffectiveDataSource>("demo")
@@ -514,7 +514,7 @@ function FindPathPage() {
         <h1>Let the system solve it</h1>
         <p className="pageLead">Choose any two actors or movies from the currently available game data and Co-Stars will generate the shortest path it can find between them.</p>
 
-        {isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
+        {isWaitingForFullData ? <FullDataWaitingMessage onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 
         {isLoading ? <div className="pageStatus">Loading actor and movie data…</div> : null}
         {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}

@@ -4,7 +4,7 @@ import type { DataSourceMode } from "../types";
 export const DATA_SOURCE_MODE_KEY = "co-stars-data-source-mode";
 
 export const DEFAULT_DATA_SOURCE_MODE: DataSourceMode = {
-	connectionMode: "online",
+	connectionMode: "offline",
 	onlineSource: "snapshot",
 	offlineSource: "snapshot",
 };
@@ -33,7 +33,7 @@ function isDataSourceMode(value: unknown): value is DataSourceMode {
 function migrateLegacyMode(stored: string | null): DataSourceMode | null {
 	if (stored === "snapshot") {
 		return {
-			connectionMode: "online",
+			connectionMode: "offline",
 			onlineSource: "snapshot",
 			offlineSource: "snapshot",
 		};

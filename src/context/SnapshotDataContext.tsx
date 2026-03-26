@@ -1,280 +1,183 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { clearCachedSnapshot, fetchSnapshotFromApi, fetchSnapshotFromS3, getCachedSnapshotBundle, getRecommendedRefreshMs } from "../data/frontendSnapshot";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+	checkForS3SnapshotUpdate,
+	clearCachedSnapshot,
+	createIdleSnapshotUpdateCheck,
+	fetchInstalledSnapshot,
+	fetchSnapshotFromApi,
+	fetchSnapshotFromS3,
+	getCachedSnapshotBundle,
+} from "../data/frontendSnapshot";
 import { SnapshotDataContext } from "./snapshotData";
 import type { SnapshotDataContextValue } from "./snapshotData";
 import { useDataSourceMode } from "./dataSourceMode";
-import { isOnlineApiMode, isOnlineSnapshotMode } from "../data/dataSourcePreferences";
-import {
-	getNextSnapshotRetryDelayMs,
-	getSnapshotWaitRemainingMs,
-	hasRequiredSnapshotData,
-	isNetworkUnavailableMessage,
-	SNAPSHOT_RETRY_MIN_DELAY_MS,
-	SNAPSHOT_WAIT_TIMEOUT_MS,
-} from "./snapshotRefreshPolicy";
-import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotIndexes } from "../types";
+import type { SnapshotBundle, SnapshotUpdateCheck, StoredSnapshotSource } from "../types";
 
 export function SnapshotDataProvider({ children }: { children: React.ReactNode }) {
-	const { mode, setMode } = useDataSourceMode();
-	const cachedBundle = useMemo(() => getCachedSnapshotBundle(), []);
-	const [snapshot, setSnapshot] = useState<FrontendSnapshot | null>(cachedBundle?.snapshot ?? null);
-	const [manifest, setManifest] = useState<FrontendManifest | null>(cachedBundle?.manifest ?? null);
-	const [indexes, setIndexes] = useState<SnapshotIndexes | null>(cachedBundle?.indexes ?? null);
-	const [health, setHealth] = useState<HealthCheckResponse | null>(cachedBundle?.health ?? null);
-	const [loadedFrom, setLoadedFrom] = useState<SnapshotDataContextValue["loadedFrom"]>(cachedBundle?.loadedFrom ?? null);
-	const [isLoading, setIsLoading] = useState(false);
+	const { mode } = useDataSourceMode();
+	const [installedBundle, setInstalledBundle] = useState<SnapshotBundle | null>(null);
+	const [s3Bundle, setS3Bundle] = useState<SnapshotBundle | null>(() => getCachedSnapshotBundle("s3"));
+	const [apiBundle, setApiBundle] = useState<SnapshotBundle | null>(() => getCachedSnapshotBundle("api"));
+	const [isInstalledLoading, setIsInstalledLoading] = useState(true);
+	const [loadingSource, setLoadingSource] = useState<StoredSnapshotSource | null>(null);
+	const [isCheckingForS3Update, setIsCheckingForS3Update] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [errorSource, setErrorSource] = useState<SnapshotDataContextValue["errorSource"]>(null);
-	const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(snapshot?.meta.exportedAt ?? null);
-	const [isBrowserOnline, setIsBrowserOnline] = useState(() => typeof window === "undefined" ? true : window.navigator.onLine);
-	const [isAwaitingRequiredData, setIsAwaitingRequiredData] = useState(() => !cachedBundle?.snapshot || !cachedBundle?.indexes);
-	const [waitStartedAt, setWaitStartedAt] = useState<number | null>(() => !cachedBundle?.snapshot || !cachedBundle?.indexes ? Date.now() : null);
-	const [waitTimeoutRemainingMs, setWaitTimeoutRemainingMs] = useState<number | null>(() => !cachedBundle?.snapshot || !cachedBundle?.indexes ? SNAPSHOT_WAIT_TIMEOUT_MS : null);
-	const pollingTimerRef = useRef<number | null>(null);
-	const retryDelayRef = useRef(SNAPSHOT_RETRY_MIN_DELAY_MS);
+	const [s3UpdateCheck, setS3UpdateCheck] = useState<SnapshotUpdateCheck>(createIdleSnapshotUpdateCheck());
 
-	const applySnapshotBundle = useCallback((bundle: NonNullable<Awaited<ReturnType<typeof fetchSnapshotFromApi>>>) => {
-		setSnapshot(bundle.snapshot);
-		setManifest(bundle.manifest);
-		setIndexes(bundle.indexes);
-		setHealth(bundle.health ?? null);
-		setLoadedFrom(bundle.loadedFrom);
-		setLastRefreshAt(bundle.snapshot.meta.exportedAt);
-		return bundle;
-	}, []);
+	const activeBundle = useMemo(() => {
+		if (mode.connectionMode === "offline") {
+			return mode.offlineSource === "snapshot" ? installedBundle : null;
+		}
+
+		if (mode.onlineSource === "snapshot") {
+			return s3Bundle ?? installedBundle;
+		}
+
+		return apiBundle ?? installedBundle;
+	}, [apiBundle, installedBundle, mode, s3Bundle]);
+
+	const lastRefreshAt = activeBundle?.snapshot.meta.exportedAt ?? null;
 
 	const loadSnapshot = useCallback(async (
-		loader: () => Promise<NonNullable<Awaited<ReturnType<typeof fetchSnapshotFromApi>>>>,
+		loader: () => Promise<SnapshotBundle>,
+		storageSource: StoredSnapshotSource,
 		fallbackMessage: string,
-		source: NonNullable<SnapshotDataContextValue["errorSource"]>,
-		suppressNetworkErrors = false,
+		errorSourceValue: NonNullable<SnapshotDataContextValue["errorSource"]>,
 	) => {
-		setIsLoading(true);
+		setLoadingSource(storageSource);
 		setErrorMessage(null);
 		setErrorSource(null);
 
 		try {
-			return applySnapshotBundle(await loader());
+			const bundle = await loader();
+			if (storageSource === "s3") {
+				setS3Bundle(bundle);
+				setS3UpdateCheck({
+					status: "up-to-date",
+					message: `Hosted S3 snapshot ${bundle.manifest.version} downloaded and active for online snapshot mode.`,
+					checkedAt: new Date().toISOString(),
+					remoteManifest: bundle.manifest,
+				});
+			} else {
+				setApiBundle(bundle);
+			}
+
+			return bundle;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : fallbackMessage;
-			if (!suppressNetworkErrors || !isNetworkUnavailableMessage(message)) {
-				setErrorMessage(message);
-				setErrorSource(source);
-			}
+			setErrorMessage(message);
+			setErrorSource(errorSourceValue);
 			return null;
 		} finally {
-			setIsLoading(false);
+			setLoadingSource(null);
 		}
-	}, [applySnapshotBundle]);
+	}, []);
 
 	const loadSnapshotFromApi = useCallback(async () => {
-		return loadSnapshot(fetchSnapshotFromApi, "Failed to fetch the snapshot from the API.", "api");
+		return loadSnapshot(fetchSnapshotFromApi, "api", "Failed to fetch the snapshot from the API.", "api");
 	}, [loadSnapshot]);
 
 	const loadSnapshotFromS3 = useCallback(async () => {
-		return loadSnapshot(fetchSnapshotFromS3, "Failed to fetch the snapshot from S3.", "s3", true);
+		return loadSnapshot(fetchSnapshotFromS3, "s3", "Failed to fetch the snapshot from S3.", "s3");
 	}, [loadSnapshot]);
 
-	const clearPollingTimer = useCallback(() => {
-		if (pollingTimerRef.current !== null) {
-			window.clearTimeout(pollingTimerRef.current);
-			pollingTimerRef.current = null;
-		}
-	}, []);
-
-	const schedulePollingAttempt = useCallback((callback: () => void, delayMs: number) => {
-		clearPollingTimer();
-		pollingTimerRef.current = window.setTimeout(callback, delayMs);
-	}, [clearPollingTimer]);
-
-	const clearSnapshotCacheState = useCallback(() => {
-		clearCachedSnapshot();
-		setSnapshot(null);
-		setManifest(null);
-		setIndexes(null);
-		setHealth(null);
-		setLoadedFrom(null);
-		setLastRefreshAt(null);
+	const runS3UpdateCheck = useCallback(async () => {
+		setIsCheckingForS3Update(true);
 		setErrorMessage(null);
 		setErrorSource(null);
-		setWaitStartedAt(Date.now());
-		setWaitTimeoutRemainingMs(SNAPSHOT_WAIT_TIMEOUT_MS);
-		setIsAwaitingRequiredData(true);
+		setS3UpdateCheck((currentCheck) => ({
+			...currentCheck,
+			status: "checking",
+			message: "Checking hosted S3 for a newer snapshot version.",
+		}));
+
+		try {
+			const currentVersion = (s3Bundle ?? installedBundle)?.manifest.version ?? null;
+			const nextCheck = await checkForS3SnapshotUpdate(currentVersion);
+			setS3UpdateCheck(nextCheck);
+			return nextCheck;
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Failed to check hosted S3 for updates.";
+			const failedCheck: SnapshotUpdateCheck = {
+				status: "error",
+				message,
+				checkedAt: new Date().toISOString(),
+				remoteManifest: null,
+			};
+			setS3UpdateCheck(failedCheck);
+			setErrorMessage(message);
+			setErrorSource("s3");
+			return failedCheck;
+		} finally {
+			setIsCheckingForS3Update(false);
+		}
+	}, [installedBundle, s3Bundle]);
+
+	const clearSnapshotCacheState = useCallback((source: StoredSnapshotSource) => {
+		clearCachedSnapshot(source);
+		if (source === "s3") {
+			setS3Bundle(null);
+			setS3UpdateCheck(createIdleSnapshotUpdateCheck());
+		} else {
+			setApiBundle(null);
+		}
+
+		setErrorMessage(null);
+		setErrorSource(null);
 	}, []);
 
 	useEffect(() => {
-		if (typeof window === "undefined") {
-			return undefined;
-		}
-
-		const handleOnlineStateChange = () => {
-			setIsBrowserOnline(window.navigator.onLine);
-		};
-
-		window.addEventListener("online", handleOnlineStateChange);
-		window.addEventListener("offline", handleOnlineStateChange);
-
-		return () => {
-			window.removeEventListener("online", handleOnlineStateChange);
-			window.removeEventListener("offline", handleOnlineStateChange);
-		};
-	}, []);
-
-	useEffect(() => {
-		if (!isOnlineApiMode(mode) || !isBrowserOnline) {
-			return undefined;
-		}
-
-		void loadSnapshotFromApi();
-		return undefined;
-	}, [isBrowserOnline, loadSnapshotFromApi, mode]);
-
-	useEffect(() => {
-		if (!isOnlineSnapshotMode(mode)) {
-			setIsAwaitingRequiredData(false);
-			setWaitStartedAt(null);
-			setWaitTimeoutRemainingMs(null);
-			retryDelayRef.current = SNAPSHOT_RETRY_MIN_DELAY_MS;
-			clearPollingTimer();
-			return undefined;
-		}
-
-		const hasSnapshotData = hasRequiredSnapshotData(!!snapshot, !!indexes);
-		if (hasSnapshotData) {
-			setIsAwaitingRequiredData(false);
-			setWaitStartedAt(null);
-			setWaitTimeoutRemainingMs(null);
-			retryDelayRef.current = SNAPSHOT_RETRY_MIN_DELAY_MS;
-			clearPollingTimer();
-			return undefined;
-		}
-
-		const startedAt = waitStartedAt ?? Date.now();
-		if (waitStartedAt === null) {
-			setWaitStartedAt(startedAt);
-		}
-
-		const remainingBeforePolling = getSnapshotWaitRemainingMs(startedAt);
-		setIsAwaitingRequiredData(remainingBeforePolling > 0);
-		setWaitTimeoutRemainingMs(remainingBeforePolling);
-
-		if (remainingBeforePolling <= 0) {
-			clearPollingTimer();
-			return undefined;
-		}
-
-		if (!isBrowserOnline) {
-			clearPollingTimer();
-			return undefined;
-		}
-
 		let isCancelled = false;
+		setIsInstalledLoading(true);
+		setErrorMessage(null);
+		setErrorSource(null);
 
-		const runS3Check = async () => {
-			if (isCancelled) {
-				return;
-			}
-
-			const remaining = getSnapshotWaitRemainingMs(startedAt);
-			setWaitTimeoutRemainingMs(remaining);
-			if (remaining <= 0) {
-				setIsAwaitingRequiredData(false);
-				clearPollingTimer();
-				return;
-			}
-
-			const bundle = await loadSnapshotFromS3();
-
-			if (isCancelled) {
-				return;
-			}
-
-			if (bundle) {
-				retryDelayRef.current = SNAPSHOT_RETRY_MIN_DELAY_MS;
-				setIsAwaitingRequiredData(false);
-				setWaitStartedAt(null);
-				setWaitTimeoutRemainingMs(null);
-				clearPollingTimer();
-				return;
-			}
-
-			retryDelayRef.current = getNextSnapshotRetryDelayMs(retryDelayRef.current);
-			const remainingAfterAttempt = getSnapshotWaitRemainingMs(startedAt);
-			if (remainingAfterAttempt <= 0) {
-				setIsAwaitingRequiredData(false);
-				setWaitTimeoutRemainingMs(0);
-				clearPollingTimer();
-				return;
-			}
-
-			schedulePollingAttempt(runS3Check, Math.min(retryDelayRef.current, remainingAfterAttempt));
-		};
-
-		void runS3Check();
+		void fetchInstalledSnapshot()
+			.then((bundle) => {
+				if (!isCancelled) {
+					setInstalledBundle(bundle);
+				}
+			})
+			.catch((error) => {
+				if (!isCancelled) {
+					setInstalledBundle(null);
+					setErrorMessage(error instanceof Error ? error.message : "Failed to load the installed snapshot.");
+					setErrorSource("installed");
+				}
+			})
+			.finally(() => {
+				if (!isCancelled) {
+					setIsInstalledLoading(false);
+				}
+			});
 
 		return () => {
 			isCancelled = true;
-			clearPollingTimer();
 		};
-	}, [clearPollingTimer, indexes, isBrowserOnline, loadSnapshotFromS3, mode, schedulePollingAttempt, snapshot, waitStartedAt]);
+	}, []);
 
-	useEffect(() => {
-		if (!isOnlineSnapshotMode(mode) || !waitStartedAt || hasRequiredSnapshotData(!!snapshot, !!indexes)) {
-			setWaitTimeoutRemainingMs((currentValue) => currentValue === null ? currentValue : null);
-			return undefined;
-		}
-
-		const tick = () => {
-			setWaitTimeoutRemainingMs(getSnapshotWaitRemainingMs(waitStartedAt));
-		};
-
-		tick();
-		const intervalId = window.setInterval(tick, 1000);
-		return () => {
-			window.clearInterval(intervalId);
-		};
-	}, [indexes, mode, snapshot, waitStartedAt]);
-
-	useEffect(() => {
-		if (!isOnlineSnapshotMode(mode)) {
-			return;
-		}
-
-		if (hasRequiredSnapshotData(!!snapshot, !!indexes)) {
-			return;
-		}
-
-		if (waitTimeoutRemainingMs === null || waitTimeoutRemainingMs > 0) {
-			return;
-		}
-
-		setMode({
-			...mode,
-			connectionMode: "offline",
-			offlineSource: "demo",
-		});
-		setErrorMessage(null);
-		setErrorSource(null);
-	}, [indexes, mode, setMode, snapshot, waitTimeoutRemainingMs]);
-
-	const isLoadingForContext = isLoading || isAwaitingRequiredData;
+	const isLoadingForContext = isInstalledLoading || loadingSource !== null || isCheckingForS3Update;
 
 	return (
 		<SnapshotDataContext.Provider
 			value={{
-				snapshot,
-				manifest,
-				indexes,
-				health,
+				snapshot: activeBundle?.snapshot ?? null,
+				manifest: activeBundle?.manifest ?? null,
+				indexes: activeBundle?.indexes ?? null,
 				isLoading: isLoadingForContext,
+				isCheckingForS3Update,
 				errorMessage,
 				errorSource,
-				loadedFrom,
+				loadedFrom: activeBundle?.loadedFrom ?? null,
 				lastRefreshAt,
-				waitTimeoutRemainingMs,
-				recommendedRefreshMs: getRecommendedRefreshMs(manifest),
+				installedBundle,
+				s3Bundle,
+				apiBundle,
+				s3UpdateCheck,
 				fetchSnapshotFromApi: loadSnapshotFromApi,
 				fetchSnapshotFromS3: loadSnapshotFromS3,
+				checkForS3SnapshotUpdate: runS3UpdateCheck,
 				clearSnapshotCache: clearSnapshotCacheState,
 			}}
 		>

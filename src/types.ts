@@ -151,7 +151,16 @@ export type SnapshotBundle = {
 	snapshot: FrontendSnapshot;
 	indexes: SnapshotIndexes;
 	health?: HealthCheckResponse;
-	loadedFrom: "cache" | "api-snapshot" | "s3-snapshot" | "demo";
+	loadedFrom: "installed-snapshot" | "api-snapshot" | "s3-snapshot" | "demo";
+};
+
+export type StoredSnapshotSource = "s3" | "api";
+
+export type SnapshotUpdateCheck = {
+	status: "idle" | "checking" | "up-to-date" | "update-available" | "error";
+	message: string | null;
+	checkedAt: string | null;
+	remoteManifest: FrontendManifest | null;
 };
 
 export type ConnectionMode = "online" | "offline";
@@ -216,5 +225,6 @@ export type GameDifficultySettings = {
 export type DataIndicatorVariant =
 	| "online-snapshot"
 	| "online-api"
+	| "online-api-unavailable"
 	| "offline-snapshot"
 	| "offline-demo";
