@@ -210,6 +210,14 @@ function writeCachedSnapshotBundle(manifest: FrontendManifest, snapshot: Fronten
 	localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
 }
 
+function estimateStringStorageBytes(value: string) {
+	if (typeof TextEncoder !== "undefined") {
+		return new TextEncoder().encode(value).length;
+	}
+
+	return value.length * 2;
+}
+
 export function getCachedSnapshotBundle() {
 	return readCachedSnapshotBundle();
 }
@@ -254,6 +262,19 @@ export function getSnapshotStorageKeys() {
 	return {
 		manifest: MANIFEST_KEY,
 		snapshot: SNAPSHOT_KEY,
+	};
+}
+
+export function getCachedSnapshotStorageStats() {
+	const manifestRaw = localStorage.getItem(MANIFEST_KEY);
+	const snapshotRaw = localStorage.getItem(SNAPSHOT_KEY);
+	const manifestBytes = manifestRaw ? estimateStringStorageBytes(manifestRaw) : 0;
+	const snapshotBytes = snapshotRaw ? estimateStringStorageBytes(snapshotRaw) : 0;
+
+	return {
+		manifestBytes,
+		snapshotBytes,
+		totalBytes: manifestBytes + snapshotBytes,
 	};
 }
 

@@ -8,11 +8,40 @@ import type {
 	SuggestionDisplaySettings,
 } from "../types";
 
+export const ALL_ON_CUSTOM_SETTINGS: DifficultySettings = {
+	"show-suggestions": true,
+	"start-with-suggestion-panel": true,
+	"show-hint-color": true,
+	"write-in-autosuggest": true,
+	"show-optimal-tracking": true,
+	"guarantee-best-path-suggestion": true,
+	"show-visited-suggestions": true,
+	"shuffle-adds-penalty": true,
+	"rewind-adds-penalty": true,
+	"cycle-risk-click-adds-penalty": true,
+	"show-cast-lock-risk": true,
+};
+
+export const ALL_OFF_CUSTOM_SETTINGS: DifficultySettings = {
+	"show-suggestions": false,
+	"start-with-suggestion-panel": true,
+	"show-hint-color": false,
+	"write-in-autosuggest": false,
+	"show-optimal-tracking": false,
+	"guarantee-best-path-suggestion": false,
+	"show-visited-suggestions": false,
+	"shuffle-adds-penalty": false,
+	"rewind-adds-penalty": false,
+	"cycle-risk-click-adds-penalty": false,
+	"show-cast-lock-risk": false,
+};
+
 export type CustomSettingDefinition = {
 	id: DifficultyToggleId;
 	label: string;
 	hint: string;
-	section?: "helpers" | "risk-overlays" | "suggestion-list" | "penalties";
+	performanceWarning?: string;
+	section?: "helpers" | "suggestion-list" | "penalties";
 	requires?: DifficultyToggleId;
 };
 
@@ -20,34 +49,55 @@ export const CUSTOM_SETTING_DEFINITIONS: CustomSettingDefinition[] = [
 	{
 		id: "show-optimal-tracking",
 		label: "Track optimal path",
-		hint: "Keep hop comparison and shortest-path guidance visible during the run.",
+		hint: "Keep intermediate-count comparison and shortest-path guidance visible during the run.",
 	},
 	{
 		id: "show-suggestions",
 		label: "Display suggestions",
-		hint: "Keep the right-panel suggestion cards visible during play.",
+		hint: "Keep the right-panel suggestion cards visible during play. A flat score penalty applies if this is still enabled when the run ends.",
+	},
+	{
+		id: "start-with-suggestion-panel",
+		label: "Start with suggestion panel visible",
+		hint: "Choose whether new games open with the suggestion panel already shown. You can still hide or show it from the left panel at any time.",
+		section: "helpers",
 	},
 	{
 		id: "show-hint-color",
 		label: "Show hint colors",
 		hint: "Keep connection, best-path, and cycle-risk highlight colors enabled.",
+		performanceWarning: "Hint colors are cheap by themselves, but they also enable the expensive cast-lock analysis when the cast-lock overlay is on.",
+		requires: "show-suggestions",
 	},
 	{
-		id: "guarantee-best-path-suggestion",
-		label: "Always include best-path card",
-		hint: "Guarantee at least one shortest-path suggestion when a reachable option exists.",
+		id: "write-in-autosuggest",
+		label: "Autosuggest while typing",
+		hint: "Show live type-ahead matches in the write-in field. Submit matching still stays fuzzy even when this is off.",
+		section: "helpers",
 	},
 	{
 		id: "show-visited-suggestions",
-		label: "Show visited suggestions",
-		hint: "Keep already-visited nodes visible in suggestion lists for awareness.",
+		label: "Show visited cards",
+		hint: "Keep already-used nodes visible in the list.",
 		section: "suggestion-list",
 	},
 	{
-		id: "sort-suggestions-by-risk-priority",
-		label: "Sort suggestions by risk priority",
-		hint: "Order cards as best-path, reachable neutral, risk overlays, then red dead-end cards.",
+		id: "guarantee-best-path-suggestion",
+		label: "Always show best-path card",
+		hint: "Pin one shortest-path option when one exists.",
 		section: "suggestion-list",
+	},
+	{
+		id: "shuffle-adds-penalty",
+		label: "Shuffle adds score penalty",
+		hint: "Apply the shuffle or non-shuffled-game score penalty at the end of the run.",
+		section: "penalties",
+	},
+	{
+		id: "rewind-adds-penalty",
+		label: "Rewind adds score penalty",
+		hint: "Apply rewind penalties to the final score calculation.",
+		section: "penalties",
 	},
 	{
 		id: "cycle-risk-click-adds-penalty",
@@ -57,32 +107,16 @@ export const CUSTOM_SETTING_DEFINITIONS: CustomSettingDefinition[] = [
 	},
 	{
 		id: "show-cast-lock-risk",
-		label: "Show cast lock risk",
-		hint: "Highlight movies where cast members only branch to already-used movie nodes.",
-		section: "risk-overlays",
-	},
-	{
-		id: "show-full-cast-lock",
-		label: "Show full cast lock",
-		hint: "Highlight hard lock movies where every cast member points only back to that same movie.",
-		section: "risk-overlays",
-		requires: "show-cast-lock-risk",
+		label: "Show path risk overlay",
+		hint: "Mark movies that only lead back into used routes.",
+		performanceWarning: "This adds extra per-suggestion path analysis and is one of the biggest gameplay-time performance costs.",
+		section: "suggestion-list",
 	},
 ];
 
 export const GAME_SETTINGS_KEY = "co-stars-game-settings";
 
-export const DEFAULT_CUSTOM_SETTINGS: DifficultySettings = {
-	"show-suggestions": true,
-	"show-hint-color": true,
-	"show-optimal-tracking": true,
-	"guarantee-best-path-suggestion": false,
-	"show-visited-suggestions": true,
-	"sort-suggestions-by-risk-priority": false,
-	"cycle-risk-click-adds-penalty": false,
-	"show-cast-lock-risk": true,
-	"show-full-cast-lock": true,
-};
+export const DEFAULT_CUSTOM_SETTINGS: DifficultySettings = { ...ALL_ON_CUSTOM_SETTINGS };
 
 export const DEFAULT_DATA_FILTERS: GameDataFilters = {
 	actorPopularityCutoff: 1.8,
@@ -92,22 +126,26 @@ export const DEFAULT_DATA_FILTERS: GameDataFilters = {
 };
 
 export const DEFAULT_SUGGESTION_DISPLAY: SuggestionDisplaySettings = {
-	viewMode: "subset",
-	subsetCount: 8,
-	allWindowMode: "pagination",
+	viewMode: "all",
+	subsetCount: 10,
+	allWindowMode: "scroll",
+	orderMode: "ranked",
+	sortMode: "default",
 };
 
 export const DEFAULT_GAME_SETTINGS: GameDifficultySettings = {
-	difficulty: "custom",
+	difficulty: "all-on",
 	customSettings: { ...DEFAULT_CUSTOM_SETTINGS },
 	dataFilters: { ...DEFAULT_DATA_FILTERS },
 	suggestionDisplay: { ...DEFAULT_SUGGESTION_DISPLAY },
+	completionDarkMode: false,
 };
 
 export type GameSettingsContextValue = {
 	settings: GameDifficultySettings;
 	setDifficulty: (difficulty: DifficultyOption) => void;
 	setCustomSetting: (settingId: keyof DifficultySettings, enabled: boolean) => void;
+	setCompletionDarkMode: (enabled: boolean) => void;
 	setActorPopularityCutoff: (cutoff: number | null) => void;
 	setReleaseYearCutoff: (year: number | null) => void;
 	setMovieSortMode: (mode: GameDataFilters["movieSortMode"]) => void;
@@ -115,12 +153,30 @@ export type GameSettingsContextValue = {
 	setSuggestionViewMode: (mode: SuggestionDisplaySettings["viewMode"]) => void;
 	setSubsetCount: (count: number) => void;
 	setAllWindowMode: (mode: SuggestionDisplaySettings["allWindowMode"]) => void;
+	setSuggestionOrderMode: (mode: SuggestionDisplaySettings["orderMode"]) => void;
+	setSuggestionSortMode: (mode: SuggestionDisplaySettings["sortMode"]) => void;
 };
 
 export const GameSettingsContext = createContext<GameSettingsContextValue | null>(null);
 
 function isDifficultyOption(value: unknown): value is DifficultyOption {
-	return value === "easy" || value === "medium" || value === "hard" || value === "custom";
+	return value === "all-on" || value === "all-off" || value === "custom";
+}
+
+function mapLegacyDifficultyOption(value: unknown): DifficultyOption | null {
+	if (value === "hard") {
+		return "all-on";
+	}
+
+	if (value === "easy") {
+		return "all-off";
+	}
+
+	if (value === "medium") {
+		return "custom";
+	}
+
+	return null;
 }
 
 function isDifficultySettings(value: unknown): value is DifficultySettings {
@@ -162,8 +218,62 @@ function isSuggestionDisplaySettings(value: unknown): value is SuggestionDisplay
 		Number.isFinite(obj.subsetCount) &&
 		obj.subsetCount >= 2 &&
 		obj.subsetCount <= 10 &&
-		(obj.allWindowMode === "pagination" || obj.allWindowMode === "scroll")
+		(obj.allWindowMode === "pagination" || obj.allWindowMode === "scroll") &&
+		(obj.orderMode === "ranked" || obj.orderMode === "shuffled") &&
+		(obj.sortMode === "default" || obj.sortMode === "best-path" || obj.sortMode === "random")
 	);
+}
+
+function matchesDifficultySettings(left: DifficultySettings, right: DifficultySettings) {
+	return Object.keys(left).every((key) => left[key as keyof DifficultySettings] === right[key as keyof DifficultySettings]);
+}
+
+export function inferDifficultyPreset(customSettings: DifficultySettings): DifficultyOption {
+	if (matchesDifficultySettings(customSettings, ALL_ON_CUSTOM_SETTINGS)) {
+		return "all-on";
+	}
+
+	if (matchesDifficultySettings(customSettings, ALL_OFF_CUSTOM_SETTINGS)) {
+		return "all-off";
+	}
+
+	return "custom";
+}
+
+export function getDifficultyPresetSettings(difficulty: DifficultyOption): DifficultySettings | null {
+	if (difficulty === "all-on") {
+		return { ...ALL_ON_CUSTOM_SETTINGS };
+	}
+
+	if (difficulty === "all-off") {
+		return { ...ALL_OFF_CUSTOM_SETTINGS };
+	}
+
+	return null;
+}
+
+export function applyDifficultyToSuggestionDisplay(
+	difficulty: DifficultyOption,
+	suggestionDisplay: SuggestionDisplaySettings,
+): SuggestionDisplaySettings {
+	if (difficulty === "all-on") {
+		return {
+			...suggestionDisplay,
+			viewMode: "all",
+			allWindowMode: "scroll",
+			orderMode: "ranked",
+		};
+	}
+
+	if (difficulty === "all-off") {
+		return {
+			...suggestionDisplay,
+			viewMode: "subset",
+			orderMode: "shuffled",
+		};
+	}
+
+	return suggestionDisplay;
 }
 
 export function readStoredGameSettings(): GameDifficultySettings {
@@ -178,17 +288,27 @@ export function readStoredGameSettings(): GameDifficultySettings {
 
 	try {
 		const parsed = JSON.parse(stored) as Partial<GameDifficultySettings>;
-		if (!isDifficultyOption(parsed.difficulty) || !isDifficultySettings(parsed.customSettings)) {
+		const normalizedDifficulty = isDifficultyOption(parsed.difficulty)
+			? parsed.difficulty
+			: mapLegacyDifficultyOption(parsed.difficulty);
+
+		if (!normalizedDifficulty || !isDifficultySettings(parsed.customSettings)) {
 			return DEFAULT_GAME_SETTINGS;
 		}
 
+		const normalizedDataFilters = isGameDataFilters(parsed.dataFilters)
+			? parsed.dataFilters
+			: { ...DEFAULT_DATA_FILTERS };
+		const inferredDifficulty = inferDifficultyPreset(parsed.customSettings);
+
 		return {
-			difficulty: parsed.difficulty,
+			difficulty: normalizedDifficulty === "custom" ? inferredDifficulty : normalizedDifficulty,
 			customSettings: parsed.customSettings,
-			dataFilters: isGameDataFilters(parsed.dataFilters) ? parsed.dataFilters : { ...DEFAULT_DATA_FILTERS },
+			dataFilters: normalizedDataFilters,
 			suggestionDisplay: isSuggestionDisplaySettings(parsed.suggestionDisplay)
 				? parsed.suggestionDisplay
 				: { ...DEFAULT_SUGGESTION_DISPLAY },
+			completionDarkMode: parsed.completionDarkMode === true,
 		};
 	} catch {
 		return DEFAULT_GAME_SETTINGS;

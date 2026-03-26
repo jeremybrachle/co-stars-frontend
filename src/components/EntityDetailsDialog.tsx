@@ -166,7 +166,6 @@ export default function EntityDetailsDialog({
               value={relationSearch}
               onChange={(event) => onRelationSearchChange(event.target.value)}
               placeholder={detail.relationSearchPlaceholder}
-              autoFocus
             />
           </label>
         </div>

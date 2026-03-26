@@ -2,6 +2,7 @@
 import { APP_VERSION } from "../appVersion"
 import TitleSection from "../components/TitleSection"
 import HomeMenuGroup from "../components/HomeMenuGroup"
+import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport"
 
 const HOME_MENU_ITEMS = [
   {
@@ -33,13 +34,16 @@ const HOME_MENU_ITEMS = [
 
 
 function HomePage() {
+  const isCompactPhoneViewport = useIsCompactPhoneViewport()
+
   return (
-    <div className="home-bg dramatic-home">
-      <div className="home-center-group">
+    <div className={`home-bg dramatic-home home-page-landing${isCompactPhoneViewport ? " home-page-landing--compact-phone" : ""}`}>
+      <div className={`home-center-group home-page-landing__shell${isCompactPhoneViewport ? " home-page-landing__shell--compact-phone" : ""}`}>
         <TitleSection
           title="🎭 Co-Stars"
         />
-        <HomeMenuGroup subtitle="Choose what you want to do." items={HOME_MENU_ITEMS} />
+        {isCompactPhoneViewport ? <div className="home-page-landing__mobile-badge">Mobile Version!</div> : null}
+        <HomeMenuGroup subtitle="Make a selection to continue:" items={HOME_MENU_ITEMS} />
         <p className="appVersion appVersionHome">Version {APP_VERSION}</p>
       </div>
     </div>

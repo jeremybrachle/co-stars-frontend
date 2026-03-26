@@ -1,4 +1,4 @@
-import type { GameNode, NodeSummary, SnapshotIndexes } from "./types";
+import type { GameNode, NodeSummary } from "./types";
 
 export const MAX_PATH_LENGTH = 19;
 export const SUGGESTION_LIMIT = 8;
@@ -7,6 +7,7 @@ type SuggestionBuildOptions = {
 	shouldShuffle?: boolean;
 	shouldGuaranteeBestPath?: boolean;
 	suggestionLimit?: number | null;
+	sortMode?: "default" | "best-path" | "random";
 	movieSortMode?: "releaseYear" | "random";
 	actorSortMode?: "popularity" | "random";
 	nodeType?: "actor" | "movie";
@@ -17,6 +18,29 @@ function shuffleSuggestions<T>(entries: T[]) {
 
 	for (let index = nextEntries.length - 1; index > 0; index -= 1) {
 		const swapIndex = Math.floor(Math.random() * (index + 1));
+		[nextEntries[index], nextEntries[swapIndex]] = [nextEntries[swapIndex], nextEntries[index]];
+	}
+
+	return nextEntries;
+}
+
+function createSeededRandom(seed: number) {
+	let state = seed | 0;
+
+	return () => {
+		state = (state + 0x6D2B79F5) | 0;
+		let value = Math.imul(state ^ (state >>> 15), 1 | state);
+		value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
+		return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+export function shuffleSuggestionsWithSeed<T>(entries: T[], seed: number) {
+	const nextEntries = [...entries];
+	const random = createSeededRandom(seed || 1);
+
+	for (let index = nextEntries.length - 1; index > 0; index -= 1) {
+		const swapIndex = Math.floor(random() * (index + 1));
 		[nextEntries[index], nextEntries[swapIndex]] = [nextEntries[swapIndex], nextEntries[index]];
 	}
 
@@ -106,8 +130,7 @@ function createComparatorBySort(
 
 		// Apply per-type sorting
 		if (a.type === "movie" && b.type === "movie") {
-			// Both are movies
-			if (movieSortMode === "releaseYear" || movieSortMode === "random") {
+			if (movieSortMode === "releaseYear") {
 				const aYear = a.releaseDate ? new Date(a.releaseDate).getFullYear() : 0;
 				const bYear = b.releaseDate ? new Date(b.releaseDate).getFullYear() : 0;
 				if (aYear !== bYear) {
@@ -115,8 +138,7 @@ function createComparatorBySort(
 				}
 			}
 		} else if (a.type === "actor" && b.type === "actor") {
-			// Both are actors
-			if (actorSortMode === "popularity" || actorSortMode === "random") {
+			if (actorSortMode === "popularity") {
 				const popularityDelta = (b.popularity ?? -1) - (a.popularity ?? -1);
 				if (popularityDelta !== 0) {
 					return popularityDelta;
@@ -124,9 +146,11 @@ function createComparatorBySort(
 			}
 		}
 
-		const recencyDelta = getRecencyScore(b) - getRecencyScore(a);
-		if (recencyDelta !== 0) {
-			return recencyDelta;
+		if (movieSortMode === "releaseYear") {
+			const recencyDelta = getRecencyScore(b) - getRecencyScore(a);
+			if (recencyDelta !== 0) {
+				return recencyDelta;
+			}
 		}
 
 		return getTieBreakerLabel(a).localeCompare(getTieBreakerLabel(b));
@@ -138,12 +162,11 @@ export function buildSuggestionSet(
 	target: GameNode,
 	blockedLoopNodeKeys: ReadonlySet<string> = new Set(),
 	options: SuggestionBuildOptions = {},
-	indexes?: SnapshotIndexes,
-	popularityCutoff?: number | null,
 ) {
 	const shouldShuffle = options.shouldShuffle ?? true;
 	const shouldGuaranteeBestPath = options.shouldGuaranteeBestPath ?? false;
 	const suggestionLimit = options.suggestionLimit === undefined ? SUGGESTION_LIMIT : options.suggestionLimit;
+	const sortMode = options.sortMode ?? "default";
 	const movieSortMode = options.movieSortMode ?? "releaseYear";
 	const actorSortMode = options.actorSortMode ?? "popularity";
 	const comparator = createComparatorBySort(movieSortMode, actorSortMode);
@@ -158,7 +181,16 @@ export function buildSuggestionSet(
 
 	const reachableSuggestions = uniqueSuggestions
 		.filter((suggestion) => suggestion.pathHint?.reachable)
-		.sort(comparator);
+		.sort((left, right) => {
+			const leftSteps = left.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+			const rightSteps = right.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+
+			if (leftSteps !== rightSteps) {
+				return leftSteps - rightSteps;
+			}
+
+			return comparator(left, right);
+		});
 
 	const featured = new Map<string, GameNode>();
 
@@ -172,9 +204,24 @@ export function buildSuggestionSet(
 		.filter((suggestion) => !featured.has(getNodeKey(suggestion)))
 		.map((suggestion) => ({
 			suggestion,
-			score: getHintScore(suggestion) + getPopularityScore(suggestion) + getRecencyScore(suggestion),
+			score: sortMode === "best-path"
+				? getHintScore(suggestion)
+				: sortMode === "default"
+					? getHintScore(suggestion)
+						+ (suggestion.type === "actor" && actorSortMode === "popularity" ? getPopularityScore(suggestion) : 0)
+						+ (suggestion.type === "movie" && movieSortMode === "releaseYear" ? getRecencyScore(suggestion) : 0)
+					: 0,
 		}))
 		.sort((a, b) => {
+			if (sortMode === "best-path") {
+				const leftSteps = a.suggestion.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+				const rightSteps = b.suggestion.pathHint?.stepsToTarget ?? Number.POSITIVE_INFINITY;
+
+				if (leftSteps !== rightSteps) {
+					return leftSteps - rightSteps;
+				}
+			}
+
 			if (b.score !== a.score) {
 				return b.score - a.score;
 			}
@@ -183,34 +230,15 @@ export function buildSuggestionSet(
 		})
 		.map((entry) => entry.suggestion);
 
-	const allRanked = [...featured.values(), ...rankedRemainder];
-	const shuffledAll = shouldShuffle ? shuffleSuggestions(allRanked) : allRanked;
-	const selected = suggestionLimit === null ? shuffledAll : shuffledAll.slice(0, suggestionLimit);
+	const featuredSuggestions = [...featured.values()];
+	const orderedRemainder = sortMode === "random" || shouldShuffle
+		? shuffleSuggestions(rankedRemainder)
+		: rankedRemainder;
+	const allRanked = [...featuredSuggestions, ...orderedRemainder];
+	const selected = suggestionLimit === null ? allRanked : allRanked.slice(0, suggestionLimit);
 	const bestReachableSteps = reachableSuggestions[0]?.pathHint?.stepsToTarget ?? null;
 
 	return selected.map((suggestion) => {
-		const status = indexes ? getSuggestionStatusRecursive(suggestion, target, blockedLoopNodeKeys, popularityCutoff ?? null, indexes) : "valid";
-		if (status === "warning" || status === "blocked") {
-			return {
-				...suggestion,
-				highlight: {
-					kind: "blocked" as const,
-					label: status === "warning" ? "Cycle risk or dead end" : "Possible path",
-					description: status === "warning" ? "All child nodes are dead ends or cycle risks." : "Grandchild nodes have valid paths.",
-				},
-			};
-		}
-		if (status === "deadend") {
-			return {
-				...suggestion,
-				highlight: {
-					kind: "blocked" as const,
-					label: "Dead end",
-					description: "No valid paths from this node.",
-				},
-			};
-		}
-
 		if (blockedLoopNodeKeys.has(getNodeKey(suggestion))) {
 			return {
 				...suggestion,
@@ -268,62 +296,3 @@ export function combineMeetingPath(startA: GameNode, topPath: GameNode[], startB
 	return [...topFullPath, ...bottomFullPath.slice(0, -1).reverse()];
 }
 
-function getSuggestionStatusRecursive(
-	node: GameNode,
-	target: GameNode,
-	blockedLoopNodeKeys: ReadonlySet<string>,
-	popularityCutoff: number | null,
-	indexes: SnapshotIndexes,
-	depth = 1,
-): "valid" | "warning" | "blocked" | "deadend" {
-	if (depth > 3) return "blocked";
-	if (!node.pathHint?.reachable) return "deadend";
-	if (blockedLoopNodeKeys.has(getNodeKey(node))) return "warning";
-	if (isDirectConnectionSuggestion(node, target)) return "valid";
-
-	const children: GameNode[] = [];
-	if (node.type === "actor" && node.id != null) {
-		const movieIds = indexes.actorToMovies[node.id ?? ""] ?? [];
-		for (const movieId of movieIds) {
-			const movie = indexes.moviesById.get(movieId);
-			if (movie) children.push({
-				id: movie.id,
-				label: movie.title,
-				type: "movie",
-				releaseDate: movie.releaseDate,
-				genres: movie.genres,
-				contentRating: movie.contentRating,
-				originalLanguage: movie.originalLanguage,
-				overview: movie.overview,
-				imageUrl: movie.posterUrl,
-			});
-		}
-	} else if (node.type === "movie" && node.id != null) {
-		const actorIds = indexes.movieToActors[node.id ?? ""] ?? [];
-		for (const actorId of actorIds) {
-			const actor = indexes.actorsById.get(actorId);
-			if (actor && (popularityCutoff == null || actor.popularity! >= popularityCutoff)) {
-				children.push({
-					id: actor.id,
-					label: actor.name,
-					type: "actor",
-					popularity: actor.popularity,
-					imageUrl: actor.profileUrl,
-					knownForDepartment: actor.knownForDepartment,
-					placeOfBirth: actor.placeOfBirth,
-				});
-			}
-		}
-	}
-	if (children.length === 0) return "deadend";
-	let allDeadOrWarning = true;
-	let hasValidGrandchild = false;
-	for (const child of children) {
-		const status = getSuggestionStatusRecursive(child, target, blockedLoopNodeKeys, popularityCutoff, indexes, depth + 1);
-		if (status === "valid") allDeadOrWarning = false;
-		if (status === "blocked") hasValidGrandchild = true;
-	}
-	if (allDeadOrWarning) return "warning";
-	if (hasValidGrandchild) return "blocked";
-	return "valid";
-}

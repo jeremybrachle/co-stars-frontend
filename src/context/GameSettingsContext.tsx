@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { DifficultyOption, DifficultySettings, GameDifficultySettings } from "../types";
-import { GAME_SETTINGS_KEY, GameSettingsContext, readStoredGameSettings } from "./gameSettings";
+import { applyDifficultyToSuggestionDisplay, CUSTOM_SETTING_DEFINITIONS, GAME_SETTINGS_KEY, GameSettingsContext, getDifficultyPresetSettings, inferDifficultyPreset, readStoredGameSettings } from "./gameSettings";
 
 export function GameSettingsProvider({ children }: { children: React.ReactNode }) {
 	const [settings, setSettings] = useState<GameDifficultySettings>(() => readStoredGameSettings());
@@ -14,9 +14,12 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 		() => ({
 			settings,
 			setDifficulty: (difficulty: DifficultyOption) => {
+				const presetSettings = getDifficultyPresetSettings(difficulty);
 				persistSettings({
 					...settings,
 					difficulty,
+					customSettings: presetSettings ?? settings.customSettings,
+					suggestionDisplay: applyDifficultyToSuggestionDisplay(difficulty, settings.suggestionDisplay),
 				});
 			},
 			setCustomSetting: (settingId: keyof DifficultySettings, enabled: boolean) => {
@@ -25,17 +28,24 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					[settingId]: enabled,
 				};
 
-				if (settingId === "show-cast-lock-risk" && !enabled) {
-					nextCustomSettings["show-full-cast-lock"] = false;
-				}
-
-				if (settingId === "show-full-cast-lock" && enabled) {
-					nextCustomSettings["show-cast-lock-risk"] = true;
+				if (!enabled) {
+					CUSTOM_SETTING_DEFINITIONS.forEach((settingDefinition) => {
+						if (settingDefinition.requires === settingId) {
+							nextCustomSettings[settingDefinition.id] = false;
+						}
+					});
 				}
 
 				persistSettings({
 					...settings,
+					difficulty: inferDifficultyPreset(nextCustomSettings),
 					customSettings: nextCustomSettings,
+				});
+			},
+			setCompletionDarkMode: (enabled: boolean) => {
+				persistSettings({
+					...settings,
+					completionDarkMode: enabled,
 				});
 			},
 				setActorPopularityCutoff: (cutoff: number | null) => {
@@ -99,6 +109,26 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					suggestionDisplay: {
 						...settings.suggestionDisplay,
 						allWindowMode: mode,
+					},
+				});
+			},
+			setSuggestionOrderMode: (mode: "ranked" | "shuffled") => {
+				persistSettings({
+					...settings,
+					suggestionDisplay: {
+						...settings.suggestionDisplay,
+						viewMode: mode === "shuffled" ? "subset" : "all",
+						allWindowMode: "scroll",
+						orderMode: mode,
+					},
+				});
+			},
+			setSuggestionSortMode: (mode: "default" | "best-path" | "random") => {
+				persistSettings({
+					...settings,
+					suggestionDisplay: {
+						...settings.suggestionDisplay,
+						sortMode: mode,
 					},
 				});
 			},

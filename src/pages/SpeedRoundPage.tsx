@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom"
+import PageNavigationHeader from "../components/PageNavigationHeader"
 
 function SpeedRoundPage() {
   return (
     <div className="utilityPage">
+      <PageNavigationHeader backTo="/play-now" backLabel="Back" />
       <div className="utilityPanel utilityPanel--compact">
         <div className="pageEyebrow">Play Now</div>
         <h1>Speed Round</h1>

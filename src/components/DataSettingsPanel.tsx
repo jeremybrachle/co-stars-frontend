@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCountdownTimer } from "../context/useCountdownTimer";
 // Timer component for showing countdown from context
 function S3LoadingTimer({ active }: { active: boolean }) {
@@ -12,6 +12,7 @@ function S3LoadingTimer({ active }: { active: boolean }) {
 }
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
+import { getCachedSnapshotStorageStats } from "../data/frontendSnapshot";
 import {
 	getDataIndicatorDescription,
 	getDataIndicatorLabel,
@@ -20,7 +21,19 @@ import {
 	isOnlineApiMode,
 	isOnlineSnapshotMode,
 } from "../data/dataSourcePreferences";
+import {
+	clearCompletedLevelsStorage,
+	getCompletedLevelsStorageSizeBytes,
+	readCompletedLevels,
+	subscribeToLevelCompletionUpdates,
+} from "../utils/levelCompletionStorage";
 import { useBrowserOnlineStatus } from "../hooks/useBrowserOnlineStatus";
+import {
+	clearLevelHistoryStorage,
+	getLevelHistoryStorageSizeBytes,
+	readAllLevelHistory,
+	subscribeToLevelHistoryUpdates,
+} from "../utils/levelHistoryStorage";
 import DataIndicatorGlyph from "./DataIndicatorGlyph";
 
 type DataSettingsPanelProps = {
@@ -37,6 +50,56 @@ type ModeChoice = {
 	checked: boolean;
 	onSelect: () => void;
 };
+
+type GameDataStorageStats = {
+	completedLevelCount: number;
+	savedRouteCount: number;
+	historyBytes: number;
+	completionBytes: number;
+	totalBytes: number;
+};
+
+type SnapshotCacheStorageStats = {
+	manifestBytes: number;
+	snapshotBytes: number;
+	totalBytes: number;
+};
+
+const GAME_DATA_STORAGE_SOFT_LIMIT_BYTES = 1024 * 1024;
+
+function formatStorageSize(bytes: number) {
+	if (bytes >= 1024 * 1024) {
+		return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+	}
+
+	if (bytes >= 1024) {
+		return `${(bytes / 1024).toFixed(1)} KB`;
+	}
+
+	return `${bytes} B`;
+}
+
+function getGameDataStorageStats(): GameDataStorageStats {
+	const completedLevels = readCompletedLevels();
+	const levelHistoryCollection = readAllLevelHistory();
+	const completedLevelCount = Object.keys(completedLevels).length;
+	const savedRouteCount = Object.values(levelHistoryCollection)
+		.reduce((totalCount, record) => totalCount + record.attempts.length, 0);
+	const historyBytes = getLevelHistoryStorageSizeBytes(levelHistoryCollection);
+	const completionBytes = getCompletedLevelsStorageSizeBytes(completedLevels);
+
+	return {
+		completedLevelCount,
+		savedRouteCount,
+		historyBytes,
+		completionBytes,
+		totalBytes: historyBytes + completionBytes,
+	};
+}
+
+function getSnapshotCacheStorageStats(): SnapshotCacheStorageStats {
+	return getCachedSnapshotStorageStats();
+}
 
 
 function formatSnapshotErrorLabel(errorSource: "api" | "s3" | null) {
@@ -64,6 +127,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 		clearSnapshotCache,
 	} = useSnapshotData();
 	const isBrowserOnline = useBrowserOnlineStatus();
+	const [gameDataStats, setGameDataStats] = useState<GameDataStorageStats>(() => getGameDataStorageStats());
 	const hasSnapshot = !!snapshot;
 	const hasFullData = !!snapshot && !!manifest;
 	const isFullDataLoading = isOnlineSnapshotMode(mode) && (!hasFullData || isLoading);
@@ -75,6 +139,8 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	const dataVersionLabel = isOfflineDemoMode(mode)
 		? "Demo"
 		: snapshotVersion ?? manifestVersion ?? "none loaded yet";
+	const snapshotCacheStats = getSnapshotCacheStorageStats();
+	const gameDataUsagePercent = Math.min(100, (gameDataStats.totalBytes / GAME_DATA_STORAGE_SOFT_LIMIT_BYTES) * 100);
 	const variant = useMemo(
 		() => getDataIndicatorVariant({
 			mode,
@@ -86,6 +152,22 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	);
 	// Removed unused hostedManifestUrl and apiManifestUrl
 	const isCompact = layout === "popover";
+
+	useEffect(() => {
+		const syncGameDataStats = () => {
+			setGameDataStats(getGameDataStorageStats());
+		};
+
+		syncGameDataStats();
+		const unsubscribeHistory = subscribeToLevelHistoryUpdates(syncGameDataStats);
+		const unsubscribeCompletion = subscribeToLevelCompletionUpdates(syncGameDataStats);
+
+		return () => {
+			unsubscribeHistory();
+			unsubscribeCompletion();
+		};
+	}, []);
+
 	const mainModeChoices = useMemo<ModeChoice[]>(
 		() => [
 			{
@@ -132,6 +214,12 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			</span>
 		</label>
 	);
+
+	const handleClearGameData = () => {
+		clearLevelHistoryStorage();
+		clearCompletedLevelsStorage();
+		setGameDataStats(getGameDataStorageStats());
+	};
 
 	return (
 		<div className={`dataSettingsPanel dataSettingsPanel--${layout}`}>
@@ -240,8 +328,70 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 								Clear cache
 							</button>
 						</div>
+						<div className="dataSettingsStorageCard">
+							<div className="dataSettingsStorageRow">
+								<span>Snapshot cache total</span>
+								<strong>{formatStorageSize(snapshotCacheStats.totalBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Manifest cache</span>
+								<strong>{formatStorageSize(snapshotCacheStats.manifestBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Snapshot cache</span>
+								<strong>{formatStorageSize(snapshotCacheStats.snapshotBytes)}</strong>
+							</div>
+						</div>
 						<p className="settingsHint">Refresh or clear the browser snapshot cache at any time, independent of the current connection mode.</p>
 						{errorMessage ? <p className="settingsError">{formatSnapshotErrorLabel(errorSource)}: {errorMessage}</p> : null}
+					</section>
+					<section className="dataSettingsAdvancedSection">
+						<h3>Game progress data</h3>
+						<p className="settingsHint">
+							Saved routes, scores, and level completion markers are stored locally in this browser.
+						</p>
+						<div className="dataSettingsStorageCard">
+							<div className="dataSettingsStorageRow">
+								<span>Total usage</span>
+								<strong>{formatStorageSize(gameDataStats.totalBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Saved routes</span>
+								<strong>{gameDataStats.savedRouteCount}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Completed levels</span>
+								<strong>{gameDataStats.completedLevelCount}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Routes + scores data</span>
+								<strong>{formatStorageSize(gameDataStats.historyBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Completion markers</span>
+								<strong>{formatStorageSize(gameDataStats.completionBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageMeter" aria-hidden="true">
+								<span style={{ width: `${gameDataUsagePercent}%` }} />
+							</div>
+							<p className="settingsHint">
+								Soft cap: {formatStorageSize(GAME_DATA_STORAGE_SOFT_LIMIT_BYTES)} for browser-local play history.
+								 Browser limits vary, but this is a safe target for routes, scores, and completion data.
+							</p>
+						</div>
+						<div className={`settingsActions settingsActions--${layout}`}>
+							<button
+								type="button"
+								className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`}
+								onClick={handleClearGameData}
+								disabled={gameDataStats.totalBytes === 0}
+							>
+								Clear play history
+							</button>
+						</div>
+						<p className="settingsHint">
+							This clears saved paths, scores, leaderboard entries, and completed-level markers for this browser only.
+						</p>
 					</section>
 				</div>
 			</details>

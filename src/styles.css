@@ -57,21 +57,98 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 0.8em 1em;
+  min-height: 46px;
+  padding: 0 16px;
   border-radius: 999px;
   background: rgba(0,0,0,0.13);
   color: white;
+  font-size: 0.92rem;
   font-weight: 700;
+  line-height: 1;
   text-decoration: none;
   box-shadow: 0 2px 8px rgba(0,0,0,0.13);
   transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
   z-index: 10;
+  box-sizing: border-box;
 }
 
 .pageTopBackButton:hover {
   background: rgba(255,255,255,0.18);
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
   transform: translateY(-1px);
+}
+
+.pageNavHeader {
+  position: fixed;
+  top: 24px;
+  left: 24px;
+  right: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.pageNavHeader__side {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.pageNavHeader__side--left {
+  justify-content: flex-start;
+}
+
+.pageNavHeader__side--right {
+  justify-content: flex-end;
+}
+
+.pageNavHeader__center {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.pageNavHeader__button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 15px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.13);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.13);
+  box-sizing: border-box;
+  pointer-events: auto;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.pageNavHeader__button:hover,
+.pageNavHeader__button:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
+.pageNavHeader__button--home {
+  width: 46px;
+  min-width: 46px;
+  padding: 0;
+}
+
+.pageNavHeader__homeIcon {
+  font-size: 1.06rem;
+  line-height: 1;
 }
 
 .adventure-back-red {
@@ -105,6 +182,10 @@
   flex-direction: column;
   align-items: center;
   margin-top: 0.2em;
+}
+
+.home-page-landing__mobile-badge {
+  display: none;
 }
 
 .subtitle-tight {
@@ -351,22 +432,60 @@ button:hover {
 }
 
 .settingsPage {
+  --settings-top-clearance: 88px;
+  --settings-footer-clearance: 118px;
   position: relative;
   min-height: 100vh;
+  height: 100vh;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 24px 20px 76px;
+  padding: var(--settings-top-clearance) 20px var(--settings-footer-clearance);
+  overflow: hidden;
   box-sizing: border-box;
 }
 
 .settingsPanel {
   width: min(100%, 980px);
-  padding: 24px 26px 22px;
+  height: calc(100vh - var(--settings-footer-clearance) - var(--settings-top-clearance));
+  max-height: calc(100vh - var(--settings-footer-clearance) - var(--settings-top-clearance));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 24px 26px 18px;
   border-radius: 24px;
   background: rgba(15, 23, 42, 0.52);
   border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.settingsPanelHeader {
+  flex: 0 0 auto;
+}
+
+.settingsPanelScrollArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  margin-right: -8px;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settingsPanelScrollArea::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.settingsPanelFooter {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .settingsIntro {
@@ -690,6 +809,207 @@ button:hover {
   line-height: 1.35;
 }
 
+.settingsCountSummary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  background: rgba(8, 47, 73, 0.28);
+}
+
+.settingsCountSummaryLabel {
+  color: rgba(186, 230, 253, 0.92);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.settingsCountSummaryValue {
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.settingsCountSummaryMeta {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.settingsWarning {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(120, 53, 15, 0.22);
+  color: #fde68a;
+  line-height: 1.4;
+}
+
+.settingsChoiceList {
+  display: grid;
+  gap: 10px;
+}
+
+.settingsChoiceRow {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.28);
+  cursor: pointer;
+}
+
+.settingsChoiceRow input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settingsChoiceRow--selected {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(30, 64, 175, 0.18);
+}
+
+.settingsChoiceRow--shuffle-off-selected {
+  border-color: rgba(134, 239, 172, 0.52);
+  background:
+    radial-gradient(circle at top left, rgba(74, 222, 128, 0.2), transparent 42%),
+    rgba(20, 83, 45, 0.34);
+}
+
+.settingsChoiceRow--shuffle-on-selected {
+  border-color: rgba(251, 191, 36, 0.48);
+  background:
+    radial-gradient(circle at top left, rgba(251, 191, 36, 0.18), transparent 42%),
+    rgba(120, 53, 15, 0.3);
+}
+
+
+.settingsChoiceRadio {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.06);
+  box-sizing: border-box;
+}
+
+.settingsChoiceRadio::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(0.8);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.settingsChoiceRow--selected .settingsChoiceRadio {
+  border-color: rgba(125, 211, 252, 0.92);
+  background: rgba(14, 165, 233, 0.2);
+}
+
+.settingsChoiceRow--shuffle-off-selected .settingsChoiceRadio {
+  border-color: rgba(134, 239, 172, 0.96);
+  background: rgba(34, 197, 94, 0.22);
+}
+
+.settingsChoiceRow--shuffle-on-selected .settingsChoiceRadio {
+  border-color: rgba(251, 191, 36, 0.92);
+  background: rgba(217, 119, 6, 0.2);
+}
+
+
+.settingsChoiceRow--selected .settingsChoiceRadio::after {
+  background: rgba(186, 230, 253, 0.98);
+  transform: scale(1);
+}
+
+.settingsChoiceRow--shuffle-off-selected .settingsChoiceRadio::after {
+  background: rgba(220, 252, 231, 1);
+}
+
+.settingsChoiceRow--shuffle-on-selected .settingsChoiceRadio::after {
+  background: rgba(254, 243, 199, 1);
+}
+
+.settingsChoiceText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settingsChoiceLabel {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.settingsGameplayLayout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.settingsGameplayNav {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.24);
+}
+
+.settingsGameplayNavButton {
+  width: 100%;
+  padding: 0.72em 0.9em;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: left;
+  box-shadow: none;
+}
+
+.settingsGameplayNavButton:hover {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.settingsGameplayNavButton--active {
+  border-color: rgba(125, 211, 252, 0.36);
+  background: rgba(37, 99, 235, 0.2);
+}
+
+.settingsGameplayContent {
+  min-width: 0;
+}
+
+.settingsToggleSectionAddon {
+  margin-top: 12px;
+}
+
+.settingsSuggestionListAddon {
+  margin-top: 0;
+}
+
 .settingsError {
   margin: 12px 0 0;
   padding: 12px 14px;
@@ -726,7 +1046,7 @@ button:hover {
 
 .settingsBackLink {
   display: inline-block;
-  margin-top: 24px;
+  margin-top: 0;
   color: white;
   font-weight: 700;
 }
@@ -796,6 +1116,11 @@ button:hover {
   min-height: 42px;
 }
 
+.footerContent--game-info-only {
+  width: 100%;
+  justify-content: center;
+}
+
 .footerInfo {
   position: relative;
 }
@@ -837,6 +1162,30 @@ button:hover {
   right: 0;
   display: flex;
   align-items: center;
+}
+
+.footerGameInfoButton {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: none;
+}
+
+.footerGameInfoButton:hover,
+.footerGameInfoButton:focus-visible {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .footerCopyrightButton {
@@ -1333,6 +1682,42 @@ button:hover {
   margin-top: 14px;
 }
 
+.dataSettingsStorageCard {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dataSettingsStorageRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.dataSettingsStorageRow strong {
+  color: white;
+}
+
+.dataSettingsStorageMeter {
+  margin-top: 12px;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dataSettingsStorageMeter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.9), rgba(34, 197, 94, 0.9));
+}
+
 .fullDataWaitingMessage {
   margin: 12px 0 0;
   padding: 14px 16px;
@@ -1399,11 +1784,14 @@ button:hover {
 
 @media (max-height: 860px) {
   .settingsPage {
-    padding-top: 18px;
-    padding-bottom: 58px;
+    --settings-top-clearance: 72px;
+    --settings-footer-clearance: 100px;
+    padding-bottom: var(--settings-footer-clearance);
   }
 
   .settingsPanel {
+    height: calc(100vh - var(--settings-footer-clearance) - var(--settings-top-clearance));
+    max-height: calc(100vh - var(--settings-footer-clearance) - var(--settings-top-clearance));
     padding: 20px 22px 18px;
   }
 
@@ -1428,6 +1816,15 @@ button:hover {
 
   .settingsDifficultyGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settingsGameplayLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .settingsGameplayNav {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -2391,6 +2788,11 @@ button:hover {
     padding-right: 88px;
   }
 
+  .footerContent--game-info-only {
+    justify-content: center;
+    padding-right: 0;
+  }
+
   .footerPopover--info {
     left: 0;
     right: auto;
@@ -2438,6 +2840,457 @@ button:hover {
   .pageTopBackButton {
     top: 24px;
     left: 24px;
-    padding: 0.72em 0.9em;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 0.88rem;
+  }
+
+  .pageNavHeader {
+    top: 24px;
+    left: 24px;
+    right: 24px;
+  }
+}
+
+@media (max-width: 440px) {
+  .catalogDialogOverlay {
+    padding: 28px;
+    background: rgba(2, 6, 23, 0.48);
+    backdrop-filter: none;
+  }
+
+  .catalogDialog {
+    width: min(332px, calc(100vw - 56px));
+    max-height: calc(100vh - 56px);
+    padding: 16px 14px 14px;
+    border-radius: 18px;
+  }
+
+  .catalogDialogClose {
+    top: 10px;
+    right: 10px;
+    min-width: 28px;
+    min-height: 28px;
+    font-size: 1.2rem;
+  }
+
+  .catalogDetailTrail {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .catalogDetailTrailStep {
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .catalogDialogHeader {
+    gap: 12px;
+  }
+
+  .catalogDialogHero {
+    gap: 10px;
+  }
+
+  .catalogDialog .entityArtwork--hero {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+  }
+
+  .catalogDialogHeader h2 {
+    font-size: 1.2rem;
+    line-height: 1.15;
+  }
+
+  .catalogDialog .pageEyebrow {
+    margin-bottom: 6px;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+  }
+
+  .catalogDetailLead {
+    margin-top: 6px;
+    font-size: 0.88rem;
+    line-height: 1.38;
+  }
+
+  .catalogDetailSubtle {
+    margin-top: 4px;
+    font-size: 0.78rem;
+  }
+
+  .entityBadgeRow--detail {
+    margin-top: 12px;
+    gap: 6px;
+  }
+
+  .catalogDialog .entityBadge {
+    padding: 3px 8px;
+    font-size: 0.68rem;
+  }
+
+  .catalogDetailMetaGrid {
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .catalogDetailMetaCard {
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .catalogDetailMetaCard strong {
+    font-size: 0.88rem;
+  }
+
+  .catalogDetailMetaLabel {
+    margin-bottom: 4px;
+    font-size: 0.66rem;
+  }
+
+  .catalogDetailNarrative {
+    margin-top: 14px;
+    padding: 12px;
+    border-radius: 14px;
+    max-height: 118px;
+  }
+
+  .catalogDetailNarrativeHeader {
+    margin-bottom: 8px;
+  }
+
+  .catalogDetailNarrative h3 {
+    font-size: 0.92rem;
+  }
+
+  .catalogDetailNarrative p {
+    font-size: 0.84rem;
+    line-height: 1.45;
+    padding-bottom: 18px;
+  }
+
+  .catalogDetailNarrativeToggle {
+    min-width: 26px;
+    min-height: 26px;
+  }
+
+  .catalogRelationToolbar {
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .catalogControlField {
+    gap: 6px;
+  }
+
+  .catalogControlField span {
+    font-size: 0.76rem;
+  }
+
+  .catalogControlField input,
+  .catalogControlField select {
+    padding: 0.72em 0.85em;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+
+  .catalogDialogListHeader {
+    margin-top: 16px;
+  }
+
+  .catalogDialogListHeader h3 {
+    font-size: 0.92rem;
+  }
+
+  .catalogDialogListHeader span {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+  }
+
+  .catalogDialogList {
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .catalogDialogListItem {
+    gap: 10px;
+    padding: 10px 11px;
+    border-radius: 12px;
+  }
+
+  .catalogDialogListPrimary {
+    gap: 10px;
+  }
+
+  .catalogDialog .entityArtwork--row {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .catalogDialogListPrimary span:first-child {
+    font-size: 0.88rem;
+  }
+
+  .catalogDialogListMeta,
+  .catalogDialogListSecondary {
+    font-size: 0.74rem;
+  }
+
+  .catalogDialogPopularity {
+    padding: 3px 7px;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .settingsPage {
+    --settings-top-clearance: 78px;
+    --settings-footer-clearance: 132px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .settingsPanel {
+    height: calc(100vh - var(--settings-footer-clearance) - var(--settings-top-clearance));
+    max-height: calc(100vh - var(--settings-footer-clearance) - var(--settings-top-clearance));
+    padding: 18px 18px 14px;
+    border-radius: 18px;
+  }
+
+  .settingsPanelScrollArea {
+    padding-right: 4px;
+    margin-right: -4px;
+  }
+
+  .settingsPanelFooter {
+    margin-top: 18px;
+    padding-top: 14px;
+  }
+
+  .settingsGameplayNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 440px) {
+  .home-page-landing,
+  .play-now-page {
+    min-height: 100svh;
+    height: 100svh;
+    max-height: 100dvh;
+    align-items: flex-start;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 0 6px calc(env(safe-area-inset-bottom, 0px) + 4px);
+  }
+
+  .home-page-landing .home-page-landing__shell,
+  .play-now-page .play-now-page__shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(100vw - 16px, 432px);
+    min-width: 0;
+    min-height: 100%;
+    height: 100%;
+    margin-top: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 3.9rem) 0 0.55rem;
+    box-sizing: border-box;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    gap: 0.42rem;
+  }
+
+  .home-page-landing .page-container,
+  .play-now-page .page-container {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 104px;
+    justify-content: flex-start;
+    padding-bottom: 0;
+  }
+
+  .home-page-landing h1,
+  .play-now-page h1 {
+    font-size: clamp(1.82rem, 7vw, 2.24rem);
+    margin-bottom: 0.08em;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+  }
+
+  .home-page-landing .subtitle,
+  .home-page-landing .subtitle-tight,
+  .play-now-page .subtitle,
+  .play-now-page .subtitle-tight {
+    font-size: 0.86rem;
+    margin-bottom: 0.12em;
+    font-weight: 700;
+    line-height: 1.18;
+  }
+
+  .home-page-landing__mobile-badge {
+    display: block;
+    margin: 0 auto;
+    padding: 0.24rem 0.62rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .home-page-landing .home-menu-group {
+    width: 100%;
+    margin-top: clamp(0.72rem, 1.9vh, 1.08rem);
+    padding: 0.78rem 0.76rem 0.82rem;
+    border-radius: 22px;
+    border: 2.5px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.13);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.22);
+    box-sizing: border-box;
+  }
+
+  .play-now-page .home-menu-group {
+    width: 100%;
+    margin-top: clamp(0.72rem, 1.9vh, 1.08rem);
+    padding: 0.78rem 0.76rem 0.82rem;
+    border-radius: 22px;
+    border: 2.5px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.13);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.22);
+    box-sizing: border-box;
+  }
+
+  .home-page-landing .nav-menu,
+  .play-now-page .nav-menu {
+    width: 100%;
+    gap: 0.72rem;
+  }
+
+  .home-page-landing .nav-btn-visual,
+  .play-now-page .nav-btn-visual {
+    width: calc(100% - clamp(0.4rem, 2vw, 0.9rem));
+    max-width: none;
+    min-height: 60px;
+    margin-inline: auto;
+    gap: 0.62rem;
+    padding: 0.62rem 0.72rem;
+    box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+  }
+
+  .home-page-landing .nav-icon,
+  .play-now-page .nav-icon {
+    font-size: 1.96rem;
+  }
+
+  .home-page-landing .nav-btn-content,
+  .play-now-page .nav-btn-content {
+    gap: 0.14rem;
+  }
+
+  .home-page-landing .nav-btn-label,
+  .play-now-page .nav-btn-label {
+    font-size: 0.88rem;
+    line-height: 1.08;
+    font-weight: 760;
+    letter-spacing: 0.01em;
+  }
+
+  .home-page-landing .nav-btn-copy,
+  .play-now-page .nav-btn-copy {
+    display: block;
+    font-size: 0.66rem;
+    line-height: 1.16;
+    font-weight: 540;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .home-page-landing .nav-btn-adventure,
+  .play-now-page .nav-btn-adventure {
+    margin-top: 0;
+  }
+
+  .home-page-landing .appVersionHome {
+    margin-top: auto;
+    padding-top: 0;
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+  }
+
+  .play-now-page .pageTopBackButton {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: 12px;
+    min-height: 38px;
+    padding: 0 11px;
+    font-size: 0.76rem;
+    border-radius: 12px;
+  }
+
+  .pageNavHeader {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: 10px;
+    right: 10px;
+    gap: 10px;
+  }
+
+  .pageNavHeader__button {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 0.78rem;
+    border-radius: 10px;
+  }
+
+  .pageNavHeader__button--home {
+    width: 40px;
+    min-width: 40px;
+  }
+
+  .pageNavHeader__homeIcon {
+    font-size: 0.9rem;
+  }
+
+  .settingsPage {
+    --settings-top-clearance: calc(env(safe-area-inset-top, 0px) + 74px);
+  }
+
+  .play-now-page .pageBackLink {
+    margin-top: auto;
+    padding-top: 0;
+    font-size: 0.68rem;
+  }
+
+}
+
+@media (max-width: 440px) {
+  .footer--game-info-only {
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(3px);
+  }
+
+  .footer--game-info-only .footerContent {
+    min-height: 24px;
+    padding-right: 0;
+    justify-content: center;
+  }
+
+  .footer--game-info-only .footerGameInfoButton {
+    width: 22px;
+    height: 22px;
+    font-size: 0.72rem;
   }
 }

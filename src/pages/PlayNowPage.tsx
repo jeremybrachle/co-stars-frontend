@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import PageBackButton from "../components/PageBackButton"
+import PageNavigationHeader from "../components/PageNavigationHeader"
 import TitleSection from "../components/TitleSection"
 import HomeMenuGroup from "../components/HomeMenuGroup"
 
@@ -27,9 +27,9 @@ const PLAY_NOW_ITEMS = [
 
 function PlayNowPage() {
   return (
-    <div className="home-bg dramatic-home">
-      <PageBackButton to="/" label="Back" />
-      <div className="home-center-group home-center-group--compact">
+    <div className="home-bg dramatic-home play-now-page">
+      <PageNavigationHeader backTo="/" backLabel="Back" />
+      <div className="home-center-group home-center-group--compact play-now-page__shell">
         <TitleSection title="🎬 Play Now" subtitle="Pick a mode and start connecting the cast." />
         <HomeMenuGroup subtitle="Choose a game mode." items={PLAY_NOW_ITEMS} />
         <Link to="/" className="pageBackLink">Back to Home</Link>

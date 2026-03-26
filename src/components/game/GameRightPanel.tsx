@@ -1,22 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import EntityArtwork from "../EntityArtwork";
+import WriteInAutosuggestField from "./WriteInAutosuggestField";
+import { useIsCompactPhoneViewport } from "../../hooks/useIsCompactPhoneViewport";
 import { formatYear, getMovieBadges } from "../../data/presentation";
+import { shuffleSuggestionsWithSeed } from "../../gameplay";
 import type { GameNode, NodeType, SuggestionDisplaySettings } from "../../types";
 import "./GameRightPanel.css";
 
-const WRITE_IN_TEMPORARILY_DISABLED = true;
+const RANKED_VISIBLE_SLOT_COUNT = 6;
 
 type Props = {
   currentSelection: GameNode;
   suggestions: GameNode[];
   suggestionDisplay: SuggestionDisplaySettings;
-  canRandomizeSuggestions: boolean;
+  isShuffleModeEnabled: boolean;
+  shuffleAddsPenalty: boolean;
+  rewindAddsPenalty: boolean;
+  deadEndAddsPenalty: boolean;
   showSuggestionValues: boolean;
   showHintColors: boolean;
+  writeInAutoSuggestEnabled: boolean;
+  writeInSuggestions: GameNode[];
   turns: number;
   rewinds: number;
   deadEndPenalties: number;
   shuffles: number;
+  shuffleSeed: number;
+  canGoBackOnCurrentSide: boolean;
   isDisabled: boolean;
   isComplete: boolean;
   isLoading: boolean;
@@ -26,8 +36,10 @@ type Props = {
   onCompletePanelClick: () => void;
   onReverse: () => void;
   onSuggestion: (choice: GameNode) => void;
+  onInspectSuggestion: (choice: GameNode) => void;
+  onSelectWriteInSuggestion: (choice: GameNode) => Promise<void>;
   onShuffle: () => void;
-  onWriteIn: (value: string, type: NodeType) => Promise<void>;
+  onWriteIn: (value: string, type: NodeType, allowedOptions: GameNode[], sourceLabel: string) => Promise<boolean>;
 };
 
 function getSuggestionContextLabel(selection: GameNode) {
@@ -66,13 +78,20 @@ function GameRightPanel({
   currentSelection,
   suggestions,
   suggestionDisplay,
-  canRandomizeSuggestions,
+  isShuffleModeEnabled,
+  shuffleAddsPenalty,
+  rewindAddsPenalty,
+  deadEndAddsPenalty,
   showSuggestionValues,
   showHintColors,
+  writeInAutoSuggestEnabled,
+  writeInSuggestions,
   turns,
   rewinds,
   deadEndPenalties,
   shuffles,
+  shuffleSeed,
+  canGoBackOnCurrentSide,
   isDisabled,
   isComplete,
   isLoading,
@@ -82,76 +101,87 @@ function GameRightPanel({
   onCompletePanelClick,
   onReverse,
   onSuggestion,
+  onInspectSuggestion,
+  onSelectWriteInSuggestion,
   onShuffle,
   onWriteIn,
 }: Props) {
   const [isWriteInOpen, setIsWriteInOpen] = useState(false);
   const [writeInValue, setWriteInValue] = useState("");
   const [isSubmittingWriteIn, setIsSubmittingWriteIn] = useState(false);
+  const writeInPanelRef = useRef<HTMLDivElement | null>(null);
+  const writeInTriggerRef = useRef<HTMLDivElement | null>(null);
+  const isCompactPhoneViewport = useIsCompactPhoneViewport();
   const selectionContext = getSuggestionContextLabel(currentSelection);
   const isCycleWarning = errorMessage?.startsWith("Cycle detected:") ?? false;
-  
-  // Determine display modes
-  const isViewingAll = suggestionDisplay.viewMode === "all";
-  const isViewingSubset = suggestionDisplay.viewMode === "subset";
-	const isScrollMode = isViewingAll && suggestionDisplay.allWindowMode === "scroll";
-	const isPaginationMode = isViewingAll && suggestionDisplay.allWindowMode === "pagination";
-  const isRandomMode = canRandomizeSuggestions;
-  
-  const isShuffleDisabled = isCycleWarning || !isRandomMode;
+  const isScrollMode = !isShuffleModeEnabled;
+  const isShuffleDisabled = isCycleWarning || isDisabled || isLoading || isComplete;
   const canShowHintState = showSuggestionValues && showHintColors;
+  const showWriteInSuggestionList = isCompactPhoneViewport && showSuggestionValues;
+  const rightPanelAutoSuggestEnabled = isCompactPhoneViewport && writeInAutoSuggestEnabled;
   const windowSize = suggestionDisplay.subsetCount;
-  const [pageIndex, setPageIndex] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(suggestions.length / windowSize));
-  
-  const visibleSuggestions = useMemo(() => {
-    // Scroll mode (fixed window, all items visible by scrolling)
-    if (isScrollMode) {
+  const orderedSuggestions = useMemo(() => {
+    if (!isShuffleModeEnabled) {
       return suggestions;
     }
 
-    // Pagination mode (show N items per page)
-    if (isPaginationMode) {
-      const startIndex = pageIndex * windowSize;
-      return suggestions.slice(startIndex, startIndex + windowSize);
+    return shuffleSuggestionsWithSeed(suggestions, shuffleSeed);
+  }, [isShuffleModeEnabled, shuffleSeed, suggestions]);
+  const isRankedScrollable = isScrollMode && orderedSuggestions.length > RANKED_VISIBLE_SLOT_COUNT;
+  
+  const visibleSuggestions = useMemo(() => {
+    if (isScrollMode) {
+      return orderedSuggestions;
     }
 
-  	// Subset random mode (show first N from randomized list)
-  	if (isRandomMode && isViewingSubset) {
-        return suggestions.slice(0, windowSize);
-    }
-
-    // Subset no-shuffle or fallback (show first N from sorted list)
-      return suggestions.slice(0, windowSize);
-  	}, [isRandomMode, isScrollMode, isPaginationMode, isViewingSubset, pageIndex, suggestions, windowSize]);
+    return orderedSuggestions.slice(0, windowSize);
+  }, [isScrollMode, orderedSuggestions, windowSize]);
   
   const suggestionSlots = useMemo(
-    () => Array.from({ length: isScrollMode ? visibleSuggestions.length : windowSize }, (_, index) => visibleSuggestions[index] ?? null),
+    () => Array.from(
+      { length: isScrollMode ? Math.max(RANKED_VISIBLE_SLOT_COUNT, visibleSuggestions.length) : windowSize },
+      (_, index) => visibleSuggestions[index] ?? null,
+    ),
     [isScrollMode, visibleSuggestions, windowSize],
   );
 
-  const renderedSuggestions = isScrollMode ? visibleSuggestions : suggestionSlots;
+  const renderedSuggestions = suggestionSlots;
   const hasBlueSuggestionInCurrentList = useMemo(
     () => renderedSuggestions.some((suggestion) => suggestion?.highlight?.kind === "optimal"),
     [renderedSuggestions],
   );
-
   useEffect(() => {
-    setPageIndex(0);
-  }, [windowSize, suggestions]);
-
-  useEffect(() => {
-    if (pageIndex >= totalPages) {
-      setPageIndex(Math.max(0, totalPages - 1));
-    }
-  }, [pageIndex, totalPages]);
-
-  useEffect(() => {
-    if (WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isComplete) {
+    if (isDisabled || isLoading || isComplete) {
       setIsWriteInOpen(false);
       setWriteInValue("");
     }
   }, [isComplete, isDisabled, isLoading]);
+
+  useEffect(() => {
+    if (!isWriteInOpen || isCompactPhoneViewport) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      if (writeInPanelRef.current?.contains(target) || writeInTriggerRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsWriteInOpen(false);
+      setWriteInValue("");
+    };
+
+    window.addEventListener("mousedown", handlePointerDown);
+
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isCompactPhoneViewport, isWriteInOpen]);
 
   const handleCloseWriteIn = () => {
     setIsWriteInOpen(false);
@@ -171,7 +201,25 @@ function GameRightPanel({
     setIsSubmittingWriteIn(true);
 
     try {
-      await onWriteIn(trimmedValue, selectionContext.writeInType);
+      const didResolve = await onWriteIn(trimmedValue, selectionContext.writeInType, writeInSuggestions, currentSelection.label);
+      if (didResolve) {
+        setWriteInValue("");
+        setIsWriteInOpen(false);
+      }
+    } finally {
+      setIsSubmittingWriteIn(false);
+    }
+  };
+
+  const handleSelectWriteInSuggestion = async (choice: GameNode) => {
+    if (isDisabled || isLoading || isSubmittingWriteIn || isComplete) {
+      return;
+    }
+
+    setIsSubmittingWriteIn(true);
+
+    try {
+      await onSelectWriteInSuggestion(choice);
       setWriteInValue("");
       setIsWriteInOpen(false);
     } finally {
@@ -187,6 +235,7 @@ function GameRightPanel({
             type="button"
             className={`game-right-panel__toolbar-button${isCycleWarning ? " game-right-panel__toolbar-button--highlighted" : ""}`}
             onClick={onBack}
+            disabled={!canGoBackOnCurrentSide || isDisabled || isLoading || isComplete}
             aria-label="Rewind"
             title="Rewind"
           >
@@ -196,21 +245,23 @@ function GameRightPanel({
             <span className="game-right-panel__toolbar-label">Rewind</span>
           ) : null}
         </div>
-        <button
-          type="button"
-          className="game-right-panel__toolbar-button"
-          onClick={onShuffle}
-          disabled={isShuffleDisabled}
-          aria-label="Shuffle"
-          title="Shuffle"
-        >
-          <span className="game-right-panel__toolbar-icon" aria-hidden="true">⟳</span>
-        </button>
+        {isShuffleModeEnabled ? (
+          <button
+            type="button"
+            className="game-right-panel__toolbar-button"
+            onClick={onShuffle}
+            disabled={isShuffleDisabled}
+            aria-label="Shuffle"
+            title="Shuffle"
+          >
+            <span className="game-right-panel__toolbar-icon" aria-hidden="true">⟳</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="game-right-panel__toolbar-button"
           onClick={onReverse}
-          disabled={isCycleWarning}
+          disabled={isCycleWarning || isDisabled || isLoading || isComplete}
           aria-label="Swap"
           title="Swap"
         >
@@ -225,36 +276,10 @@ function GameRightPanel({
         </div>
 
         <div className="game-right-panel__helper-copy">
-          {isViewingAll
-            ? isScrollMode
-              ? `Scrolling through all suggestions in a fixed window of ${windowSize}.`
-              : `Paginating all suggestions (page ${Math.min(totalPages, pageIndex + 1)} / ${totalPages}).`
-			: isRandomMode
-			? `Random mode shows ${windowSize} suggestions from a reshuffled list. Click shuffle to regenerate.`
-            : `Showing next ${windowSize} suggestions.`}
+          {isShuffleModeEnabled
+            ? `Shuffle mode shows ${windowSize} cards from a reshuffled list. Click shuffle to reroll.`
+            : "Scrolling through the full ranked suggestion list."}
         </div>
-
-        {isPaginationMode ? (
-                <div className="game-right-panel__pagination">
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-                    disabled={pageIndex <= 0 || isDisabled || isLoading}
-                  >
-                    Prev
-                  </button>
-                  <span className="game-right-panel__pagination-label">Page {Math.min(totalPages, pageIndex + 1)} / {totalPages}</span>
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.min(totalPages - 1, current + 1))}
-                    disabled={pageIndex >= totalPages - 1 || isDisabled || isLoading}
-                  >
-                    Next
-                  </button>
-                </div>
-              ) : null}
 
         {errorMessage ? <div className="game-right-panel__message game-right-panel__message--error">{errorMessage}</div> : null}
         {isLoading ? <div className="game-right-panel__message">{isRiskAnalysisEnabled ? "Refreshing suggestions and analyzing path risks…" : "Refreshing live suggestions…"}</div> : null}
@@ -269,9 +294,11 @@ function GameRightPanel({
             <>
               <div className="game-right-panel__choices-spacer" aria-hidden="true" />
               <div
-                className={`game-right-panel__grid${isScrollMode ? " game-right-panel__grid--scroll" : ""}`}
+                className={`game-right-panel__grid${isRankedScrollable ? " game-right-panel__grid--scroll" : ""}`}
                 style={isScrollMode
-				  ? { maxHeight: `calc(var(--game-right-panel-card-height) * ${Math.max(1, Math.ceil(windowSize / 2))} + ${(Math.max(1, Math.ceil(windowSize / 2)) - 1) * 8}px)` }
+				  ? isRankedScrollable
+				    ? { maxHeight: `calc(var(--game-right-panel-card-height) * 3 + 16px)` }
+				    : { gridTemplateRows: `repeat(3, var(--game-right-panel-card-height))` }
                   : { gridTemplateRows: `repeat(${Math.max(1, Math.ceil(windowSize / 2))}, var(--game-right-panel-card-height))` }}
               >
                 {renderedSuggestions.map((suggestion, idx) => {
@@ -280,25 +307,57 @@ function GameRightPanel({
                   }
 
                   const shouldUseFallbackBlue = canShowHintState && !hasBlueSuggestionInCurrentList && !suggestion.highlight;
+                  const isSuggestionDisabled = isDisabled || isLoading;
 
                   return (
-                    <button
+                    <div
                       key={`${suggestion.type}-${suggestion.label}-${idx}`}
-                      className={`game-right-panel__suggestion-button ${getSuggestionSizeClass(suggestion)}${canShowHintState && suggestion.highlight ? ` game-right-panel__suggestion-button--${suggestion.highlight.kind}` : ""}${shouldUseFallbackBlue ? " game-right-panel__suggestion-button--fallback-blue" : ""}${showSuggestionValues ? "" : " game-right-panel__suggestion-button--concealed"}`}
-                      disabled={isDisabled || isLoading}
-                      onClick={() => onSuggestion(suggestion)}
+                      role="button"
+                      tabIndex={isSuggestionDisabled ? -1 : 0}
+                      aria-disabled={isSuggestionDisabled}
+                      className={`game-right-panel__suggestion-button${canShowHintState ? ` ${getSuggestionSizeClass(suggestion)}` : ""}${canShowHintState && suggestion.highlight ? ` game-right-panel__suggestion-button--${suggestion.highlight.kind}` : ""}${shouldUseFallbackBlue ? " game-right-panel__suggestion-button--fallback-blue" : ""}${showSuggestionValues ? "" : " game-right-panel__suggestion-button--concealed"}`}
+                      onClick={() => {
+                        if (isSuggestionDisabled) {
+                          return;
+                        }
+
+                        onSuggestion(suggestion);
+                      }}
+                      onKeyDown={(event) => {
+                        if (isSuggestionDisabled) {
+                          return;
+                        }
+
+                        if (event.key !== "Enter" && event.key !== " ") {
+                          return;
+                        }
+
+                        event.preventDefault();
+                        onSuggestion(suggestion);
+                      }}
                       title={canShowHintState ? suggestion.highlight?.description : undefined}
                     >
                       {showSuggestionValues ? (
                         <div className="game-right-panel__suggestion-main">
-                          <EntityArtwork
-                            type={suggestion.type}
-                            label={suggestion.label}
-                            imageUrl={suggestion.imageUrl}
-                            className="game-right-panel__suggestion-artwork"
-                            imageClassName="game-right-panel__suggestion-artwork-image"
-                            placeholderClassName="game-right-panel__suggestion-artwork-emoji"
-                          />
+                          <button
+                            type="button"
+                            className="game-right-panel__suggestion-artwork-button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onInspectSuggestion(suggestion);
+                            }}
+                            disabled={isSuggestionDisabled}
+                            aria-label={`View details for ${suggestion.label}`}
+                          >
+                            <EntityArtwork
+                              type={suggestion.type}
+                              label={suggestion.label}
+                              imageUrl={suggestion.imageUrl}
+                              className="game-right-panel__suggestion-artwork"
+                              imageClassName="game-right-panel__suggestion-artwork-image"
+                              placeholderClassName="game-right-panel__suggestion-artwork-emoji"
+                            />
+                          </button>
                           <div className="game-right-panel__suggestion-content">
                             <span className="game-right-panel__suggestion-label">{suggestion.label}</span>
                             <span className={`game-right-panel__suggestion-meta${suggestion.type === "actor" ? " game-right-panel__suggestion-meta--actor" : ""}`}>
@@ -330,48 +389,77 @@ function GameRightPanel({
                           <span className="game-right-panel__suggestion-hidden-text">Hidden suggestion</span>
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
-
-              {isPaginationMode ? (
-                <div className="game-right-panel__pagination">
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-                    disabled={pageIndex <= 0 || isDisabled || isLoading}
-                  >
-                    Prev
-                  </button>
-                  <span className="game-right-panel__pagination-label">Page {Math.min(totalPages, pageIndex + 1)} / {totalPages}</span>
-                  <button
-                    type="button"
-                    className="game-right-panel__pagination-button"
-                    onClick={() => setPageIndex((current) => Math.min(totalPages - 1, current + 1))}
-                    disabled={pageIndex >= totalPages - 1 || isDisabled || isLoading}
-                  >
-                    Next
-                  </button>
-                </div>
-              ) : null}
-
               {isWriteInOpen ? (
-                <div className="game-right-panel__write-in-panel">
-                  <input
-                    type="text"
+                <div ref={writeInPanelRef} className="game-right-panel__write-in-panel">
+                  {showWriteInSuggestionList ? (
+                    <div className="game-right-panel__write-in-suggestion-shell">
+                      <div className="game-right-panel__write-in-suggestion-list" role="listbox" aria-label={`${selectionContext.writeInType} write in suggestions`}>
+                        {writeInSuggestions.length > 0 ? (
+                          writeInSuggestions.map((suggestion) => (
+                            <button
+                              key={`${suggestion.type}-${suggestion.id ?? suggestion.label}`}
+                              type="button"
+                              className="write-in-autosuggest__option"
+                              onClick={() => {
+                                void handleSelectWriteInSuggestion(suggestion);
+                              }}
+                              disabled={isDisabled || isLoading || isSubmittingWriteIn}
+                            >
+                              <EntityArtwork
+                                type={suggestion.type}
+                                label={suggestion.label}
+                                imageUrl={suggestion.imageUrl}
+                                className="write-in-autosuggest__artwork"
+                                imageClassName="write-in-autosuggest__artwork-image"
+                                placeholderClassName="write-in-autosuggest__artwork-emoji"
+                              />
+                              <span className="write-in-autosuggest__option-copy">
+                                <span className="write-in-autosuggest__option-label">{suggestion.label}</span>
+                                <span className="write-in-autosuggest__option-meta">
+                                  {suggestion.type === "movie"
+                                    ? ([formatYear(suggestion.releaseDate ?? null), suggestion.contentRating].filter(Boolean).join(" • ") || "Movie")
+                                    : "Actor"}
+                                </span>
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="game-right-panel__write-in-suggestion-empty">No filtered options are available right now.</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                  <WriteInAutosuggestField
                     value={writeInValue}
-                    onChange={(event) => setWriteInValue(event.target.value)}
+                    onChange={setWriteInValue}
+                    onSubmit={() => {
+                      void handleSubmitWriteIn();
+                    }}
                     placeholder={selectionContext.placeholder}
-                    className="game-right-panel__write-in-input"
-                    disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn}
+                    suggestions={writeInSuggestions}
+                    autoSuggestEnabled={rightPanelAutoSuggestEnabled}
+                    disabled={isDisabled || isLoading || isSubmittingWriteIn}
                     autoFocus
+                    inputClassName="game-right-panel__write-in-input"
+                    dropdownLabel={`${selectionContext.writeInType} write in suggestions`}
+                    emptyMessage={`No matching ${selectionContext.writeInType === "actor" ? "actors" : "movies"}.`}
+                    onSuggestionSelect={(choice) => {
+                      void handleSelectWriteInSuggestion(choice);
+                    }}
                   />
+                  <div className="game-right-panel__write-in-hint">
+                    {rightPanelAutoSuggestEnabled
+                      ? "Type-ahead is on. Pick a match or submit a fuzzy search."
+                      : "Enter a name and press Go for fuzzy matching."}
+                  </div>
                   <div className="game-right-panel__write-in-actions">
                     <button
-                      className="game-right-panel__suggestion-button game-right-panel__write-in-toggle"
-                      disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn}
+                      className="game-right-panel__suggestion-button game-right-panel__wide-button game-right-panel__write-in-toggle"
+                      disabled={isDisabled || isLoading || isSubmittingWriteIn}
                       onClick={handleCloseWriteIn}
                       aria-label="Close write in"
                     >
@@ -380,26 +468,21 @@ function GameRightPanel({
                     <button
                       className="game-right-panel__go-button"
                       onClick={handleSubmitWriteIn}
-                      disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading || isSubmittingWriteIn || writeInValue.trim().length === 0}
+                      disabled={isDisabled || isLoading || isSubmittingWriteIn || writeInValue.trim().length === 0}
                     >
                       {isSubmittingWriteIn ? "Finding…" : "Go"}
                     </button>
                   </div>
                 </div>
               ) : (
-                <div
-                  className={`game-right-panel__write-in-trigger${WRITE_IN_TEMPORARILY_DISABLED ? " game-right-panel__write-in-trigger--disabled" : ""}`}
-                  data-tooltip={WRITE_IN_TEMPORARILY_DISABLED ? "User input is currently disabled" : undefined}
-                >
+                <div ref={writeInTriggerRef} className="game-right-panel__write-in-trigger">
                   <button
                     className="game-right-panel__suggestion-button game-right-panel__wide-button"
-                    disabled={WRITE_IN_TEMPORARILY_DISABLED || isDisabled || isLoading}
+                    disabled={isDisabled || isLoading}
                     onClick={() => {
-                      if (!WRITE_IN_TEMPORARILY_DISABLED) {
-                        setIsWriteInOpen(true);
-                      }
+                      setIsWriteInOpen(true);
                     }}
-                    aria-label={WRITE_IN_TEMPORARILY_DISABLED ? "Write in temporarily disabled" : "Open write in"}
+                    aria-label="Open write in"
                   >
                     +
                   </button>
@@ -416,16 +499,31 @@ function GameRightPanel({
             <span className="game-right-panel__score-value">{turns}</span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
-            <span className="game-right-panel__score-label">Shuffles:</span>
-            <span className="game-right-panel__score-value">{shuffles}</span>
+            <span className="game-right-panel__score-label">Rewinds:</span>
+            <span
+              className="game-right-panel__score-value"
+              title={rewindAddsPenalty ? undefined : "rewind penalties are disabled"}
+            >
+              {rewindAddsPenalty ? rewinds : "N/A"}
+            </span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
-            <span className="game-right-panel__score-label">Rewinds:</span>
-            <span className="game-right-panel__score-value">{rewinds}</span>
+            <span className="game-right-panel__score-label">Shuffles:</span>
+            <span
+              className="game-right-panel__score-value"
+              title={shuffleAddsPenalty ? undefined : "shuffle penalties are disabled"}
+            >
+              {shuffleAddsPenalty ? shuffles : "N/A"}
+            </span>
           </div>
           <div className="game-right-panel__score-item game-right-panel__score-item--bordered">
             <span className="game-right-panel__score-label">Dead-ends:</span>
-            <span className={`game-right-panel__score-value${deadEndPenalties > 0 ? " game-right-panel__score-value--penalty" : ""}`}>{deadEndPenalties}</span>
+            <span
+              className={`game-right-panel__score-value${deadEndAddsPenalty && deadEndPenalties > 0 ? " game-right-panel__score-value--penalty" : ""}`}
+              title={deadEndAddsPenalty ? undefined : "dead-end penalties are disabled"}
+            >
+              {deadEndAddsPenalty ? deadEndPenalties : "N/A"}
+            </span>
           </div>
         </div>
       </div>

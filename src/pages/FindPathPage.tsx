@@ -7,7 +7,7 @@ import EntityDetailsDialog, {
 } from "../components/EntityDetailsDialog"
 import { generatePath } from "../api/costars"
 import EntityArtwork from "../components/EntityArtwork"
-import PageBackButton from "../components/PageBackButton"
+import PageNavigationHeader from "../components/PageNavigationHeader"
 import FullDataWaitingMessage from "../components/FullDataWaitingMessage"
 import {
   buildCatalogDetailDialogData,
@@ -508,7 +508,7 @@ function FindPathPage() {
       <div style={{ position: "fixed", right: 24, bottom: 80, background: "#fffbe6", border: "1px solid #e67e22", borderRadius: 8, padding: "8px 16px", zIndex: 9999, fontWeight: "bold", color: "#e67e22" }}>
         Time remaining: {min}:{sec.toString().padStart(2, "0")}
       </div>
-      <PageBackButton to="/" label="Back" />
+      <PageNavigationHeader backTo="/" backLabel="Back" />
       <div className="utilityPanel utilityPanel--wide">
         <div className="pageEyebrow">Find Path</div>
         <h1>Let the system solve it</h1>

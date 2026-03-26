@@ -1,16 +1,18 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type WheelEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import CustomGameSettingsPanel from "../components/CustomGameSettingsPanel";
+import DataSettingsPanel from "../components/DataSettingsPanel";
+import DisplaySettingsPanel from "../components/DisplaySettingsPanel";
 import EntityDetailsDialog, {
   type EntityDetailsDialogData,
   type EntityDetailsHistoryEntry,
   type EntityDetailsRelatedEntity,
 } from "../components/EntityDetailsDialog";
-import GameDataFilterPanel from "../components/GameDataFilterPanel";
-import SuggestionDisplaySettingsPanel from "../components/SuggestionDisplaySettingsPanel";
-import HomeButton from "../components/HomeButton";
+import GameplaySettingsSectionLayout from "../components/GameplaySettingsSectionLayout";
 import GameLogo from "../components/GameLogo";
+import EntityArtwork from "../components/EntityArtwork";
+import PageNavigationHeader from "../components/PageNavigationHeader";
 import { GameLeftPanel, GameRightPanel } from "../components/game";
+import type { GameplaySectionId } from "../components/gameplaySettingsSections";
 import {
   fetchActorByName,
   fetchActorMovies,
@@ -30,8 +32,9 @@ import {
   nodeFromSummary,
 } from "../gameplay";
 import { useDataSourceMode } from "../context/dataSourceMode";
-import { useGameSettings } from "../context/gameSettings";
+import { DEFAULT_DATA_FILTERS, useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
+import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import {
   getConfiguredPrimarySource,
@@ -47,14 +50,51 @@ import {
 import {
   createGameNodeFromSummary,
   findNodeByLabel,
+  findShortestPathWithFilter,
   generateLocalPath,
   getActorsForMovie,
   getMoviesForActor,
   validateLocalPath,
 } from "../data/localGraph";
+import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/filterCounts";
 import { formatActorInlineMeta, formatActorLifespan, formatGameNodeMeta, formatMovieInlineMeta, getMovieBadges } from "../data/presentation";
-import type { Actor, EffectiveDataSource, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
+import {
+  buildLevelScoreBreakdown,
+  getEffectiveTurnCount,
+  getLevelScoreStars,
+  getLevelScoreTier,
+  type LevelScoreTier,
+} from "../utils/calculateLevelScore.ts";
+import {
+  isLevelCompleted,
+  markLevelCompleted,
+  readCompletedLevels,
+  subscribeToLevelCompletionUpdates,
+  type CompletedLevelsCollection,
+} from "../utils/levelCompletionStorage.ts";
+import {
+  getLevelHistory,
+  saveLevelAttempt,
+  subscribeToLevelHistoryUpdates,
+  type LevelHistoryRecord,
+} from "../utils/levelHistoryStorage.ts";
+import {
+  calculateAverageReleaseYear,
+  calculatePathPopularityScore,
+  formatAverageReleaseYear,
+  getReleaseYear,
+} from "../utils/gameCompletionMetrics.ts";
+import { resolveWriteInOption } from "../utils/writeInOptions.ts";
+import type { Actor, EffectiveDataSource, GameDataFilters, GameNode, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types";
 import "./GamePage.css";
+
+type RulesTabId = "how-to-play" | "display" | "data" | "gameplay" | "saved-history";
+
+const MOBILE_GAME_DIFFERENCE_NOTES = [
+  "On iPhone-sized screens, the game board stays focused on play and hides the in-game info button.",
+  "You cannot open the Settings page or in-game gameplay settings while a mobile game is in progress.",
+  "Leave the game first if you want to change data mode, helper rules, or other settings.",
+];
 
 type RouteGameNode = {
   id?: number;
@@ -83,18 +123,40 @@ type GamePageRouteState = {
   movieB?: string;
   optimalHops?: number | null;
   optimalPath?: NodeSummary[];
+  levelIndex?: number;
+  totalLevels?: number;
 };
 
 type SelectedSide = "top" | "bottom";
 
-type CompletionState = {
+const MAX_MISTAKE_PENALTIES = 5;
+
+interface CompletionState {
   fullPath: GameNode[];
   usedHops: number;
+  score: number;
+  tier: LevelScoreTier;
+  stars: number;
+  turns: number;
+  effectiveTurns: number;
   winningSide: SelectedSide;
   source: string;
   isValidated: boolean | null;
   validationMessage?: string;
-};
+  shuffles: number;
+  shuffleModeEnabled: boolean;
+  appliedShufflePenaltyCount: number;
+  appliedRewindPenaltyCount: number;
+  repeatNodeClicks: number;
+  deadEnds: number;
+  totalMistakes: number;
+  usedSuggestions: boolean;
+  usedFilteredSuggestions: boolean;
+  usedFullSuggestionList: boolean;
+  usedRandomSubset: boolean;
+  popularityScore: number;
+  averageReleaseYear: number | null;
+}
 
 type NodeInspectorState = {
   detail: EntityDetailsDialogData;
@@ -137,24 +199,6 @@ function createNode(label: string, type: NodeType, partial?: Partial<GameNode>):
     type,
     ...partial,
   };
-}
-
-function getSuggestionPriorityScore(node: GameNode) {
-  if (node.highlight?.kind === "optimal") return 0;
-  if (node.highlight?.kind === "connection") return 0;
-  if (!node.highlight && node.pathHint?.reachable) return 1;
-
-  if (
-    node.highlight?.kind === "deep-loop"
-    || node.highlight?.kind === "cast-lock"
-    || node.highlight?.kind === "full-cast-lock"
-  ) {
-    return 2;
-  }
-
-  if (node.highlight?.kind === "loop") return 3;
-  if (node.highlight?.kind === "blocked") return 5;
-  return 4;
 }
 
 const NETWORK_UNAVAILABLE_MESSAGE = "Network connection couldn't be established. Offline demo mode is being used instead.";
@@ -342,12 +386,83 @@ function hydrateCompletionPath(path: GameNode[], referenceNodes: GameNode[]) {
   return path.map((node) => referenceNodes.find((referenceNode) => isSameNode(node, referenceNode)) ?? node);
 }
 
-function formatPathPreview(path: GameNode[]) {
-  return path.map((node) => node.label).join(" → ");
-}
+
 
 function uniqueText(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value && value.trim()))));
+}
+
+function formatTimestamp(timestamp: number) {
+  return new Date(timestamp).toLocaleString();
+}
+
+function reorderBestPathSuggestions(suggestions: GameNode[]) {
+  return suggestions
+    .map((suggestion, index) => ({ suggestion, index }))
+    .sort((left, right) => {
+      const getRiskBucket = (node: GameNode) => {
+        const kind = node.highlight?.kind;
+        return kind === "loop" || kind === "deep-loop" || kind === "cast-lock" || kind === "blocked" ? 1 : 0;
+      };
+
+      const bucketDelta = getRiskBucket(left.suggestion) - getRiskBucket(right.suggestion);
+      if (bucketDelta !== 0) {
+        return bucketDelta;
+      }
+
+      return left.index - right.index;
+    })
+    .map((entry) => entry.suggestion);
+}
+
+function formatPenaltyValue(value: number) {
+  return value === 0 ? "0" : `-${value}`;
+}
+
+function formatExecutionScore(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? `${Math.round(value)}%` : "--";
+}
+
+function getWriteInContextLabel(selection: GameNode | null) {
+  if (!selection || selection.type === "actor") {
+    return {
+      placeholder: "Enter a movie title",
+      writeInType: "movie" as NodeType,
+    };
+  }
+
+  return {
+    placeholder: "Enter an actor name",
+    writeInType: "actor" as NodeType,
+  };
+}
+
+type DisplayStar = {
+  filled: boolean;
+};
+
+function getTierTone(tier: LevelScoreTier): "gold" | "silver" | "bronze" | "fail" {
+  if (tier === "GOLD") {
+    return "gold";
+  }
+
+  if (tier === "SILVER") {
+    return "silver";
+  }
+
+  if (tier === "BRONZE") {
+    return "bronze";
+  }
+
+  return "fail";
+}
+
+function buildDisplayedStars(stars: number) {
+  const normalizedStars = Math.max(0, Math.min(3, Math.round(stars)));
+
+  return Array.from({ length: 3 }, (_, index) => ({
+    filled: index < normalizedStars,
+  } satisfies DisplayStar));
 }
 
 function toInspectorDetail(node: GameNode, relatedCount: number, detailLines: string[], description: string | null): EntityDetailsDialogData {
@@ -442,16 +557,18 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode, setConnectionMode, setOfflineSource } = useDataSourceMode();
-  const { settings, setCustomSetting, setActorPopularityCutoff, setReleaseYearCutoff, setMovieSortMode, setActorSortMode, setSuggestionViewMode, setSubsetCount, setAllWindowMode } = useGameSettings();
+  const { settings, setDifficulty, setCustomSetting, setCompletionDarkMode, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
   const dataFilters = settings.dataFilters;
+  const completionThemeClassName = settings.completionDarkMode ? "gameCompletionTheme--dark" : "gameCompletionTheme--light";
   const shouldGuaranteeBestPathSuggestion = helperSettings["guarantee-best-path-suggestion"];
   const showVisitedSuggestions = helperSettings["show-visited-suggestions"];
-  const sortSuggestionsByRiskPriority = helperSettings["sort-suggestions-by-risk-priority"];
+  const shuffleAddsPenalty = helperSettings["shuffle-adds-penalty"];
+  const rewindAddsPenalty = helperSettings["rewind-adds-penalty"];
   const cycleRiskClickAddsPenalty = helperSettings["cycle-risk-click-adds-penalty"];
   const showCastLockRiskHighlight = helperSettings["show-cast-lock-risk"];
-  const showFullCastLockHighlight = helperSettings["show-full-cast-lock"];
+  const writeInAutoSuggestEnabled = helperSettings["write-in-autosuggest"];
 
   const [actorA, setActorA] = useState<GameNode | null>(null);
   const [actorB, setActorB] = useState<GameNode | null>(null);
@@ -466,12 +583,22 @@ function GamePage() {
   const [turns, setTurns] = useState(0);
   const [rewinds, setRewinds] = useState(0);
   const [deadEndPenalties, setDeadEndPenalties] = useState(0);
+  const [repeatNodeClickPenalties, setRepeatNodeClickPenalties] = useState(0);
   const [shuffles, setShuffles] = useState(0);
+  const startWithSuggestionPanelVisible = helperSettings["start-with-suggestion-panel"];
+  const isCompactPhoneViewport = useIsCompactPhoneViewport();
+  const defaultSuggestionPanelVisible = startWithSuggestionPanelVisible && !isCompactPhoneViewport;
+
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [activeRulesGameplaySection, setActiveRulesGameplaySection] = useState<GameplaySectionId>("presets");
+  const [activeRulesTab, setActiveRulesTab] = useState<RulesTabId>("how-to-play");
+  const [isPanelOrderSwapped, setIsPanelOrderSwapped] = useState(false);
+  const [isSuggestionPanelVisible, setIsSuggestionPanelVisible] = useState(defaultSuggestionPanelVisible);
+  const [filterValidationMessage, setFilterValidationMessage] = useState<string | null>(null);
 
   const [optimalHops, setOptimalHops] = useState<number | null>(routeState?.optimalHops ?? null);
-  const [optimalPath, setOptimalPath] = useState<GameNode[]>(routeState?.optimalPath?.map(nodeFromSummary) ?? []);
+
 
   const [suggestions, setSuggestions] = useState<GameNode[]>([]);
   const [isSetupLoading, setIsSetupLoading] = useState(true);
@@ -480,15 +607,185 @@ function GamePage() {
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [completion, setCompletion] = useState<CompletionState | null>(null);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
+  const [isSavedHistoryDialogOpen, setIsSavedHistoryDialogOpen] = useState(false);
+  const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
+  const [currentLevelIdentity, setCurrentLevelIdentity] = useState<{ startLabel: string; endLabel: string } | null>(null);
+  const [levelHistory, setLevelHistory] = useState<LevelHistoryRecord | null>(null);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
   const [inspectorTrail, setInspectorTrail] = useState<GameNode[]>([]);
   const [nodeInspector, setNodeInspector] = useState<NodeInspectorState | null>(null);
   const [inspectorRelationSearch, setInspectorRelationSearch] = useState("");
+  const [leftPanelWriteInSide, setLeftPanelWriteInSide] = useState<SelectedSide | null>(null);
+  const [leftPanelWriteInValue, setLeftPanelWriteInValue] = useState("");
+  const [isSubmittingLeftPanelWriteIn, setIsSubmittingLeftPanelWriteIn] = useState(false);
+  const [rightWriteInSuggestionPool, setRightWriteInSuggestionPool] = useState<GameNode[]>([]);
+  const [leftWriteInSuggestionPool, setLeftWriteInSuggestionPool] = useState<GameNode[]>([]);
+  const rulesDialogRef = useRef<HTMLDivElement | null>(null);
   const cycleRiskChildCacheRef = useRef<Map<string, GameNode[]>>(new Map());
+  const levelIdentityRef = useRef<{ startLabel: string; endLabel: string } | null>(null);
+  const actorsCatalogById = useMemo(
+    () => new Map(actorsCatalog.map((actor) => [actor.id, actor])),
+    [actorsCatalog],
+  );
+  const moviesCatalogById = useMemo(
+    () => new Map(moviesCatalog.map((movie) => [movie.id, movie])),
+    [moviesCatalog],
+  );
 
   const preferredDataSource = getConfiguredPrimarySource(mode);
   const activeDataSource = resolvedDataSource ?? preferredDataSource;
+  const activeDataSourceLabel = activeDataSource === "api"
+    ? "Online API"
+    : activeDataSource === "snapshot"
+      ? "Online snapshot"
+      : "Offline demo";
+  const activeFilterIndexes = activeDataSource === "demo"
+    ? DEMO_BUNDLE.indexes
+    : activeDataSource === "snapshot"
+      ? indexes
+      : null;
+  const actorCountSummary = useMemo(() => {
+    if (activeDataSource === "api") {
+      return getActorFilterCountSummary(actorsCatalog, dataFilters.actorPopularityCutoff);
+    }
+
+    if (!activeFilterIndexes) {
+      return null;
+    }
+
+    return getActorFilterCountSummary(activeFilterIndexes.actorsById.values(), dataFilters.actorPopularityCutoff);
+  }, [activeDataSource, activeFilterIndexes, actorsCatalog, dataFilters.actorPopularityCutoff]);
+  const movieCountSummary = useMemo(() => {
+    if (activeDataSource === "api") {
+      return getMovieFilterCountSummary(moviesCatalog, dataFilters.releaseYearCutoff);
+    }
+
+    if (!activeFilterIndexes) {
+      return null;
+    }
+
+    return getMovieFilterCountSummary(activeFilterIndexes.moviesById.values(), dataFilters.releaseYearCutoff);
+  }, [activeDataSource, activeFilterIndexes, dataFilters.releaseYearCutoff, moviesCatalog]);
+  const levelHistoryAttempts = levelHistory?.attempts ?? [];
+  const latestAttempt = levelHistory?.attempts[0] ?? null;
+  const isShuffleModeEnabled = suggestionDisplay.orderMode === "shuffled";
+  const completionScoreBreakdown = useMemo(() => {
+    if (!completion) {
+      return null;
+    }
+
+    return buildLevelScoreBreakdown({
+      hops: completion.usedHops,
+      optimalHops: optimalHops ?? completion.usedHops,
+      turns: completion.turns,
+      usedSuggestions: completion.usedSuggestions,
+      usedFilteredSuggestions: completion.usedFilteredSuggestions,
+      usedFullSuggestionList: completion.usedFullSuggestionList,
+      usedRandomSubset: completion.usedRandomSubset,
+      shuffles: completion.appliedShufflePenaltyCount,
+      rewinds: completion.appliedRewindPenaltyCount,
+      repeatNodeClicks: completion.repeatNodeClicks,
+      deadEnds: completion.deadEnds,
+    });
+  }, [completion, optimalHops]);
+  const displayedCompletionScore = completionScoreBreakdown?.score ?? completion?.score ?? null;
+  const displayedCompletionTier = completionScoreBreakdown?.tier ?? completion?.tier ?? null;
+  const displayedCompletionStars = completionScoreBreakdown?.stars ?? completion?.stars ?? null;
+  const displayedCompletionPercent = typeof displayedCompletionScore === "number" && Number.isFinite(displayedCompletionScore)
+    ? Math.max(0, Math.min(100, Math.round(displayedCompletionScore)))
+    : 0;
+  const completionTierTone = displayedCompletionTier ? getTierTone(displayedCompletionTier) : "bronze";
+  const completionScoreDialStyle = {
+    "--completion-score-progress": displayedCompletionPercent,
+  } as CSSProperties;
+  const completionScoreFormula = useMemo(() => {
+    if (!completionScoreBreakdown) {
+      return "--";
+    }
+
+    const terms = [
+      completionScoreBreakdown.penalties.suggestions,
+      completionScoreBreakdown.penalties.filteredSuggestions,
+      completionScoreBreakdown.penalties.fullSuggestionList,
+      completionScoreBreakdown.penalties.randomSubset,
+      completionScoreBreakdown.penalties.shuffles,
+      completionScoreBreakdown.penalties.rewinds,
+      completionScoreBreakdown.penalties.extraTurns,
+      completionScoreBreakdown.penalties.mistakes,
+    ];
+
+    return `100% - (${terms.map((term) => `${term}%`).join(" + ")}) = ${formatExecutionScore(displayedCompletionScore)}`;
+  }, [completionScoreBreakdown, displayedCompletionScore]);
+  const renderCompletionScoreDial = (className: string) => (
+    <span className={`gameCompletionScoreDial gameCompletionScoreDial--${completionTierTone} ${className}`.trim()} style={completionScoreDialStyle}>
+      <span className="gameCompletionScoreDialTrack" aria-hidden="true" />
+      <span className="gameCompletionScoreDialArc" aria-hidden="true" />
+      <span className="gameCompletionScoreDialInner">
+        <span className="gameCompletionScoreDialValue">{formatExecutionScore(displayedCompletionScore)}</span>
+      </span>
+    </span>
+  );
+  const totalMistakePenalties = deadEndPenalties + repeatNodeClickPenalties;
+  const isMistakeGameOver = totalMistakePenalties >= MAX_MISTAKE_PENALTIES;
+  const usesFilteredSuggestions = dataFilters.actorPopularityCutoff !== DEFAULT_DATA_FILTERS.actorPopularityCutoff
+    || dataFilters.releaseYearCutoff !== DEFAULT_DATA_FILTERS.releaseYearCutoff;
+  const currentLevelCompleted = useMemo(() => {
+    if (!currentLevelIdentity) {
+      return false;
+    }
+
+    return isLevelCompleted(currentLevelIdentity.startLabel, currentLevelIdentity.endLabel, completedLevels);
+  }, [completedLevels, currentLevelIdentity]);
+  const levelHistoryContent = levelHistoryAttempts.length === 0 ? (
+    <div className="gameCompletionHistoryEmpty">This level does not have any saved history yet.</div>
+  ) : (
+    <ol className="gameCompletionLeaderboardList gameCompletionLeaderboardList--flat">
+      {levelHistoryAttempts.map((attempt, attemptIndex) => {
+        const attemptTier = attempt.tier ?? (typeof optimalHops === "number"
+          ? getLevelScoreTier(attempt.hops, optimalHops)
+          : "BRONZE");
+        const attemptTierTone = getTierTone(attemptTier);
+        const attemptStars = typeof attempt.stars === "number" ? attempt.stars : getLevelScoreStars(attempt.score);
+
+        return (
+          <li key={attempt.id} className="gameCompletionLeaderboardItem">
+            <div className="gameCompletionLeaderboardTopRow">
+              <span className="gameCompletionLeaderboardRank">#{attemptIndex + 1}</span>
+              <span className="gameCompletionLeaderboardHops">{attempt.hops} hops</span>
+              <span className="gameCompletionLeaderboardTurns">{typeof attempt.turns === "number" ? `${attempt.turns} turns` : "-- turns"}</span>
+              <span className={`gameCompletionTierBadge gameCompletionTierBadge--${attemptTierTone}`}>{attemptTier}</span>
+              <span className="gameCompletionLeaderboardStars" aria-label={`${attemptStars} out of 3 stars`}>
+                {buildDisplayedStars(attemptStars).map((star, starIndex) => (
+                  <span
+                    key={starIndex}
+                    className={`gameCompletionLeaderboardStar${star.filled ? " gameCompletionLeaderboardStar--filled" : " gameCompletionLeaderboardStar--empty"}`}
+                  >
+                    ★
+                  </span>
+                ))}
+              </span>
+              <span className="gameCompletionLeaderboardScore">{formatExecutionScore(attempt.score)}</span>
+            </div>
+            <div className="gameCompletionLeaderboardMetrics">
+              <span className="gameCompletionLeaderboardMetric">effective turns {typeof attempt.effectiveTurns === "number" ? attempt.effectiveTurns : "--"}</span>
+              <span className="gameCompletionLeaderboardMetric">{attempt.shuffleModeEnabled === false ? "shuffles N/A" : `shuffles ${attempt.shuffles}`}</span>
+              <span className="gameCompletionLeaderboardMetric">rewinds {attempt.rewinds}</span>
+              <span className="gameCompletionLeaderboardMetric">repeat nodes {attempt.repeatNodeClicks ?? 0}</span>
+              <span className="gameCompletionLeaderboardMetric">dead ends {attempt.deadEnds}</span>
+              <span className="gameCompletionLeaderboardMetric">mistakes {attempt.totalMistakes ?? ((attempt.repeatNodeClicks ?? 0) + attempt.deadEnds)}</span>
+              <span className="gameCompletionLeaderboardMetric">popularity avg {typeof attempt.popularityScore === "number" ? attempt.popularityScore : "--"}</span>
+              <span className="gameCompletionLeaderboardMetric">avg year {formatAverageReleaseYear(attempt.averageReleaseYear)}</span>
+            </div>
+            <div className="gameCompletionLeaderboardPath">
+              {attempt.path.map((node) => node.label).join(" → ")}
+            </div>
+            <div className="gameCompletionLeaderboardTimestamp">{formatTimestamp(attempt.timestamp)}</div>
+          </li>
+        );
+      })}
+    </ol>
+  );
 
   const resolveSnapshotResources = useCallback(
     async (allowDemoFallback = false) => {
@@ -512,6 +809,134 @@ function GamePage() {
     },
     [indexes, snapshot],
   );
+
+  const validateDataFiltersForCurrentBoard = useCallback(async (nextFilters: GameDataFilters) => {
+    const topAnchor = topPath[topPath.length - 1] ?? actorA;
+    const bottomAnchor = bottomPath[bottomPath.length - 1] ?? actorB;
+
+    if (!topAnchor || !bottomAnchor) {
+      return { allowed: true as const, message: null };
+    }
+
+    const startSummary = toNodeSummary(topAnchor);
+    const targetSummary = toNodeSummary(bottomAnchor);
+    if (!startSummary || !targetSummary) {
+      return { allowed: true as const, message: null };
+    }
+
+    const resources = (await resolveSnapshotResources(activeDataSource === "demo")) ?? (await resolveSnapshotResources(true));
+    if (!resources) {
+      return { allowed: true as const, message: null };
+    }
+
+    const startKey = `${startSummary.type}:${startSummary.id}`;
+    const targetKey = `${targetSummary.type}:${targetSummary.id}`;
+    const blockedNodeKeys = new Set(
+      [actorA, ...topPath, actorB, ...bottomPath]
+        .filter((node): node is GameNode => Boolean(node && typeof node.id === "number"))
+        .map((node) => `${node.type}:${node.id as number}`)
+        .filter((nodeKey) => nodeKey !== startKey && nodeKey !== targetKey),
+    );
+
+    const path = findShortestPathWithFilter(startSummary, targetSummary, resources.indexes, (node) => {
+      const nodeKey = `${node.type}:${node.id}`;
+      if (nodeKey === startKey || nodeKey === targetKey) {
+        return true;
+      }
+
+      if (blockedNodeKeys.has(nodeKey)) {
+        return false;
+      }
+
+      if (node.type === "actor") {
+        if (nextFilters.actorPopularityCutoff === null) {
+          return true;
+        }
+
+        const actor = resources.indexes.actorsById.get(node.id);
+        return (actor?.popularity ?? Number.NEGATIVE_INFINITY) >= nextFilters.actorPopularityCutoff;
+      }
+
+      if (nextFilters.releaseYearCutoff === null) {
+        return true;
+      }
+
+      const movie = resources.indexes.moviesById.get(node.id);
+      const releaseYear = getReleaseYear(movie?.releaseDate ?? null);
+      return releaseYear !== null && releaseYear >= nextFilters.releaseYearCutoff;
+    });
+
+    if (path) {
+      return { allowed: true as const, message: null };
+    }
+
+    return {
+      allowed: false as const,
+      message: "That filter would remove every remaining valid path for the current board. Loosen the actor cutoff or release-year cutoff and try again.",
+    };
+  }, [activeDataSource, actorA, actorB, bottomPath, resolveSnapshotResources, topPath]);
+
+  const applyValidatedDataFilterChange = useCallback(async (
+    nextFilters: GameDataFilters,
+    applyChange: () => void,
+  ) => {
+    const validation = await validateDataFiltersForCurrentBoard(nextFilters);
+    if (!validation.allowed) {
+      setFilterValidationMessage(validation.message);
+      return;
+    }
+
+    setFilterValidationMessage(null);
+    applyChange();
+  }, [validateDataFiltersForCurrentBoard]);
+
+  const handleActorPopularityCutoffChange = useCallback((cutoff: number | null) => {
+    void applyValidatedDataFilterChange(
+      {
+        ...dataFilters,
+        actorPopularityCutoff: cutoff,
+      },
+      () => setActorPopularityCutoff(cutoff),
+    );
+  }, [applyValidatedDataFilterChange, dataFilters, setActorPopularityCutoff]);
+
+  const handleReleaseYearCutoffChange = useCallback((year: number | null) => {
+    void applyValidatedDataFilterChange(
+      {
+        ...dataFilters,
+        releaseYearCutoff: year,
+      },
+      () => setReleaseYearCutoff(year),
+    );
+  }, [applyValidatedDataFilterChange, dataFilters, setReleaseYearCutoff]);
+
+  useEffect(() => {
+    setCompletedLevels(readCompletedLevels());
+    return subscribeToLevelCompletionUpdates(() => {
+      setCompletedLevels(readCompletedLevels());
+    });
+  }, []);
+
+  useEffect(() => {
+    const syncLevelHistory = () => {
+      const levelIdentity = levelIdentityRef.current;
+      if (!levelIdentity) {
+        return;
+      }
+
+      setLevelHistory(getLevelHistory(levelIdentity.startLabel, levelIdentity.endLabel));
+    };
+
+    syncLevelHistory();
+    return subscribeToLevelHistoryUpdates(syncLevelHistory);
+  }, []);
+
+  useEffect(() => {
+    if (completion) {
+      setLeftPanelWriteInSide(null);
+      setLeftPanelWriteInValue("");
+    }
+  }, [completion]);
 
   useEffect(() => {
     let isMounted = true;
@@ -599,7 +1024,7 @@ function GamePage() {
       setActorB(PLACEHOLDER_START_B);
       setMoviesCatalog([]);
       setOptimalHops(null);
-      setOptimalPath([]);
+      // setOptimalPath removed
       setSuggestions(createPlaceholderSuggestions("actor"));
       setResolvedDataSource(null);
       setIsNetworkUnavailable(true);
@@ -613,12 +1038,22 @@ function GamePage() {
       return;
     }
 
+    levelIdentityRef.current = {
+      startLabel: demoSetup.actorA.label,
+      endLabel: demoSetup.actorB.label,
+    };
+    setCurrentLevelIdentity({
+      startLabel: demoSetup.actorA.label,
+      endLabel: demoSetup.actorB.label,
+    });
+    setLevelHistory(getLevelHistory(demoSetup.actorA.label, demoSetup.actorB.label));
+
     setActorA(demoSetup.actorA);
     setActorB(demoSetup.actorB);
   	setActorsCatalog([]);
     setMoviesCatalog([]);
     setOptimalHops(demoSetup.optimalHops);
-    setOptimalPath(demoSetup.optimalPath);
+    // setOptimalPath removed
     setResolvedDataSource("demo");
     setSetupError(null);
     setIsNetworkUnavailable(false);
@@ -642,6 +1077,8 @@ function GamePage() {
       setLockedSide(null);
       setTurns(0);
       setRewinds(0);
+      setDeadEndPenalties(0);
+      setRepeatNodeClickPenalties(0);
       setShuffles(0);
       setShuffleSeed(0);
       setIsNetworkUnavailable(false);
@@ -664,12 +1101,22 @@ function GamePage() {
               return;
             }
 
+            levelIdentityRef.current = {
+              startLabel: apiSetup.actorA.label,
+              endLabel: apiSetup.actorB.label,
+            };
+            setCurrentLevelIdentity({
+              startLabel: apiSetup.actorA.label,
+              endLabel: apiSetup.actorB.label,
+            });
+            setLevelHistory(getLevelHistory(apiSetup.actorA.label, apiSetup.actorB.label));
+
             setActorA(apiSetup.actorA);
             setActorB(apiSetup.actorB);
       			setActorsCatalog(apiSetup.actors);
             setMoviesCatalog(apiSetup.movies);
             setOptimalHops(apiSetup.optimalHops);
-            setOptimalPath(apiSetup.optimalPath);
+            // setOptimalPath removed
             setResolvedDataSource("api");
             return;
           } catch {
@@ -679,12 +1126,21 @@ function GamePage() {
             }
 
             if (snapshotSetup) {
+              levelIdentityRef.current = {
+                startLabel: snapshotSetup.actorA.label,
+                endLabel: snapshotSetup.actorB.label,
+              };
+              setCurrentLevelIdentity({
+                startLabel: snapshotSetup.actorA.label,
+                endLabel: snapshotSetup.actorB.label,
+              });
+              setLevelHistory(getLevelHistory(snapshotSetup.actorA.label, snapshotSetup.actorB.label));
               setActorA(snapshotSetup.actorA);
               setActorB(snapshotSetup.actorB);
 				setActorsCatalog([]);
               setMoviesCatalog([]);
               setOptimalHops(snapshotSetup.optimalHops);
-              setOptimalPath(snapshotSetup.optimalPath);
+              // setOptimalPath removed
               setResolvedDataSource("snapshot");
               return;
             }
@@ -700,12 +1156,22 @@ function GamePage() {
             return;
           }
 
+          levelIdentityRef.current = {
+            startLabel: snapshotSetup.actorA.label,
+            endLabel: snapshotSetup.actorB.label,
+          };
+          setCurrentLevelIdentity({
+            startLabel: snapshotSetup.actorA.label,
+            endLabel: snapshotSetup.actorB.label,
+          });
+          setLevelHistory(getLevelHistory(snapshotSetup.actorA.label, snapshotSetup.actorB.label));
+
           setActorA(snapshotSetup.actorA);
           setActorB(snapshotSetup.actorB);
 		  setActorsCatalog([]);
           setMoviesCatalog([]);
           setOptimalHops(snapshotSetup.optimalHops);
-          setOptimalPath(snapshotSetup.optimalPath);
+          // setOptimalPath removed
           setResolvedDataSource("snapshot");
           return;
         }
@@ -731,7 +1197,7 @@ function GamePage() {
 
   const totalSelections = topPath.length + bottomPath.length;
   const hasPlacedSelections = totalSelections > 0;
-  const isRiskAnalysisEnabled = helperSettings["show-hint-color"] && hasPlacedSelections && (showCastLockRiskHighlight || showFullCastLockHighlight);
+  const isRiskAnalysisEnabled = helperSettings["show-hint-color"] && hasPlacedSelections && showCastLockRiskHighlight;
   const isPathLimitReached = totalSelections >= MAX_PATH_LENGTH;
   const currentHops = totalSelections;
   const displayedSetupError = suppressNetworkUnavailableMessage(setupError ?? (activeDataSource === "snapshot" ? snapshotError : null));
@@ -748,6 +1214,21 @@ function GamePage() {
 
     return bottomPath.length > 0 ? bottomPath[bottomPath.length - 1] : actorB;
   }, [actorA, actorB, bottomPath, selectedSide, topPath]);
+  const topSelection = useMemo(() => {
+    if (!actorA) {
+      return null;
+    }
+
+    return topPath.length > 0 ? topPath[topPath.length - 1] : actorA;
+  }, [actorA, topPath]);
+  const bottomSelection = useMemo(() => {
+    if (!actorB) {
+      return null;
+    }
+
+    return bottomPath.length > 0 ? bottomPath[bottomPath.length - 1] : actorB;
+  }, [actorB, bottomPath]);
+  const canGoBackOnCurrentSide = selectedSide === "top" ? topPath.length > 0 : bottomPath.length > 0;
 
   const targetNode = useMemo(() => {
     if (!actorA || !actorB) {
@@ -757,23 +1238,38 @@ function GamePage() {
     return selectedSide === "top" ? actorB : actorA;
   }, [actorA, actorB, selectedSide]);
 
-  const shouldRandomizeSuggestions = useMemo(() => {
-    if (!currentSelection) {
-      return false;
-    }
-
-    return currentSelection.type === "actor"
-      ? dataFilters.movieSortMode === "random"
-      : dataFilters.actorSortMode === "random";
-  }, [currentSelection, dataFilters.actorSortMode, dataFilters.movieSortMode]);
+  const shouldRandomizeSuggestions = isShuffleModeEnabled;
+  const leftPanelWriteInSelection = leftPanelWriteInSide === "top"
+    ? topSelection
+    : leftPanelWriteInSide === "bottom"
+      ? bottomSelection
+      : null;
+  const leftPanelWriteInContext = getWriteInContextLabel(leftPanelWriteInSelection);
 
   const suggestionBuildOptions = useMemo(() => ({
-    shouldShuffle: shouldRandomizeSuggestions,
+    shouldShuffle: false,
     shouldGuaranteeBestPath: shouldGuaranteeBestPathSuggestion,
-    suggestionLimit: suggestionDisplay.viewMode === "subset" ? suggestionDisplay.subsetCount : null,
+    suggestionLimit: shouldRandomizeSuggestions ? suggestionDisplay.subsetCount : null,
+    sortMode: suggestionDisplay.sortMode,
     movieSortMode: dataFilters.movieSortMode,
     actorSortMode: dataFilters.actorSortMode,
-  }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.viewMode, suggestionDisplay.subsetCount]);
+  }), [dataFilters.actorSortMode, dataFilters.movieSortMode, shouldGuaranteeBestPathSuggestion, shouldRandomizeSuggestions, suggestionDisplay.sortMode, suggestionDisplay.subsetCount]);
+
+  const finalizeSuggestionOrder = useCallback((nextSuggestions: GameNode[]) => {
+    if (suggestionDisplay.sortMode !== "best-path") {
+      return nextSuggestions;
+    }
+
+    return reorderBestPathSuggestions(nextSuggestions);
+  }, [suggestionDisplay.sortMode]);
+
+  const boardNodes = useMemo(() => {
+    if (!actorA || !actorB) {
+      return [] as GameNode[];
+    }
+
+    return [actorA, actorB, ...topPath, ...bottomPath];
+  }, [actorA, actorB, bottomPath, topPath]);
 
   const oppositeFrontierNode = useMemo(() => {
     if (!actorA || !actorB) {
@@ -793,35 +1289,75 @@ function GamePage() {
     }
 
     const allowedKeys = createAllowedLoopNodeKeySet(targetNode, oppositeFrontierNode);
-    return createBlockedLoopNodeKeySet([actorA, actorB, ...topPath, ...bottomPath], allowedKeys);
-  }, [actorA, actorB, bottomPath, oppositeFrontierNode, targetNode, topPath]);
+    return createBlockedLoopNodeKeySet(boardNodes, allowedKeys);
+  }, [actorA, actorB, boardNodes, oppositeFrontierNode, targetNode]);
 
   const visitedMovieNodeKeys = useMemo(() => {
-    if (!actorA || !actorB) {
+    if (boardNodes.length === 0) {
       return new Set<string>();
     }
 
     return new Set(
-      [actorA, actorB, ...topPath, ...bottomPath]
+      boardNodes
         .filter((node) => node.type === "movie")
         .map((node) => getNodeKey(node)),
     );
-  }, [actorA, actorB, bottomPath, topPath]);
+  }, [boardNodes]);
 
-  const isInteractionDisabled = isPathLimitReached || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
+  const isInteractionDisabled = isPathLimitReached || isMistakeGameOver || isSetupLoading || isNetworkUnavailable || ((activeDataSource === "snapshot" || activeDataSource === "demo") && isSnapshotLoading && !isOfflineDemoMode(mode)) || !!completion;
   const isGameComplete = !!completion;
 
+  const applyDeadEndPenalty = useCallback((message: string) => {
+    setDeadEndPenalties((currentPenalties) => {
+      const nextPenalties = Math.min(MAX_MISTAKE_PENALTIES, currentPenalties + 1);
+      const totalMistakes = nextPenalties + repeatNodeClickPenalties;
+
+      if (totalMistakes >= MAX_MISTAKE_PENALTIES) {
+        setSuggestionError(`Game over: ${message} You reached ${MAX_MISTAKE_PENALTIES} total mistakes. Retry the level to start over.`);
+      } else {
+        setSuggestionError(message);
+      }
+
+      return nextPenalties;
+    });
+  }, [repeatNodeClickPenalties]);
+
+  const applyRepeatNodePenalty = useCallback((message: string) => {
+    setRepeatNodeClickPenalties((currentPenalties) => {
+      const nextPenalties = Math.min(MAX_MISTAKE_PENALTIES, currentPenalties + 1);
+      const totalMistakes = deadEndPenalties + nextPenalties;
+
+      if (totalMistakes >= MAX_MISTAKE_PENALTIES) {
+        setSuggestionError(`Game over: ${message} You reached ${MAX_MISTAKE_PENALTIES} total mistakes. Retry the level to start over.`);
+      } else {
+        setSuggestionError(message);
+      }
+
+      return nextPenalties;
+    });
+  }, [deadEndPenalties]);
+
   const visibleSuggestions = useMemo(() => {
-    const filtered = showVisitedSuggestions
+    return showVisitedSuggestions
       ? [...suggestions]
       : suggestions.filter((suggestion) => suggestion.highlight?.kind !== "blocked");
+  }, [showVisitedSuggestions, suggestions]);
 
-    if (!sortSuggestionsByRiskPriority) {
-      return filtered;
+  const hiddenPanelMessage = useMemo(() => {
+    if (isSuggestionPanelVisible || !displayedSuggestionError) {
+      return null;
     }
 
-    return [...filtered].sort((a, b) => getSuggestionPriorityScore(a) - getSuggestionPriorityScore(b));
-  }, [showVisitedSuggestions, sortSuggestionsByRiskPriority, suggestions]);
+    if (
+      displayedSuggestionError.startsWith("Cycle")
+      || displayedSuggestionError.startsWith("Game over:")
+      || displayedSuggestionError.toLowerCase().includes("dead-end")
+    ) {
+      return displayedSuggestionError;
+    }
+
+    return null;
+  }, [displayedSuggestionError, isSuggestionPanelVisible]);
 
   const applyActorPopularityFilter = useCallback((nextSuggestions: GameNode[]) => {
     return nextSuggestions.filter((suggestion) => {
@@ -854,7 +1390,7 @@ function GamePage() {
       return [] as GameNode[];
     }
 
-    const useCache = CYCLE_RISK_CACHE_ENABLED && source === "api";
+    const useCache = CYCLE_RISK_CACHE_ENABLED;
     const cacheKey = `${source}:${targetNode.type}:${targetNode.id ?? "none"}:${suggestion.type}:${suggestion.id}`;
     if (useCache) {
       const cached = cycleRiskChildCacheRef.current.get(cacheKey);
@@ -910,7 +1446,7 @@ function GamePage() {
       return [] as GameNode[];
     }
 
-    const useCache = CYCLE_RISK_CACHE_ENABLED && source === "api";
+    const useCache = CYCLE_RISK_CACHE_ENABLED;
     const cacheKey = `${source}:exhaustive:${node.type}:${node.id}`;
 
     if (useCache) {
@@ -952,6 +1488,91 @@ function GamePage() {
     return childNodes;
   }, []);
 
+  const loadWriteInSuggestionPool = useCallback(async (selection: GameNode | null) => {
+    if (!selection || !targetNode || selection.id === undefined) {
+      return [] as GameNode[];
+    }
+
+    const targetSummary = toNodeSummary(targetNode);
+    if (!targetSummary) {
+      return [] as GameNode[];
+    }
+
+    const formatWriteInSuggestions = (nextSuggestions: GameNode[]) => {
+      return finalizeSuggestionOrder(
+        buildSuggestionSet(
+          applyActorPopularityFilter(nextSuggestions),
+          targetNode,
+          blockedLoopNodeKeys,
+          {
+            ...suggestionBuildOptions,
+            shouldShuffle: false,
+            suggestionLimit: null,
+          },
+        ),
+      );
+    };
+
+    const mapApiMovies = async () => {
+      const relatedMovies = await fetchActorMovies(selection.id!, targetNode.type, targetNode.id);
+      return relatedMovies.map((movie) => createNode(movie.title, "movie", {
+        id: movie.id,
+        releaseDate: movie.releaseDate,
+        imageUrl: moviesCatalogById.get(movie.id)?.posterUrl ?? null,
+        genres: moviesCatalogById.get(movie.id)?.genres ?? [],
+        contentRating: moviesCatalogById.get(movie.id)?.contentRating ?? null,
+        originalLanguage: moviesCatalogById.get(movie.id)?.originalLanguage ?? null,
+        overview: moviesCatalogById.get(movie.id)?.overview ?? null,
+        pathHint: movie.pathHint,
+      }));
+    };
+
+    const mapApiActors = async () => {
+      const relatedActors = await fetchMovieActors(selection.id!, [], targetNode.type, targetNode.id);
+      return relatedActors.map((actor) => createNode(actor.name, "actor", {
+        id: actor.id,
+        popularity: actor.popularity,
+        imageUrl: actorsCatalogById.get(actor.id)?.profileUrl ?? null,
+        knownForDepartment: actorsCatalogById.get(actor.id)?.knownForDepartment ?? null,
+        placeOfBirth: actorsCatalogById.get(actor.id)?.placeOfBirth ?? null,
+        pathHint: actor.pathHint,
+        popularityRank: actor.popularityRank,
+      }));
+    };
+
+    if (activeDataSource === "snapshot" || activeDataSource === "demo") {
+      const resources = await resolveSnapshotResources(activeDataSource === "demo");
+      if (!resources) {
+        return [] as GameNode[];
+      }
+
+      const localSuggestions = selection.type === "actor"
+        ? getMoviesForActor(selection.id, targetSummary, resources.indexes)
+        : getActorsForMovie(selection.id, [], targetSummary, resources.indexes);
+
+      return formatWriteInSuggestions(localSuggestions);
+    }
+
+    try {
+      const apiSuggestions = selection.type === "actor"
+        ? await mapApiMovies()
+        : await mapApiActors();
+
+      return formatWriteInSuggestions(apiSuggestions);
+    } catch {
+      const resources = (await resolveSnapshotResources()) ?? (await resolveSnapshotResources(true));
+      if (!resources) {
+        return [] as GameNode[];
+      }
+
+      const localSuggestions = selection.type === "actor"
+        ? getMoviesForActor(selection.id, targetSummary, resources.indexes)
+        : getActorsForMovie(selection.id, [], targetSummary, resources.indexes);
+
+      return formatWriteInSuggestions(localSuggestions);
+    }
+  }, [activeDataSource, actorsCatalogById, applyActorPopularityFilter, blockedLoopNodeKeys, finalizeSuggestionOrder, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode]);
+
   const annotateOneStepCycleRisk = useCallback(async (nextSuggestions: GameNode[], source: EffectiveDataSource) => {
     if (nextSuggestions.length === 0) {
       return nextSuggestions;
@@ -970,29 +1591,42 @@ function GamePage() {
       ? await resolveSnapshotResources(source === "demo")
       : null;
 
+    const yellowCache = new Map<string, Promise<boolean>>();
+
     // Helper function: checks if a single node would be marked as yellow (all its children blocked)
     const wouldBeYellow = async (node: GameNode): Promise<boolean> => {
       if (node.id === undefined) {
         return false;
       }
 
-      let childNodes: GameNode[] = [];
-      try {
-        childNodes = await getCycleRiskChildrenForSuggestion(node, source, localResources, targetSummary);
-      } catch {
-        return false;
+      const nodeKey = `${source}:${getNodeKey(node)}:${targetSummary.id}`;
+      const cachedPromise = yellowCache.get(nodeKey);
+      if (cachedPromise) {
+        return cachedPromise;
       }
 
-      if (childNodes.length === 0) {
-        return false;
-      }
+      const yellowPromise = (async () => {
+        let childNodes: GameNode[] = [];
+        try {
+          childNodes = await getCycleRiskChildrenForSuggestion(node, source, localResources, targetSummary);
+        } catch {
+          return false;
+        }
 
-      const filteredChildren = applyActorPopularityFilter(childNodes);
-      if (filteredChildren.length === 0) {
-        return false;
-      }
+        if (childNodes.length === 0) {
+          return false;
+        }
 
-      return filteredChildren.every((child) => blockedLoopNodeKeys.has(getNodeKey(child)));
+        const filteredChildren = applyActorPopularityFilter(childNodes);
+        if (filteredChildren.length === 0) {
+          return false;
+        }
+
+        return filteredChildren.every((child) => blockedLoopNodeKeys.has(getNodeKey(child)));
+      })();
+
+      yellowCache.set(nodeKey, yellowPromise);
+      return yellowPromise;
     };
 
     const annotated = await Promise.all(nextSuggestions.map(async (suggestion) => {
@@ -1099,19 +1733,7 @@ function GamePage() {
             }
 
             const analyzedCast = castLockAnalysis.filter((entry): entry is { selfOrVisitedOnly: boolean; selfOnly: boolean } => entry !== null);
-            const isFullyCastLocked = analyzedCast.every((entry) => entry.selfOnly);
             const isCastLocked = analyzedCast.every((entry) => entry.selfOrVisitedOnly);
-
-            if (showFullCastLockHighlight && isFullyCastLocked) {
-              return {
-                ...suggestion,
-                highlight: {
-                  kind: "full-cast-lock" as const,
-                  label: "Full cast lock",
-                  description: "All cast members from this movie only connect back to this same movie.",
-                },
-              };
-            }
 
             if (isCastLocked) {
               return {
@@ -1119,7 +1741,7 @@ function GamePage() {
                 highlight: {
                   kind: "cast-lock" as const,
                   label: "Cast lock risk",
-                  description: "All cast members from this movie only connect to this movie or movies already in your path.",
+                  description: "All cast members from this movie only connect back to this movie or to movies already in your path.",
                 },
               };
             }
@@ -1161,7 +1783,7 @@ function GamePage() {
     }));
 
     return annotated;
-  }, [applyActorPopularityFilter, blockedLoopNodeKeys, getCycleRiskChildrenForSuggestion, getExhaustiveChildrenForNode, hasPlacedSelections, resolveSnapshotResources, showCastLockRiskHighlight, showFullCastLockHighlight, targetNode, visitedMovieNodeKeys]);
+  }, [applyActorPopularityFilter, blockedLoopNodeKeys, getCycleRiskChildrenForSuggestion, getExhaustiveChildrenForNode, hasPlacedSelections, resolveSnapshotResources, showCastLockRiskHighlight, targetNode, visitedMovieNodeKeys]);
 
   useEffect(() => {
     if (!actorA || !actorB || !currentSelection || !targetNode || completion || isNetworkUnavailable) {
@@ -1215,8 +1837,9 @@ function GamePage() {
             suggestionBuildOptions,
           );
           const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, activeDataSource);
-          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (cycleRiskAnnotatedSuggestions.length === 0) {
+          const finalSuggestions = finalizeSuggestionOrder(cycleRiskAnnotatedSuggestions);
+          setSuggestions(finalSuggestions.length > 0 ? finalSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (finalSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned for this node.");
           }
           return;
@@ -1237,11 +1860,11 @@ function GamePage() {
               movieSuggestions.map((movie) => createNode(movie.title, "movie", {
                 id: movie.id,
                 releaseDate: movie.releaseDate,
-				imageUrl: moviesCatalog.find((entry) => entry.id === movie.id)?.posterUrl ?? null,
-				genres: moviesCatalog.find((entry) => entry.id === movie.id)?.genres ?? [],
-				contentRating: moviesCatalog.find((entry) => entry.id === movie.id)?.contentRating ?? null,
-				originalLanguage: moviesCatalog.find((entry) => entry.id === movie.id)?.originalLanguage ?? null,
-				overview: moviesCatalog.find((entry) => entry.id === movie.id)?.overview ?? null,
+        imageUrl: moviesCatalogById.get(movie.id)?.posterUrl ?? null,
+        genres: moviesCatalogById.get(movie.id)?.genres ?? [],
+        contentRating: moviesCatalogById.get(movie.id)?.contentRating ?? null,
+        originalLanguage: moviesCatalogById.get(movie.id)?.originalLanguage ?? null,
+        overview: moviesCatalogById.get(movie.id)?.overview ?? null,
                 pathHint: movie.pathHint,
               })),
               targetNode,
@@ -1260,9 +1883,9 @@ function GamePage() {
               applyActorPopularityFilter(actorSuggestions.map((actor) => createNode(actor.name, "actor", {
                 id: actor.id,
                 popularity: actor.popularity,
-				imageUrl: actorsCatalog.find((entry) => entry.id === actor.id)?.profileUrl ?? null,
-				knownForDepartment: actorsCatalog.find((entry) => entry.id === actor.id)?.knownForDepartment ?? null,
-				placeOfBirth: actorsCatalog.find((entry) => entry.id === actor.id)?.placeOfBirth ?? null,
+        				imageUrl: actorsCatalogById.get(actor.id)?.profileUrl ?? null,
+        				knownForDepartment: actorsCatalogById.get(actor.id)?.knownForDepartment ?? null,
+        				placeOfBirth: actorsCatalogById.get(actor.id)?.placeOfBirth ?? null,
                 pathHint: actor.pathHint,
                 popularityRank: actor.popularityRank,
               }))),
@@ -1273,8 +1896,9 @@ function GamePage() {
           }
 
           const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, activeDataSource);
-          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (cycleRiskAnnotatedSuggestions.length === 0) {
+          const finalSuggestions = finalizeSuggestionOrder(cycleRiskAnnotatedSuggestions);
+          setSuggestions(finalSuggestions.length > 0 ? finalSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (finalSuggestions.length === 0) {
             setSuggestionError("No API suggestions were returned for this node.");
           }
         } catch {
@@ -1301,8 +1925,9 @@ function GamePage() {
           );
           const cycleRiskAnnotatedSuggestions = await annotateOneStepCycleRisk(weightedSuggestions, resources.source);
           setResolvedDataSource(resources.source);
-          setSuggestions(cycleRiskAnnotatedSuggestions.length > 0 ? cycleRiskAnnotatedSuggestions : createPlaceholderSuggestions(currentSelection.type));
-          if (cycleRiskAnnotatedSuggestions.length === 0) {
+          const finalSuggestions = finalizeSuggestionOrder(cycleRiskAnnotatedSuggestions);
+          setSuggestions(finalSuggestions.length > 0 ? finalSuggestions : createPlaceholderSuggestions(currentSelection.type));
+          if (finalSuggestions.length === 0) {
             setSuggestionError("No local suggestions were returned after falling back to snapshot data.");
           }
         }
@@ -1312,16 +1937,149 @@ function GamePage() {
     };
 
     void loadSuggestions();
-  }, [actorA, actorB, actorsCatalog, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, isNetworkUnavailable, moviesCatalog, resolveSnapshotResources, shuffleSeed, suggestionBuildOptions, targetNode, topPath]);
+  }, [actorA, actorB, actorsCatalogById, annotateOneStepCycleRisk, applyActorPopularityFilter, blockedLoopNodeKeys, bottomPath, completion, currentSelection, activeDataSource, finalizeSuggestionOrder, isNetworkUnavailable, moviesCatalogById, resolveSnapshotResources, suggestionBuildOptions, targetNode, topPath]);
 
-  const finalizeCompletion = async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
+  useEffect(() => {
+    if (!currentSelection || !targetNode || completion || isNetworkUnavailable) {
+      setRightWriteInSuggestionPool([]);
+      return;
+    }
+
+    let didCancel = false;
+
+    const loadOptions = async () => {
+      const nextOptions = await loadWriteInSuggestionPool(currentSelection);
+      if (!didCancel) {
+        setRightWriteInSuggestionPool(nextOptions);
+      }
+    };
+
+    void loadOptions();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [completion, currentSelection, isNetworkUnavailable, loadWriteInSuggestionPool, targetNode]);
+
+  useEffect(() => {
+    if (!leftPanelWriteInSide || completion || isNetworkUnavailable) {
+      setLeftWriteInSuggestionPool([]);
+      return;
+    }
+
+    const selection = leftPanelWriteInSide === "top" ? topSelection : bottomSelection;
+    if (!selection || !targetNode) {
+      setLeftWriteInSuggestionPool([]);
+      return;
+    }
+
+    let didCancel = false;
+
+    const loadOptions = async () => {
+      const nextOptions = await loadWriteInSuggestionPool(selection);
+      if (!didCancel) {
+        setLeftWriteInSuggestionPool(nextOptions);
+      }
+    };
+
+    void loadOptions();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [bottomSelection, completion, isNetworkUnavailable, leftPanelWriteInSide, loadWriteInSuggestionPool, targetNode, topSelection]);
+
+  const finalizeCompletion = useCallback(async (fullPath: GameNode[], winningSide: SelectedSide, source: string) => {
     const hydratedFullPath = hydrateCompletionPath(fullPath, [actorA, actorB].filter((node): node is GameNode => node !== null));
+    const hops = hydratedFullPath.length - 1;
+    const turnsAtCompletion = turns;
+    const shuffleModeEnabledAtCompletion = isShuffleModeEnabled;
+    const shufflesCount = shuffles;
+    const appliedShufflePenaltyCount = shuffleAddsPenalty ? shufflesCount : 0;
+    const appliedRewindPenaltyCount = rewindAddsPenalty ? rewinds : 0;
+    const rewindsCount = rewinds;
+    const repeatNodeClicksCount = repeatNodeClickPenalties;
+    const deadEndsCount = deadEndPenalties;
+    const usedSuggestions = helperSettings["show-suggestions"];
+    const usedFilteredSuggestions = usesFilteredSuggestions;
+    const usedFullSuggestionList = usedSuggestions && !shuffleModeEnabledAtCompletion;
+    const usedRandomSubset = usedSuggestions && shuffleModeEnabledAtCompletion;
+    const effectiveTurns = getEffectiveTurnCount({
+      turns: turnsAtCompletion,
+      shuffles: appliedShufflePenaltyCount,
+      rewinds: appliedRewindPenaltyCount,
+      repeatNodeClicks: repeatNodeClicksCount,
+      deadEnds: deadEndsCount,
+    });
+    const popularityScore = calculatePathPopularityScore(hydratedFullPath);
+    const averageReleaseYear = calculateAverageReleaseYear(hydratedFullPath);
+    const optimalHopsValue = optimalHops ?? hops;
+    const scoreBreakdown = buildLevelScoreBreakdown({
+      hops,
+      optimalHops: optimalHopsValue,
+      turns: turnsAtCompletion,
+      usedSuggestions,
+      usedFilteredSuggestions,
+      usedFullSuggestionList,
+      usedRandomSubset,
+      shuffles: appliedShufflePenaltyCount,
+      rewinds: appliedRewindPenaltyCount,
+      repeatNodeClicks: repeatNodeClicksCount,
+      deadEnds: deadEndsCount,
+    });
+    const score = scoreBreakdown.score;
+
+    // Only save if actorA and actorB are not null and have label or are strings
+    const actorALabel = levelIdentityRef.current?.startLabel;
+    const actorBLabel = levelIdentityRef.current?.endLabel;
+    if (actorALabel && actorBLabel) {
+      setCompletedLevels(markLevelCompleted(actorALabel, actorBLabel));
+      const savedHistory = saveLevelAttempt(actorALabel, actorBLabel, {
+        path: hydratedFullPath.filter(n => typeof n.id === "number").map(({ id, type, label }) => ({ id: id as number, type, label })),
+        score,
+        tier: scoreBreakdown.tier,
+        stars: scoreBreakdown.stars,
+        hops,
+        turns: turnsAtCompletion,
+        effectiveTurns,
+        shuffles: shufflesCount,
+        shuffleModeEnabled: shuffleModeEnabledAtCompletion,
+        appliedShufflePenaltyCount,
+        rewinds: rewindsCount,
+        repeatNodeClicks: repeatNodeClicksCount,
+        deadEnds: deadEndsCount,
+        totalMistakes: scoreBreakdown.totalMistakes,
+        popularityScore,
+        averageReleaseYear,
+        timestamp: Date.now(),
+      });
+      setLevelHistory(savedHistory);
+    }
+
     const provisionalCompletion: CompletionState = {
       fullPath: hydratedFullPath,
-      usedHops: hydratedFullPath.length - 1,
+      usedHops: hops,
+      score,
+      tier: scoreBreakdown.tier,
+      stars: scoreBreakdown.stars,
+      turns: turnsAtCompletion,
+      effectiveTurns,
       winningSide,
       source,
       isValidated: null,
+      shuffles: shufflesCount,
+      shuffleModeEnabled: shuffleModeEnabledAtCompletion,
+      appliedShufflePenaltyCount,
+      appliedRewindPenaltyCount,
+      repeatNodeClicks: repeatNodeClicksCount,
+      deadEnds: deadEndsCount,
+      totalMistakes: scoreBreakdown.totalMistakes,
+      usedSuggestions,
+      usedFilteredSuggestions,
+      usedFullSuggestionList,
+      usedRandomSubset,
+      popularityScore,
+      averageReleaseYear,
     };
 
     setCompletion(provisionalCompletion);
@@ -1332,7 +2090,7 @@ function GamePage() {
       let validation;
 
       if (activeDataSource === "snapshot" || activeDataSource === "demo") {
-  		const resources = await resolveSnapshotResources(activeDataSource === "demo");
+		const resources = await resolveSnapshotResources(activeDataSource === "demo");
         if (!resources) {
           throw new Error(NETWORK_UNAVAILABLE_MESSAGE);
         }
@@ -1352,28 +2110,27 @@ function GamePage() {
         }
       }
 
-      setCompletion({
-        ...provisionalCompletion,
+      setCompletion((prev) => prev && typeof prev === "object" ? {
+        ...prev,
         isValidated: validation.valid,
         validationMessage: validation.message,
-      });
+      } : prev);
     } catch (error) {
-      setCompletion({
-        ...provisionalCompletion,
+      setCompletion((prev) => prev && typeof prev === "object" ? {
+        ...prev,
         isValidated: null,
         validationMessage: error instanceof Error ? error.message : "Path validation could not be completed.",
-      });
+      } : prev);
     }
-  };
+  }, [activeDataSource, actorA, actorB, deadEndPenalties, helperSettings, isShuffleModeEnabled, optimalHops, repeatNodeClickPenalties, resolveSnapshotResources, rewindAddsPenalty, rewinds, shuffles, shuffleAddsPenalty, turns, usesFilteredSuggestions]);
 
-  const handleSuggestion = async (choice: GameNode) => {
+  const handleSuggestion = useCallback(async (choice: GameNode) => {
     if (!actorA || !actorB || !targetNode || isInteractionDisabled) {
       return;
     }
 
     if (cycleRiskClickAddsPenalty && choice.highlight?.kind === "loop") {
-      setDeadEndPenalties((currentPenalties) => currentPenalties + 1);
-      setSuggestionError(`Cycle risk selected: ${choice.label} would only branch to already-visited nodes. Dead-end penalty applied.`);
+      applyDeadEndPenalty(`Cycle risk selected: ${choice.label} would only branch to already-visited nodes. Dead-end penalty applied.`);
       return;
     }
 
@@ -1385,8 +2142,7 @@ function GamePage() {
     const cycleNode = findLoopedNode([choice, ...autoCompletionTail], blockedLoopNodeKeys);
 
     if (cycleNode) {
-      setDeadEndPenalties((currentPenalties) => currentPenalties + 1);
-      setSuggestionError(`Cycle detected: ${cycleNode.label} is already in your path. Please rewind and make a different selection.`);
+      applyRepeatNodePenalty(`Cycle detected: ${cycleNode.label} is already in your path. Repeat-node penalty applied.`);
       return;
     }
 
@@ -1422,7 +2178,7 @@ function GamePage() {
         : "The target node was selected directly.";
       await finalizeCompletion(winningPath, selectedSide, source);
     }
-  };
+  }, [actorA, actorB, applyDeadEndPenalty, applyRepeatNodePenalty, blockedLoopNodeKeys, bottomPath, cycleRiskClickAddsPenalty, finalizeCompletion, isInteractionDisabled, selectedSide, targetNode, topPath]);
 
   const handleRemoveTopPathItem = () => {
     if (topPath.length === 0 || completion) {
@@ -1462,7 +2218,7 @@ function GamePage() {
     setActorB(actorA);
     setTopPath(bottomPath);
     setBottomPath(topPath);
-    setOptimalPath((currentPath) => [...currentPath].reverse());
+    // setOptimalPath removed
     setLockedSide((currentLockedSide) => {
       if (currentLockedSide === "top") {
         return "bottom";
@@ -1481,14 +2237,19 @@ function GamePage() {
     setTopPath([]);
     setBottomPath([]);
     setLockedSide(null);
+    setLeftPanelWriteInSide(null);
+    setLeftPanelWriteInValue("");
     setTurns(0);
     setRewinds(0);
     setDeadEndPenalties(0);
+    setRepeatNodeClickPenalties(0);
     setShuffles(0);
     setShuffleSeed((currentSeed) => currentSeed + 1);
     setSuggestionError(null);
+    setFilterValidationMessage(null);
     setCompletion(null);
     setIsCompletionDialogOpen(false);
+    setIsSavedHistoryDialogOpen(false);
   };
 
   const handleShuffle = () => {
@@ -1498,6 +2259,49 @@ function GamePage() {
 
     setShuffles((count) => count + 1);
     setShuffleSeed((currentSeed) => currentSeed + 1);
+  };
+
+  const handleRulesOverlayWheelCapture = useCallback((event: WheelEvent<HTMLDivElement>) => {
+    const dialog = rulesDialogRef.current;
+    if (!dialog) {
+      return;
+    }
+
+    const target = event.target;
+    if (target instanceof Node && dialog.contains(target)) {
+      return;
+    }
+
+    if (dialog.scrollHeight <= dialog.clientHeight) {
+      return;
+    }
+
+    dialog.scrollTop += event.deltaY;
+    event.preventDefault();
+  }, []);
+
+  const handleRetryCompletedLevel = () => {
+    handleResetBoard();
+  };
+
+  const handleReturnToLevelList = () => {
+    navigate("/adventure", {
+      state: {
+        focusLevelIndex: routeState?.levelIndex,
+      },
+    });
+  };
+
+  const handleNextLevel = () => {
+    if (typeof routeState?.levelIndex !== "number") {
+      return;
+    }
+
+    navigate("/adventure", {
+      state: {
+        autoStartLevelIndex: routeState.levelIndex + 1,
+      },
+    });
   };
 
   const loadInspectorNode = useCallback(async (node: GameNode) => {
@@ -1669,91 +2473,93 @@ function GamePage() {
     void loadInspectorNode(node);
   }, [loadInspectorNode]);
 
-  const handleWriteIn = async (value: string, type: NodeType) => {
+  const handleWriteIn = useCallback(async (value: string, type: NodeType, allowedOptions: GameNode[], sourceLabel: string) => {
     setSuggestionError(null);
 
     try {
-      if (activeDataSource === "snapshot" || activeDataSource === "demo") {
-		const resources = await resolveSnapshotResources(activeDataSource === "demo");
-        if (!resources) {
-          setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
-          setIsNetworkUnavailable(true);
-          setSuggestions(createPlaceholderSuggestions(type));
-          return;
-        }
+      const matchedOption = resolveWriteInOption(
+        value,
+        allowedOptions.filter((option) => option.type === type),
+        true,
+      );
 
-        if (type === "actor") {
-          const actor = findNodeByLabel(value, "actor", resources.indexes);
-          if (!actor) {
-            setSuggestionError(`No actor named "${value}" was found in the local snapshot.`);
-            return;
-          }
-
-          await handleSuggestion(createGameNodeFromSummary(actor, resources.indexes));
-          return;
-        }
-
-        const movie = findNodeByLabel(value, "movie", resources.indexes);
-        if (!movie) {
-          setSuggestionError(`No movie named "${value}" was found in the local snapshot.`);
-          return;
-        }
-
-        await handleSuggestion(createGameNodeFromSummary(movie, resources.indexes));
-        return;
+      if (!matchedOption) {
+        setSuggestionError(`No valid ${type} connected to ${sourceLabel} matches "${value}".`);
+        return false;
       }
 
-      try {
-        if (type === "actor") {
-          const actor = await fetchActorByName(value);
-          await handleSuggestion(createNodeFromActor(actor));
-          return;
-        }
-
-        const movie = moviesCatalog.find((entry) => entry.title.toLowerCase() === value.toLowerCase());
-        if (!movie) {
-          setSuggestionError(`No movie named "${value}" was found in the API movie catalog.`);
-          return;
-        }
-
-        await handleSuggestion(createNodeFromMovie(movie));
-      } catch {
-        const resources = (await resolveSnapshotResources()) ?? (await resolveSnapshotResources(true));
-        if (!resources) {
-          setSuggestionError(NETWORK_UNAVAILABLE_MESSAGE);
-          setIsNetworkUnavailable(true);
-          setSuggestions(createPlaceholderSuggestions(type));
-          return;
-        }
-
-        if (type === "actor") {
-          const actor = findNodeByLabel(value, "actor", resources.indexes);
-          if (!actor) {
-            setSuggestionError(`No actor named "${value}" was found after falling back to snapshot data.`);
-            return;
-          }
-
-          setResolvedDataSource(resources.source);
-          await handleSuggestion(createGameNodeFromSummary(actor, resources.indexes));
-          return;
-        }
-
-        const movie = findNodeByLabel(value, "movie", resources.indexes);
-        if (!movie) {
-          setSuggestionError(`No movie named "${value}" was found after falling back to snapshot data.`);
-          return;
-        }
-
-        setResolvedDataSource(resources.source);
-        await handleSuggestion(createGameNodeFromSummary(movie, resources.indexes));
-      }
+      await handleSuggestion(matchedOption);
+      return true;
     } catch (error) {
       setSuggestionError(error instanceof Error ? error.message : "The write-in value could not be resolved.");
+      return false;
     }
-  };
+  }, [handleSuggestion]);
 
-  const completionPreviewPath = completion?.fullPath ?? optimalPath;
+  const handleOpenLeftPanelWriteIn = useCallback((side: SelectedSide) => {
+    setSelectedSide(side);
+    setLeftPanelWriteInSide(side);
+    setLeftPanelWriteInValue("");
+    setLeftWriteInSuggestionPool([]);
+  }, []);
+
+  const handleCloseLeftPanelWriteIn = useCallback(() => {
+    setLeftPanelWriteInSide(null);
+    setLeftPanelWriteInValue("");
+    setLeftWriteInSuggestionPool([]);
+  }, []);
+
+  const handleSubmitLeftPanelWriteIn = useCallback(async () => {
+    if (!leftPanelWriteInSide || isSubmittingLeftPanelWriteIn) {
+      return;
+    }
+
+    const trimmedValue = leftPanelWriteInValue.trim();
+    if (!trimmedValue) {
+      return;
+    }
+
+    setIsSubmittingLeftPanelWriteIn(true);
+
+    try {
+      const didResolve = await handleWriteIn(
+        trimmedValue,
+        leftPanelWriteInContext.writeInType,
+        leftWriteInSuggestionPool,
+        leftPanelWriteInSelection?.label ?? "this node",
+      );
+      if (didResolve) {
+        handleCloseLeftPanelWriteIn();
+      }
+    } finally {
+      setIsSubmittingLeftPanelWriteIn(false);
+    }
+  }, [handleCloseLeftPanelWriteIn, handleWriteIn, isSubmittingLeftPanelWriteIn, leftPanelWriteInContext.writeInType, leftPanelWriteInSelection, leftPanelWriteInSide, leftPanelWriteInValue, leftWriteInSuggestionPool]);
+
+  const handleSelectLeftPanelWriteInSuggestion = useCallback(async (choice: GameNode) => {
+    if (!leftPanelWriteInSide || isSubmittingLeftPanelWriteIn) {
+      return;
+    }
+
+    setIsSubmittingLeftPanelWriteIn(true);
+
+    try {
+      await handleSuggestion(choice);
+      handleCloseLeftPanelWriteIn();
+    } catch (error) {
+      setSuggestionError(error instanceof Error ? error.message : "The selected write-in could not be added.");
+    } finally {
+      setIsSubmittingLeftPanelWriteIn(false);
+    }
+  }, [handleCloseLeftPanelWriteIn, handleSuggestion, isSubmittingLeftPanelWriteIn, leftPanelWriteInSide]);
+
+
   const backDestination = routeState?.returnTo ?? "/play-now";
+  const canOpenLevelList = backDestination === "/adventure" || typeof routeState?.levelIndex === "number";
+  const hasNextLevel = typeof routeState?.levelIndex === "number"
+    && typeof routeState?.totalLevels === "number"
+    && routeState.levelIndex < routeState.totalLevels - 1;
+  const shouldShowMobileHistoryTab = isCompactPhoneViewport && currentLevelCompleted;
   const inspectorHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
     return inspectorTrail.map((node) => ({
       key: `${node.type}-${node.id ?? node.label}`,
@@ -1762,184 +2568,743 @@ function GamePage() {
     }));
   }, [inspectorTrail]);
 
+  useEffect(() => {
+    setIsSuggestionPanelVisible(defaultSuggestionPanelVisible);
+  }, [defaultSuggestionPanelVisible]);
+
+  useEffect(() => {
+    if (!shouldShowMobileHistoryTab && activeRulesTab === "saved-history") {
+      setActiveRulesTab("how-to-play");
+    }
+  }, [activeRulesTab, shouldShowMobileHistoryTab]);
+
+  useEffect(() => {
+    if (isCompactPhoneViewport && (activeRulesTab === "gameplay" || activeRulesTab === "data" || activeRulesTab === "display")) {
+      setActiveRulesTab("how-to-play");
+    }
+  }, [activeRulesTab, isCompactPhoneViewport]);
+
+  useEffect(() => {
+    if (isCompactPhoneViewport && isRulesOpen) {
+      setIsRulesOpen(false);
+    }
+  }, [isCompactPhoneViewport, isRulesOpen]);
+
+  useEffect(() => {
+    const handleOpenGameInfo = () => {
+      if (isCompactPhoneViewport) {
+        return;
+      }
+
+      setActiveRulesTab("how-to-play");
+      setIsRulesOpen(true);
+    };
+
+    window.addEventListener("costars:open-game-info", handleOpenGameInfo as EventListener);
+
+    return () => {
+      window.removeEventListener("costars:open-game-info", handleOpenGameInfo as EventListener);
+    };
+  }, [isCompactPhoneViewport]);
+
+  const gameGridPanel = (
+    <GameLeftPanel
+      actorA={actorA ?? createNode("Loading…", "actor")}
+      actorB={actorB ?? createNode("Loading…", "actor")}
+      selectedSide={selectedSide}
+      topPath={topPath}
+      bottomPath={bottomPath}
+      lockedSide={lockedSide}
+      completedPath={completion?.fullPath}
+      currentHops={currentHops}
+      optimalHops={optimalHops}
+      showOptimalTracking={helperSettings["show-optimal-tracking"]}
+      isInteractionDisabled={isInteractionDisabled}
+      activeWriteInSide={leftPanelWriteInSide}
+      writeInValue={leftPanelWriteInValue}
+      writeInPlaceholder={leftPanelWriteInContext.placeholder}
+      writeInSuggestions={leftWriteInSuggestionPool}
+      writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
+      showWriteInSuggestions={helperSettings["show-suggestions"]}
+      isSubmittingWriteIn={isSubmittingLeftPanelWriteIn}
+      isSuggestionPanelVisible={isSuggestionPanelVisible}
+      showSuggestionToggle={!isCompactPhoneViewport}
+      showSideSwapButton={isCompactPhoneViewport}
+      turns={turns}
+      rewinds={rewinds}
+      shuffles={shuffles}
+      deadEndPenalties={deadEndPenalties}
+      shuffleAddsPenalty={shuffleAddsPenalty}
+      rewindAddsPenalty={rewindAddsPenalty}
+      deadEndAddsPenalty={cycleRiskClickAddsPenalty}
+      hiddenPanelMessage={hiddenPanelMessage}
+      suggestionTargetType={currentSelection?.type === "movie" ? "actor" : "movie"}
+      onSelectSide={setSelectedSide}
+      onInspectNode={(node) => {
+        void handleInspectNode(node);
+      }}
+      onToggleSuggestionPanel={() => setIsSuggestionPanelVisible((currentValue) => !currentValue)}
+      onSwapSides={handleReverseSides}
+      onOpenWriteIn={handleOpenLeftPanelWriteIn}
+      onCloseWriteIn={handleCloseLeftPanelWriteIn}
+      onWriteInValueChange={setLeftPanelWriteInValue}
+      onSubmitWriteIn={() => {
+        void handleSubmitLeftPanelWriteIn();
+      }}
+      onSelectWriteInSuggestion={(choice) => {
+        void handleSelectLeftPanelWriteInSuggestion(choice);
+      }}
+      onRemoveTopPathItem={handleRemoveTopPathItem}
+      onRemoveBottomPathItem={handleRemoveBottomPathItem}
+    />
+  );
+
+  const suggestionPanel = (
+    <div className="gameSidebar">
+      {isPathLimitReached && !isGameComplete ? (
+        <div className="gameSidebarWarning gameSidebarWarning--visible">
+          Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
+        </div>
+      ) : null}
+
+      {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
+      {isMistakeGameOver ? (
+        <div className="gamePageStatus gamePageStatus--error gamePageStatusRetryPanel">
+          <div>Game over: you reached the mistake limit of {MAX_MISTAKE_PENALTIES}.</div>
+          <button type="button" className="gamePageStatusRetryButton" onClick={handleResetBoard}>
+            Retry level
+          </button>
+        </div>
+      ) : null}
+
+      <div className="gameSidebarPanelSlot">
+        <GameRightPanel
+          currentSelection={currentSelection ?? createNode("Loading…", "actor")}
+          suggestions={visibleSuggestions}
+          suggestionDisplay={suggestionDisplay}
+          isShuffleModeEnabled={isShuffleModeEnabled}
+          shuffleAddsPenalty={shuffleAddsPenalty}
+          rewindAddsPenalty={rewindAddsPenalty}
+          deadEndAddsPenalty={cycleRiskClickAddsPenalty}
+          showSuggestionValues={helperSettings["show-suggestions"]}
+          showHintColors={helperSettings["show-hint-color"]}
+          writeInAutoSuggestEnabled={writeInAutoSuggestEnabled}
+          writeInSuggestions={rightWriteInSuggestionPool}
+          turns={turns}
+          rewinds={rewinds}
+          deadEndPenalties={deadEndPenalties}
+          shuffles={shuffles}
+          shuffleSeed={shuffleSeed}
+          canGoBackOnCurrentSide={canGoBackOnCurrentSide}
+          isDisabled={isInteractionDisabled}
+          isComplete={isGameComplete}
+          isLoading={isSuggestionsLoading}
+          isRiskAnalysisEnabled={isRiskAnalysisEnabled}
+          errorMessage={displayedSuggestionError}
+          onBack={handleBackCurrentPathItem}
+          onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
+          onReverse={handleReverseSides}
+          onSuggestion={(choice) => {
+            void handleSuggestion(choice);
+          }}
+          onInspectSuggestion={(choice) => {
+            void handleInspectNode(choice);
+          }}
+          onSelectWriteInSuggestion={async (choice) => {
+            await handleSuggestion(choice);
+          }}
+          onShuffle={handleShuffle}
+          onWriteIn={handleWriteIn}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="gamePage">
-      <div className="topBar">
-        <div className="topBarSide topBarSideLeft">
-          <button className="backButton" style={{ fontSize: "1.3em", padding: "0.5em 1.2em" }} onClick={() => navigate(backDestination)}>
-            ← Back
-          </button>
-        </div>
-        <div className="topBarCenter">
-          <button type="button" className="gameLogoButton" onClick={handleResetBoard} aria-label="Reset board" title="Reset board">
-            <GameLogo className="gameLogo" />
-            <span className="gameLogoResetHint" aria-hidden="true">Reset board</span>
-          </button>
-        </div>
-        <div className="topBarSide topBarSideRight homeWrapper">
-          <HomeButton />
-        </div>
+      <PageNavigationHeader
+        backTo={backDestination}
+        backLabel="Back"
+        centerContent={(
+          <div className="gamePageHeaderLogo">
+            <button type="button" className="gameLogoButton" onClick={handleResetBoard} aria-label="Reset board" title="Reset board">
+              <GameLogo className="gameLogo" />
+              <span className="gameLogoResetHint" aria-hidden="true">Reset board</span>
+            </button>
+          </div>
+        )}
+      />
+
+      <div className={`gameContainer${completion && !isCompletionDialogOpen ? " gameContainer--with-pinned-summary" : ""}${!isSuggestionPanelVisible ? " gameContainer--solo-panel" : ""}`}>
+        {isSuggestionPanelVisible ? (isPanelOrderSwapped ? suggestionPanel : gameGridPanel) : gameGridPanel}
+        {isSuggestionPanelVisible ? (
+          <div className="gamePanelSwapRail">
+            <button
+              type="button"
+              className="gamePanelSwapButton"
+              onClick={() => setIsPanelOrderSwapped((currentValue) => !currentValue)}
+              aria-label="Swap the game grid and suggestions panels"
+              title="Swap panel positions"
+            >
+              ⇄
+            </button>
+          </div>
+        ) : null}
+        {isSuggestionPanelVisible ? (isPanelOrderSwapped ? gameGridPanel : suggestionPanel) : null}
       </div>
 
-      <div className="gameContainer">
-        <GameLeftPanel
-          actorA={actorA ?? createNode("Loading…", "actor")}
-          actorB={actorB ?? createNode("Loading…", "actor")}
-          selectedSide={selectedSide}
-          topPath={topPath}
-          bottomPath={bottomPath}
-          lockedSide={lockedSide}
-          completedPath={completion?.fullPath}
-          currentHops={currentHops}
-          optimalHops={optimalHops}
-          showOptimalTracking={helperSettings["show-optimal-tracking"]}
-          onSelectSide={setSelectedSide}
-          onInspectNode={(node) => {
-            void handleInspectNode(node);
-          }}
-          onRemoveTopPathItem={handleRemoveTopPathItem}
-          onRemoveBottomPathItem={handleRemoveBottomPathItem}
-        />
-        <div className="gameSidebar">
-          {isPathLimitReached && !isGameComplete ? (
-            <div className="gameSidebarWarning gameSidebarWarning--visible">
-              Max path length reached. Try again and keep it under 19 total placed selections, or rewind a branch to continue.
+      {completion && !isCompletionDialogOpen ? (
+        <div className={`gameCompletionPinnedArea ${isSuggestionPanelVisible ? "gameCompletionPinnedArea--with-sidebar" : "gameCompletionPinnedArea--solo"} ${completionThemeClassName}`}>
+          {isCompactPhoneViewport ? (
+            <div
+              className={`gameCompletionPinnedScore gameCompletionPinnedScore--compact ${isSuggestionPanelVisible ? "gameCompletionPinnedScore--with-sidebar" : "gameCompletionPinnedScore--solo"}`}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="gameCompletionPinnedScoreContent">
+                <div className="gameCompletionPinnedScoreTitle">Level complete</div>
+                <button
+                  type="button"
+                  className="gameCompletionPinnedScoreDialButton"
+                  onClick={() => setIsCompletionDialogOpen(true)}
+                  aria-label="Open level complete summary"
+                >
+                  {renderCompletionScoreDial("gameCompletionScoreDial--compactBanner")}
+                </button>
+                <div className={`gameCompletionRatingStars gameCompletionRatingStars--${completionTierTone} gameCompletionPinnedRatingStars`} aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                  {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
+                    <span
+                      key={starIndex}
+                      className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="gameCompletionPinnedScoreActions">
+                <button
+                  type="button"
+                  className="gameCompletionPinnedScoreButton"
+                  onClick={handleRetryCompletedLevel}
+                >
+                  Replay
+                </button>
+                {hasNextLevel ? (
+                  <button
+                    type="button"
+                    className="gameCompletionPinnedScoreButton gameCompletionPinnedScoreButton--next"
+                    onClick={handleNextLevel}
+                  >
+                    Next level
+                  </button>
+                ) : null}
+              </div>
             </div>
-          ) : null}
-
-          {displayedSetupError ? <div className="gamePageStatus gamePageStatus--error">{displayedSetupError}</div> : null}
-
-          <GameRightPanel
-            currentSelection={currentSelection ?? createNode("Loading…", "actor")}
-            suggestions={visibleSuggestions}
-            suggestionDisplay={suggestionDisplay}
-            canRandomizeSuggestions={shouldRandomizeSuggestions}
-            showSuggestionValues={helperSettings["show-suggestions"]}
-            showHintColors={helperSettings["show-hint-color"]}
-            turns={turns}
-            rewinds={rewinds}
-            deadEndPenalties={deadEndPenalties}
-            shuffles={shuffles}
-            isDisabled={isInteractionDisabled}
-            isComplete={isGameComplete}
-            isLoading={isSuggestionsLoading}
-            isRiskAnalysisEnabled={isRiskAnalysisEnabled}
-            errorMessage={displayedSuggestionError}
-            onBack={handleBackCurrentPathItem}
-            onCompletePanelClick={() => setIsCompletionDialogOpen(true)}
-            onReverse={handleReverseSides}
-            onSuggestion={(choice) => {
-              void handleSuggestion(choice);
-            }}
-            onShuffle={handleShuffle}
-            onWriteIn={handleWriteIn}
-          />
+          ) : (
+            <div
+              className={`gameCompletionPinnedScore ${isSuggestionPanelVisible ? "gameCompletionPinnedScore--with-sidebar" : "gameCompletionPinnedScore--solo"}`}
+              role="status"
+              aria-live="polite"
+            >
+              <div className="gameCompletionPinnedSection gameCompletionPinnedSection--summary">
+                <button
+                  type="button"
+                  className="gameCompletionPinnedScoreButton"
+                  onClick={handleRetryCompletedLevel}
+                >
+                  Replay
+                </button>
+              </div>
+              <div className="gameCompletionPinnedSection gameCompletionPinnedSection--score">
+                <div className="gameCompletionPinnedScoreContent">
+                  <div className="gameCompletionPinnedScoreTitle">Level complete</div>
+                  <button
+                    type="button"
+                    className="gameCompletionPinnedScoreDialButton"
+                    onClick={() => setIsCompletionDialogOpen(true)}
+                    aria-label="Open level complete summary"
+                  >
+                    {renderCompletionScoreDial("gameCompletionScoreDial--banner")}
+                  </button>
+                  <div className={`gameCompletionRatingStars gameCompletionRatingStars--${completionTierTone} gameCompletionPinnedRatingStars`} aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                    {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
+                      <span
+                        key={starIndex}
+                        className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="gameCompletionPinnedSection gameCompletionPinnedSection--next">
+                {hasNextLevel ? (
+                  <button
+                    type="button"
+                    className="gameCompletionPinnedScoreButton gameCompletionPinnedScoreButton--next"
+                    onClick={handleNextLevel}
+                  >
+                    Next level
+                  </button>
+                ) : (
+                  <div className="gameCompletionPinnedScoreSpacer" aria-hidden="true" />
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      ) : null}
 
-      <button type="button" className="gameInfoButton" onClick={() => setIsRulesOpen(true)} aria-label="Open game rules">
-        i
-      </button>
+      {!isCompactPhoneViewport ? (
+        <button
+          type="button"
+          className="gameInfoButton"
+          onClick={() => setIsRulesOpen(true)}
+          aria-label="Open game rules"
+        >
+          i
+        </button>
+      ) : null}
+
+      {currentLevelCompleted && !isCompactPhoneViewport ? (
+        <button
+          type="button"
+          className="gameHistoryButton"
+          onClick={() => setIsSavedHistoryDialogOpen(true)}
+          aria-label="Open saved history"
+          title="View saved history"
+        >
+          🏆
+        </button>
+      ) : null}
 
       {isRulesOpen ? (
-        <div className="gameRulesOverlay" onClick={() => setIsRulesOpen(false)}>
-          <div className="gameRulesDialog" onClick={(event) => event.stopPropagation()}>
+        <div className="gameRulesOverlay" onClick={() => setIsRulesOpen(false)} onWheelCapture={handleRulesOverlayWheelCapture}>
+          <div ref={rulesDialogRef} className="gameRulesDialog" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="gameRulesCloseButton" onClick={() => setIsRulesOpen(false)} aria-label="Close rules">
               ×
             </button>
-            <h2 className="gameRulesTitle">How To Play</h2>
-            <p className="gameRulesText">
-              Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
-            </p>
-            <p className="gameRulesText">
-              Suggestion lists are generated from the currently active dataset. Actor lists can be sorted by popularity or randomized, and movie lists can be sorted by release year or randomized.
-            </p>
-            <p className="gameRulesText">
-              Best-path inclusion can be guaranteed from settings. When random ordering is enabled for the current list type, the shuffle button rerolls the full list order; otherwise the list stays sorted and you can page or scroll through it using the selected window size.
-            </p>
-            <p className="gameRulesText">
-              Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
-            </p>
-
-              <div className="gameRulesDifficultySection">
-                <div className="gameRulesDifficultyTitle">Difficulty</div>
-                <CustomGameSettingsPanel
-                  customSettings={helperSettings}
-                  onToggle={setCustomSetting}
-                  title="Gameplay Helpers"
-                  hint="These toggles are shared with the Settings page and apply immediately to the board."
-                  className="gameRulesCustomPanel"
-                />
-                <GameDataFilterPanel
-                  dataFilters={dataFilters}
-                  onActorPopularityCutoffChange={setActorPopularityCutoff}
-                  onReleaseYearCutoffChange={setReleaseYearCutoff}
-                  onMovieSortModeChange={setMovieSortMode}
-                  onActorSortModeChange={setActorSortMode}
-                  className="gameRulesCustomPanel"
-                />
-                <SuggestionDisplaySettingsPanel
-                  suggestionDisplay={suggestionDisplay}
-                  onViewModeChange={setSuggestionViewMode}
-                  onSubsetCountChange={setSubsetCount}
-                  onAllWindowModeChange={setAllWindowMode}
-                  className="gameRulesCustomPanel"
-                />
+            <div className="gameRulesLayout">
+              <div className="gameRulesTabs" role="tablist" aria-label="Game information sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "how-to-play"}
+                  className={`gameRulesTab${activeRulesTab === "how-to-play" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("how-to-play")}
+                >
+                  How to play
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "display"}
+                  className={`gameRulesTab${activeRulesTab === "display" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("display")}
+                >
+                  Display
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "data"}
+                  className={`gameRulesTab${activeRulesTab === "data" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("data")}
+                >
+                  Data
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeRulesTab === "gameplay"}
+                  className={`gameRulesTab${activeRulesTab === "gameplay" ? " gameRulesTab--active" : ""}`}
+                  onClick={() => setActiveRulesTab("gameplay")}
+                >
+                  Gameplay
+                </button>
+                {shouldShowMobileHistoryTab ? (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeRulesTab === "saved-history"}
+                    className={`gameRulesTab${activeRulesTab === "saved-history" ? " gameRulesTab--active" : ""}`}
+                    onClick={() => setActiveRulesTab("saved-history")}
+                  >
+                    Saved history
+                  </button>
+                ) : null}
               </div>
+              <div className="gameRulesPanel">
+                {activeRulesTab === "how-to-play" ? (
+                  <>
+                    <h2 className="gameRulesTitle">How To Play</h2>
+                    <p className="gameRulesText">
+                      Each turn alternates actor → movie → actor until a valid path connects the two endpoints.
+                    </p>
+                    <p className="gameRulesText">
+                      Suggestion lists are generated from the currently active dataset and ranked from strongest path options to weakest.
+                    </p>
+                    <p className="gameRulesText">
+                      With shuffle turned off, you scroll through the full ranked list and the shuffle score shows as N/A until completion. With shuffle turned on, you see a fixed number of cards and can reroll them with the shuffle button.
+                    </p>
+                    <p className="gameRulesText">
+                      Your current placed hops and the optimal count stay visible so you can compare your route against the shortest known solution.
+                    </p>
+                    <div className="gameRulesStatusCard">
+                      <div className="gameRulesStatusTitle">Mobile game differences</div>
+                      {MOBILE_GAME_DIFFERENCE_NOTES.map((note) => (
+                        <div key={note} className="gameRulesStatusMeta">{note}</div>
+                      ))}
+                    </div>
+                    <div className="gameRulesStatusCard">
+                      <div className="gameRulesStatusTitle">Game info</div>
+                      <div className="gameRulesStatusValue">Jeremy Brachle © 2026</div>
+                      <div className="gameRulesStatusMeta">Current data source: {activeDataSourceLabel}</div>
+                    </div>
+                  </>
+                ) : null}
+
+                {activeRulesTab === "display" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Display</div>
+                    <p className="gameRulesText">
+                      These appearance settings apply immediately while you are still in the current level.
+                    </p>
+                    <DisplaySettingsPanel
+                      completionDarkMode={settings.completionDarkMode}
+                      onCompletionDarkModeChange={setCompletionDarkMode}
+                    />
+                  </div>
+                ) : null}
+
+                {activeRulesTab === "data" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Data</div>
+                    <p className="gameRulesText">
+                      Change the current data source and refresh behavior without leaving the desktop game board.
+                    </p>
+                    <DataSettingsPanel showHeading={false} />
+                  </div>
+                ) : null}
+
+                {activeRulesTab === "gameplay" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Gameplay</div>
+                    <GameplaySettingsSectionLayout
+                      activeSection={activeRulesGameplaySection}
+                      onSectionSelect={setActiveRulesGameplaySection}
+                      difficulty={settings.difficulty}
+                      customSettings={helperSettings}
+                      suggestionDisplay={suggestionDisplay}
+                      dataFilters={dataFilters}
+                      onDifficultyChange={setDifficulty}
+                      onToggle={setCustomSetting}
+                      onSubsetCountChange={setSubsetCount}
+                      onOrderModeChange={setSuggestionOrderMode}
+                      onSortModeChange={setSuggestionSortMode}
+                      onActorPopularityCutoffChange={handleActorPopularityCutoffChange}
+                      onReleaseYearCutoffChange={handleReleaseYearCutoffChange}
+                      actorCountSummary={actorCountSummary}
+                      movieCountSummary={movieCountSummary}
+                      filterValidationMessage={filterValidationMessage}
+                      customPanelClassName="gameRulesCustomPanel"
+                      dataFilterPanelClassName="gameRulesCustomPanel"
+                    />
+                  </div>
+                ) : null}
+
+                {activeRulesTab === "saved-history" ? (
+                  <div className="gameRulesDifficultySection">
+                    <div className="gameRulesDifficultyTitle">Saved history</div>
+                    <p className="gameRulesText">
+                      Review previously completed attempts for this level without leaving the game board.
+                    </p>
+                    <div className="gameCompletionHistory">
+                      <div className="gameCompletionHistoryHeader">
+                        <div>
+                          <div className="gameCompletionHistoryTitle">Saved history for this level</div>
+                          <div className="gameCompletionHistoryMeta">
+                            {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
+                            {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      {levelHistoryContent}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
 
       {completion && isCompletionDialogOpen ? (
-        <div className="gameCompletionOverlay" onClick={() => setIsCompletionDialogOpen(false)}>
+        <div className={`gameCompletionOverlay ${completionThemeClassName}`} onClick={() => {
+          setIsCompletionDialogOpen(false);
+        }}>
           <div className="gameCompletionDialog" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className="gameRulesCloseButton" onClick={() => setIsCompletionDialogOpen(false)} aria-label="Close completion dialog">
+            <button
+              type="button"
+              className="gameRulesCloseButton"
+              onClick={() => {
+                setIsCompletionDialogOpen(false);
+              }}
+              aria-label="Close completion dialog"
+            >
               ×
             </button>
             <h2 className="gameRulesTitle">Level Complete</h2>
             <p className="gameRulesText gameCompletionLead">{completion.source}</p>
 
-            <div className="gameCompletionStats">
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Completed hops</span>
-                <span className="gameCompletionStatValue">{completion.usedHops}</span>
+            <div className="gameCompletionHero">
+              {displayedCompletionTier ? (
+                <div className="gameCompletionHeroTierLine">
+                  <span className={`gameCompletionTierBadge gameCompletionTierBadge--${completionTierTone}`}>{displayedCompletionTier}</span>
+                </div>
+              ) : null}
+              <div className="gameCompletionHeroScoreRow">
+                {renderCompletionScoreDial("gameCompletionScoreDial--hero")}
               </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Optimal hops</span>
-                <span className="gameCompletionStatValue">{optimalHops ?? "--"}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Turns used</span>
-                <span className="gameCompletionStatValue">{turns}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Shuffles</span>
-                <span className="gameCompletionStatValue">{shuffles}</span>
-              </div>
-              <div className="gameCompletionStat">
-                <span className="gameCompletionStatLabel">Rewinds</span>
-                <span className="gameCompletionStatValue">{rewinds}</span>
-              </div>
-            </div>
-
-            <div className="gameCompletionPreview">
-              <div className="gameCompletionPreviewTitle">Completed path preview</div>
-              <div className="gameCompletionTrack">
-                {completionPreviewPath.map((node, index) => (
-                  <Fragment key={`${node.type}-${node.label}-${index}`}>
-                    <div key={`${node.type}-${node.label}-${index}`} className="gameCompletionTrackSegment">
-                      <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
-                    </div>
-                    {index < completionPreviewPath.length - 1 ? <span key={`arrow-${node.type}-${node.label}-${index}`} className="gameCompletionArrow">→</span> : null}
-                  </Fragment>
+              <div className={`gameCompletionRatingStars gameCompletionRatingStars--${completionTierTone}`} aria-label={`${displayedCompletionStars ?? 0} out of 3 stars`}>
+                {buildDisplayedStars(displayedCompletionStars ?? 0).map((star, starIndex) => (
+                  <span
+                    key={starIndex}
+                    className={`gameCompletionRatingStar${star.filled ? " gameCompletionRatingStar--filled" : " gameCompletionRatingStar--empty"}`}
+                  >
+                    ★
+                  </span>
                 ))}
               </div>
-              <div className="gameCompletionPreviewText">{formatPathPreview(completion.fullPath)}</div>
             </div>
 
-            <div className="gameCompletionValidation">
-              {completion.isValidated === true ? "Path validated successfully." : completion.isValidated === false ? "Path validation reported an issue." : "Validation was not available."}
-              {completion.validationMessage ? ` ${completion.validationMessage}` : ""}
+            <details className="gameCompletionExpandable">
+              <summary className="gameCompletionExpandableSummary">
+                <span className="gameCompletionExpandableSummaryMain">
+                  <span className="gameCompletionExpandableTitle">Score info</span>
+                  <span className="gameCompletionExpandableHint">Exact formula, penalties, and why the result is a whole percent</span>
+                </span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true" />
+              </summary>
+              <div className="gameCompletionExpandableBody">
+                <div className="gameCompletionScoreBreakdown">
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Base score</span>
+                    <span>100%</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Exact formula</span>
+                    <span className="gameCompletionScoreBreakdownExpression">{completionScoreFormula}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Why no fractions?</span>
+                    <span className="gameCompletionScoreBreakdownNote">Turns, shuffles, rewinds, repeat nodes, and dead ends are all normalized to whole counts before scoring. Every deduction is a whole-number percentage, so the final score is a whole percent too.</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Tier</span>
+                    <span>{displayedCompletionTier ?? "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Path efficiency</span>
+                    <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerNodes} nodes vs ${completionScoreBreakdown.optimalNodes} optimal` : "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Suggestions shown</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.suggestions ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Filtered suggestions</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.filteredSuggestions ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Full suggestion list</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.fullSuggestionList ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Random subset</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.randomSubset ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Shuffle penalty</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.shuffles ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Rewind penalty</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.rewinds ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Extra turns</span>
+                    <span>{completionScoreBreakdown ? `${completionScoreBreakdown.playerTurns} vs ${completionScoreBreakdown.optimalTurns} optimal (${formatPenaltyValue(completionScoreBreakdown.penalties.extraTurns)})` : "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Mistake penalty</span>
+                    <span>{completionScoreBreakdown ? `${completion.repeatNodeClicks} repeat + ${completion.deadEnds} dead-end = ${completionScoreBreakdown.totalMistakes} (${formatPenaltyValue(completionScoreBreakdown.penalties.mistakes)})` : "--"}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Total penalties</span>
+                    <span>{formatPenaltyValue(completionScoreBreakdown?.penalties.total ?? 0)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Effective turns</span>
+                    <span>{completion.effectiveTurns}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Stars</span>
+                    <span>{displayedCompletionStars ?? 0} / 3</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Popularity average</span>
+                    <span>{completion.popularityScore}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Average release year</span>
+                    <span>{formatAverageReleaseYear(completion.averageReleaseYear)}</span>
+                  </div>
+                  <div className="gameCompletionScoreBreakdownRow">
+                    <span>Validation</span>
+                    <span>
+                      {completion.isValidated === true
+                        ? "Validated"
+                        : completion.isValidated === false
+                          ? "Issue reported"
+                          : "Unavailable"}
+                    </span>
+                  </div>
+                  {completion.validationMessage ? (
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Validation note</span>
+                      <span>{completion.validationMessage}</span>
+                    </div>
+                  ) : null}
+                  {completionScoreBreakdown?.failed ? (
+                    <div className="gameCompletionScoreBreakdownRow">
+                      <span>Fail state</span>
+                      <span>Triggered at 5 total mistakes, which forces the score to 0%</span>
+                    </div>
+                  ) : null}
+                  <div className="gameCompletionScoreBreakdownRow gameCompletionScoreBreakdownRowStrong">
+                    <span>Execution score</span>
+                    <span>{formatExecutionScore(displayedCompletionScore)}</span>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <details className="gameCompletionExpandable">
+              <summary className="gameCompletionExpandableSummary">
+                <span className="gameCompletionExpandableSummaryMain">
+                  <span className="gameCompletionExpandableTitle">Route details</span>
+                  <span className="gameCompletionExpandableHint">Path preview and misc metrics</span>
+                </span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true" />
+              </summary>
+              <div className="gameCompletionExpandableBody">
+                <div className="gameCompletionPreview">
+                  <div className="gameCompletionPreviewTitle">Completed path preview</div>
+                  {isCompactPhoneViewport ? (
+                    <div className="gameCompletionPreviewMobileTrack">
+                      {completion.fullPath.map((node, idx) => (
+                        <div key={idx} className="gameCompletionPreviewMobileSegment">
+                          <div className={`gameCompletionPreviewNode gameCompletionPreviewNode--${node.type}`}>
+                            <EntityArtwork
+                              type={node.type}
+                              label={node.label}
+                              imageUrl={node.imageUrl}
+                              className="gameCompletionPreviewArtwork"
+                              imageClassName="entityArtwork__image"
+                              placeholderClassName="entityArtwork__emoji"
+                            />
+                            <span className="gameCompletionPreviewNodeLabel">{node.label}</span>
+                          </div>
+                          {idx < completion.fullPath.length - 1 ? <span className="gameCompletionArrow">→</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
+                        {completion.fullPath.map((node, idx) => (
+                          <li key={idx} style={{ display: "inline" }}>
+                            <span className={`gameCompletionChip gameCompletionChip--${node.type}`}>{node.label}</span>
+                            {idx < completion.fullPath.length - 1 ? <span className="gameCompletionArrow">→</span> : null}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="gameCompletionPreviewText">{completion.fullPath.map((node) => node.label).join(" → ")}</div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </details>
+
+            <details className="gameCompletionExpandable">
+              <summary className="gameCompletionExpandableSummary">
+                <span className="gameCompletionExpandableSummaryMain">
+                  <span className="gameCompletionExpandableTitle">Leaderboard</span>
+                  <span className="gameCompletionExpandableHint">View path rankings</span>
+                </span>
+                <span className="gameCompletionExpandablePlus" aria-hidden="true" />
+              </summary>
+              <div className="gameCompletionExpandableBody">
+                <div className="gameCompletionLeaderboardOverview">
+                  {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
+                  {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
+                </div>
+                {levelHistoryContent}
+              </div>
+            </details>
+
+            <div className="gameCompletionActions">
+              <div className="gameCompletionActionGrid">
+                <button type="button" className="gameCompletionActionButton gameCompletionActionButtonSecondary" onClick={handleRetryCompletedLevel}>
+                  Retry level
+                </button>
+                {canOpenLevelList ? (
+                  <button
+                    type="button"
+                    className="gameCompletionActionButton gameCompletionActionButtonList"
+                    onClick={handleReturnToLevelList}
+                  >
+                    Main level list
+                  </button>
+                ) : (
+                  <div className="gameCompletionActionSpacer" aria-hidden="true" />
+                )}
+                {hasNextLevel ? (
+                  <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary gameCompletionActionButtonNext gameCompletionActionButtonNext--wide" onClick={handleNextLevel}>
+                    Next level
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      ) : null}
+
+      {isSavedHistoryDialogOpen ? (
+        <div className="gameCompletionOverlay" onClick={() => setIsSavedHistoryDialogOpen(false)}>
+          <div className="gameCompletionDialog gameSavedHistoryDialog" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="gameRulesCloseButton" onClick={() => setIsSavedHistoryDialogOpen(false)} aria-label="Close saved history dialog">
+              ×
+            </button>
+            <h2 className="gameRulesTitle">Previous Game History</h2>
+            <p className="gameRulesText gameCompletionLead">
+              Ranked by hops first, then score within each hop count. Equal scores with equal hop counts can appear in any order.
+            </p>
+            <div className="gameCompletionHistory">
+              <div className="gameCompletionHistoryHeader">
+                <div>
+                  <div className="gameCompletionHistoryTitle">Saved history for this level</div>
+                  <div className="gameCompletionHistoryMeta">
+                    {levelHistory?.attempts.length ?? 0} saved route{(levelHistory?.attempts.length ?? 0) === 1 ? "" : "s"}
+                    {latestAttempt ? ` • latest ${formatTimestamp(latestAttempt.timestamp)}` : ""}
+                  </div>
+                </div>
+              </div>
+              {levelHistoryContent}
             </div>
           </div>
         </div>

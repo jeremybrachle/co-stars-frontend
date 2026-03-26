@@ -3,6 +3,7 @@
     "target": "ES2022",
     "module": "CommonJS",
     "moduleResolution": "node",
+    "jsx": "react-jsx",
     "rootDir": ".",
     "outDir": ".test-dist",
     "types": ["node"],
@@ -15,5 +16,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["tests/**/*.ts", "src/data/localGraph.ts", "src/data/entityDetails.ts", "src/context/gameSettings.ts", "src/context/snapshotRefreshPolicy.ts", "src/types.ts"]
+  "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/data/localGraph.ts", "src/data/entityDetails.ts", "src/context/gameSettings.ts", "src/context/snapshotRefreshPolicy.ts", "src/types.ts", "src/utils/calculateLevelScore.ts", "src/utils/levelHistoryStorage.ts", "src/utils/pageNavigation.ts"]
 }

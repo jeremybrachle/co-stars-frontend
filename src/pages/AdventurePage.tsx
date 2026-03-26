@@ -1,9 +1,9 @@
 import { useCountdownTimer } from "../context/useCountdownTimer";
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import HomeButton from "../components/HomeButton";
-import EntityArtwork from "../components/EntityArtwork";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import LevelCard from "../components/LevelCard";
 import FullDataWaitingMessage from "../components/FullDataWaitingMessage";
+import PageNavigationHeader from "../components/PageNavigationHeader";
 import { fetchActors, fetchLevels, generatePath } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
@@ -11,10 +11,26 @@ import { isOfflineDemoMode, isOnlineApiMode, isOnlineSnapshotMode } from "../dat
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph";
 import type { Actor, Level, SnapshotIndexes } from "../types";
+import {
+	isLevelCompleted,
+	readCompletedLevels,
+	subscribeToLevelCompletionUpdates,
+	type CompletedLevelsCollection,
+} from "../utils/levelCompletionStorage";
+import {
+	getLevelHistory,
+	readAllLevelHistory,
+	subscribeToLevelHistoryUpdates,
+	type LevelHistoryCollection,
+} from "../utils/levelHistoryStorage";
+import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import styles from "./AdventurePage.module.css";
-
-const LEVELS_PER_PAGE = 4;
 const DEMO_BUNDLE = getDemoSnapshotBundle();
+
+type AdventurePageRouteState = {
+	autoStartLevelIndex?: number;
+	focusLevelIndex?: number;
+};
 
 function hydrateSnapshotLevels(levels: Level[], snapshotIndexes: SnapshotIndexes) {
 	return levels.map((level) => {
@@ -58,13 +74,20 @@ function AdventurePage() {
 			// Only run on mount
 			// eslint-disable-next-line react-hooks/exhaustive-deps
 		}, []);
+	const location = useLocation();
 	const [page, setPage] = useState(0);
 	const [levels, setLevels] = useState<Level[]>([]);
 	const [actorImages, setActorImages] = useState<Record<string, string | null>>({});
+	const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
+	const [levelHistoryCollection, setLevelHistoryCollection] = useState<LevelHistoryCollection>(() => readAllLevelHistory());
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const { mode, setMode } = useDataSourceMode();
 	const { snapshot, indexes, isLoading: isSnapshotLoading, waitTimeoutRemainingMs } = useSnapshotData();
+	const isCompactPhoneViewport = useIsCompactPhoneViewport();
+	const levelsPerPage = isCompactPhoneViewport ? 2 : 3;
 	const isWaitingForFullData = isOnlineSnapshotMode(mode) && (!snapshot || !indexes);
+	const routeState = (location.state as AdventurePageRouteState | null) ?? null;
+	const handledAutoStartLevelRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		let isMounted = true;
@@ -155,83 +178,117 @@ function AdventurePage() {
 		};
 	}, [indexes, isWaitingForFullData, mode, snapshot]);
 
-	const totalPages = Math.max(1, Math.ceil(levels.length / LEVELS_PER_PAGE));
-	const startIdx = page * LEVELS_PER_PAGE;
-	const endIdx = startIdx + LEVELS_PER_PAGE;
+	useEffect(() => {
+		setCompletedLevels(readCompletedLevels());
+		return subscribeToLevelCompletionUpdates(() => {
+			setCompletedLevels(readCompletedLevels());
+		});
+	}, []);
+
+	useEffect(() => {
+		setLevelHistoryCollection(readAllLevelHistory());
+		return subscribeToLevelHistoryUpdates(() => {
+			setLevelHistoryCollection(readAllLevelHistory());
+		});
+	}, []);
+
+	const totalPages = Math.max(1, Math.ceil(levels.length / levelsPerPage));
+	const startIdx = page * levelsPerPage;
+	const endIdx = startIdx + levelsPerPage;
 	const pageLevels = useMemo(() => levels.slice(startIdx, endIdx), [endIdx, levels, startIdx]);
+
+	useEffect(() => {
+		setPage((currentPage) => Math.min(currentPage, totalPages - 1));
+	}, [totalPages]);
 
 	const handlePrev = () => setPage((currentPage) => (currentPage === 0 ? totalPages - 1 : currentPage - 1));
 	const handleNext = () => setPage((currentPage) => (currentPage === totalPages - 1 ? 0 : currentPage + 1));
 
 	const navigate = useNavigate();
 
+	const handleStartLevel = useCallback((level: Level, globalIdx: number) => {
+		navigate("/game", {
+			state: {
+				returnTo: "/adventure",
+				actorA: level.actorA,
+				actorB: level.actorB,
+				optimalHops: level.optimalHops,
+				optimalPath: level.optimalPath,
+				levelIndex: globalIdx,
+				totalLevels: levels.length,
+			},
+		});
+	}, [levels.length, navigate]);
+
+	useEffect(() => {
+		if (levels.length === 0) {
+			return;
+		}
+
+		const requestedFocusLevel = routeState?.focusLevelIndex;
+		if (typeof requestedFocusLevel !== "number") {
+			return;
+		}
+
+		const safeLevelIndex = Math.max(0, Math.min(requestedFocusLevel, levels.length - 1));
+		setPage(Math.floor(safeLevelIndex / levelsPerPage));
+	}, [levels.length, levelsPerPage, routeState?.focusLevelIndex]);
+
+	useEffect(() => {
+		if (isSnapshotLoading || isWaitingForFullData || levels.length === 0) {
+			return;
+		}
+
+		const requestedAutoStartLevel = routeState?.autoStartLevelIndex;
+		if (typeof requestedAutoStartLevel !== "number") {
+			return;
+		}
+
+		const safeLevelIndex = Math.max(0, Math.min(requestedAutoStartLevel, levels.length - 1));
+		if (handledAutoStartLevelRef.current === safeLevelIndex) {
+			return;
+		}
+
+		handledAutoStartLevelRef.current = safeLevelIndex;
+		const requestedLevel = levels[safeLevelIndex];
+		if (requestedLevel) {
+			handleStartLevel(requestedLevel, safeLevelIndex);
+		}
+	}, [handleStartLevel, isSnapshotLoading, isWaitingForFullData, levels, routeState?.autoStartLevelIndex]);
+
 	return (
 		<div className={styles.adventurePageWrapper}>
-			<div className={styles.adventureHomeBtn}>
-				<HomeButton />
-			</div>
+			<PageNavigationHeader backTo="/play-now" backLabel="Back" />
 			<div className={styles.adventureContent}>
 				<h1 className={styles.adventureTitle}>🎭 Adventure Mode</h1>
 				<div className={styles.adventureSubtitle}>Choose a level</div>
+				<button
+					type="button"
+					className={styles.adventureSettingsButton}
+					onClick={() => navigate("/settings?tab=gameplay", { state: { returnTo: "/adventure" } })}
+				>
+					Open gameplay settings
+				</button>
 				{isWaitingForFullData ? <FullDataWaitingMessage waitTimeoutRemainingMs={waitTimeoutRemainingMs} onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 				<div className={styles.levelsListWrapper}>
 					{isSnapshotLoading && !isWaitingForFullData ? <div className={styles.stateMessage}>Loading Adventure Mode data…</div> : null}
 					{loadError ? <div className={styles.errorMessage}>{loadError}</div> : null}
 					{pageLevels.map((level, idx) => {
 						const globalIdx = startIdx + idx;
+						const levelCompleted = isLevelCompleted(level.actorA, level.actorB, completedLevels);
+						const levelHistory = getLevelHistory(level.actorA, level.actorB, levelHistoryCollection);
 						return (
 							<div key={globalIdx} className={styles.levelRowWrapper}>
-								<div className={styles.levelLabel}>
-									Level {globalIdx + 1} &nbsp;·&nbsp; {Array.from({ length: level.stars }).map((_, starIndex) => (
-										<span key={starIndex} className={styles.levelStar}>★</span>
-									))}
-									<span className={styles.levelHops}>
-										Optimal hops: {level.optimalHops ?? "--"}
-									</span>
-								</div>
-								<button
-									className={styles.levelButton}
+								<LevelCard
+									level={level}
+									levelIndex={globalIdx}
+									leftImageUrl={actorImages[normalizeName(level.actorA)] ?? null}
+									rightImageUrl={actorImages[normalizeName(level.actorB)] ?? null}
+									isCompleted={levelCompleted}
+									levelHistory={levelHistory}
 									disabled={isSnapshotLoading || isWaitingForFullData}
-									onClick={() =>
-										navigate("/game", {
-											state: {
-												returnTo: "/play-now",
-												actorA: level.actorA,
-												actorB: level.actorB,
-												optimalHops: level.optimalHops,
-												optimalPath: level.optimalPath,
-											},
-										})
-									}
-								>
-													<span className={styles.levelActorLeft}>
-														<span className={styles.levelActorIdentity}>
-															<EntityArtwork
-																type="actor"
-																label={level.actorA}
-																imageUrl={actorImages[normalizeName(level.actorA)] ?? null}
-																className={styles.levelActorArtwork}
-																imageClassName={styles.levelActorArtworkImage}
-																placeholderClassName={styles.levelActorArtworkEmoji}
-															/>
-															<span>{level.actorA}</span>
-														</span>
-													</span>
-									<span className={styles.levelVs}>vs.</span>
-													<span className={styles.levelActorRight}>
-														<span className={`${styles.levelActorIdentity} ${styles.levelActorIdentityRight}`}>
-															<EntityArtwork
-																type="actor"
-																label={level.actorB}
-																imageUrl={actorImages[normalizeName(level.actorB)] ?? null}
-																className={styles.levelActorArtwork}
-																imageClassName={styles.levelActorArtworkImage}
-																placeholderClassName={styles.levelActorArtworkEmoji}
-															/>
-															<span>{level.actorB}</span>
-														</span>
-													</span>
-								</button>
+									onStart={() => handleStartLevel(level, globalIdx)}
+								/>
 							</div>
 						);
 					})}
@@ -243,10 +300,10 @@ function AdventurePage() {
             aria-label="Previous page"
 						disabled={isSnapshotLoading || isWaitingForFullData || levels.length === 0}
           >
-            ←
+						{isCompactPhoneViewport ? "‹" : "←"}
           </button>
           <span className={styles.paginationLabel}>
-            Page {page + 1} of {totalPages}
+						{isCompactPhoneViewport ? `${page + 1}/${totalPages}` : `Page ${page + 1} of ${totalPages}`}
           </span>
           <button
             className={styles.paginationArrow}
@@ -254,7 +311,7 @@ function AdventurePage() {
             aria-label="Next page"
 						disabled={isSnapshotLoading || isWaitingForFullData || levels.length === 0}
           >
-            →
+						{isCompactPhoneViewport ? "›" : "→"}
           </button>
         </div>
       </div>

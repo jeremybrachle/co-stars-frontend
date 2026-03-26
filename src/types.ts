@@ -90,7 +90,7 @@ export type ValidatePathResponse = {
 };
 
 export type SuggestionHighlight = {
-	kind: "connection" | "optimal" | "loop" | "deep-loop" | "cast-lock" | "full-cast-lock" | "blocked";
+	kind: "connection" | "optimal" | "loop" | "deep-loop" | "cast-lock" | "blocked";
 	label: string;
 	description: string;
 };
@@ -168,28 +168,34 @@ export type DataSourceMode = {
 
 export type EffectiveDataSource = "snapshot" | "api" | "demo";
 
-export type DifficultyOption = "easy" | "medium" | "hard" | "custom";
+export type DifficultyOption = "all-on" | "all-off" | "custom";
 
 export type DifficultyToggleId =
 	| "show-suggestions"
+	| "start-with-suggestion-panel"
 	| "show-hint-color"
+	| "write-in-autosuggest"
 	| "show-optimal-tracking"
 	| "guarantee-best-path-suggestion"
 	| "show-visited-suggestions"
-	| "sort-suggestions-by-risk-priority"
+	| "shuffle-adds-penalty"
+	| "rewind-adds-penalty"
 	| "cycle-risk-click-adds-penalty"
-	| "show-cast-lock-risk"
-	| "show-full-cast-lock";
+	| "show-cast-lock-risk";
 
 export type DifficultySettings = Record<DifficultyToggleId, boolean>;
 
 export type SuggestionViewMode = "all" | "subset";
 export type SuggestionWindowMode = "pagination" | "scroll";
+export type SuggestionOrderMode = "ranked" | "shuffled";
+export type SuggestionSortMode = "default" | "best-path" | "random";
 
 export type SuggestionDisplaySettings = {
 	viewMode: SuggestionViewMode;
 	subsetCount: number;
 	allWindowMode: SuggestionWindowMode;
+	orderMode: SuggestionOrderMode;
+	sortMode: SuggestionSortMode;
 };
 
 export type GameDataFilters = {
@@ -204,6 +210,7 @@ export type GameDifficultySettings = {
 	customSettings: DifficultySettings;
 	dataFilters: GameDataFilters;
 	suggestionDisplay: SuggestionDisplaySettings;
+	completionDarkMode: boolean;
 };
 
 export type DataIndicatorVariant =
