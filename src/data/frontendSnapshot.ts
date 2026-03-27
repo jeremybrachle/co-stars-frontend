@@ -5,15 +5,27 @@ import type {
 	Level,
 	Movie,
 	SnapshotBundle,
+	SnapshotUpdateCheck,
+	StoredSnapshotSource,
 } from "../types";
 import { buildSnapshotIndexes } from "./snapshotIndexes";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const REMOTE_MANIFEST_URL = import.meta.env.VITE_SNAPSHOT_MANIFEST_URL ?? "";
 const API_MANIFEST_PATH = "/api/export/frontend-manifest";
+const INSTALLED_MANIFEST_PATH = "/data/installed/frontend-manifest.json";
+const INSTALLED_SNAPSHOT_PATH = "/data/installed/frontend-snapshot.json";
 
-const SNAPSHOT_KEY = "co-stars-frontend-snapshot";
-const MANIFEST_KEY = "co-stars-frontend-manifest";
+const SNAPSHOT_STORAGE_KEYS: Record<StoredSnapshotSource, { manifest: string; snapshot: string }> = {
+	api: {
+		manifest: "co-stars-frontend-api-manifest",
+		snapshot: "co-stars-frontend-api-snapshot",
+	},
+	s3: {
+		manifest: "co-stars-frontend-s3-manifest",
+		snapshot: "co-stars-frontend-s3-snapshot",
+	},
+};
 
 type ApiFrontendManifest = {
 	version: string;
@@ -180,9 +192,18 @@ function mapSnapshot(snapshot: ApiFrontendSnapshot): FrontendSnapshot {
 	};
 }
 
-function readCachedSnapshotBundle(): SnapshotBundle | null {
-	const cachedManifestRaw = localStorage.getItem(MANIFEST_KEY);
-	const cachedSnapshotRaw = localStorage.getItem(SNAPSHOT_KEY);
+function getStorageKeys(source: StoredSnapshotSource) {
+	return SNAPSHOT_STORAGE_KEYS[source];
+}
+
+function readCachedSnapshotBundle(source: StoredSnapshotSource): SnapshotBundle | null {
+	if (typeof window === "undefined") {
+		return null;
+	}
+
+	const storageKeys = getStorageKeys(source);
+	const cachedManifestRaw = localStorage.getItem(storageKeys.manifest);
+	const cachedSnapshotRaw = localStorage.getItem(storageKeys.snapshot);
 
 	if (!cachedManifestRaw || !cachedSnapshotRaw) {
 		return null;
@@ -196,18 +217,23 @@ function readCachedSnapshotBundle(): SnapshotBundle | null {
 			manifest,
 			snapshot,
 			indexes: buildSnapshotIndexes(snapshot),
-			loadedFrom: "cache",
+			loadedFrom: source === "s3" ? "s3-snapshot" : "api-snapshot",
 		};
 	} catch {
-		localStorage.removeItem(MANIFEST_KEY);
-		localStorage.removeItem(SNAPSHOT_KEY);
+		localStorage.removeItem(storageKeys.manifest);
+		localStorage.removeItem(storageKeys.snapshot);
 		return null;
 	}
 }
 
-function writeCachedSnapshotBundle(manifest: FrontendManifest, snapshot: FrontendSnapshot) {
-	localStorage.setItem(MANIFEST_KEY, JSON.stringify(manifest));
-	localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(snapshot));
+function writeCachedSnapshotBundle(source: StoredSnapshotSource, manifest: FrontendManifest, snapshot: FrontendSnapshot) {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	const storageKeys = getStorageKeys(source);
+	localStorage.setItem(storageKeys.manifest, JSON.stringify(manifest));
+	localStorage.setItem(storageKeys.snapshot, JSON.stringify(snapshot));
 }
 
 function estimateStringStorageBytes(value: string) {
@@ -218,8 +244,31 @@ function estimateStringStorageBytes(value: string) {
 	return value.length * 2;
 }
 
-export function getCachedSnapshotBundle() {
-	return readCachedSnapshotBundle();
+function createSnapshotBundle(
+	manifest: FrontendManifest,
+	snapshot: FrontendSnapshot,
+	loadedFrom: SnapshotBundle["loadedFrom"],
+): SnapshotBundle {
+	return {
+		manifest,
+		snapshot,
+		indexes: buildSnapshotIndexes(snapshot),
+		loadedFrom,
+	};
+}
+
+export function getCachedSnapshotBundle(source: StoredSnapshotSource) {
+	return readCachedSnapshotBundle(source);
+}
+
+export async function fetchInstalledSnapshot(): Promise<SnapshotBundle> {
+	const manifestUrl = resolveRemoteUrl(INSTALLED_MANIFEST_PATH);
+	const manifest = mapManifest(await fetchJson<ApiFrontendManifest>(manifestUrl));
+	const snapshot = mapSnapshot(
+		await fetchRemoteJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint || INSTALLED_SNAPSHOT_PATH, manifestUrl),
+	);
+
+	return createSnapshotBundle(manifest, snapshot, "installed-snapshot");
 }
 
 export async function fetchSnapshotFromS3(): Promise<SnapshotBundle> {
@@ -231,14 +280,9 @@ export async function fetchSnapshotFromS3(): Promise<SnapshotBundle> {
 	const snapshot = mapSnapshot(
 		await fetchRemoteJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint, REMOTE_MANIFEST_URL),
 	);
-	writeCachedSnapshotBundle(manifest, snapshot);
+	writeCachedSnapshotBundle("s3", manifest, snapshot);
 
-	return {
-		manifest,
-		snapshot,
-		indexes: buildSnapshotIndexes(snapshot),
-		loadedFrom: "s3-snapshot",
-	};
+	return createSnapshotBundle(manifest, snapshot, "s3-snapshot");
 }
 
 export async function fetchSnapshotFromApi(): Promise<SnapshotBundle> {
@@ -248,26 +292,57 @@ export async function fetchSnapshotFromApi(): Promise<SnapshotBundle> {
 			? await fetchJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint)
 			: await fetchApiJson<ApiFrontendSnapshot>(manifest.snapshotEndpoint),
 	);
-	writeCachedSnapshotBundle(manifest, snapshot);
+	writeCachedSnapshotBundle("api", manifest, snapshot);
+
+	return createSnapshotBundle(manifest, snapshot, "api-snapshot");
+}
+
+export async function checkForS3SnapshotUpdate(currentVersion: string | null): Promise<SnapshotUpdateCheck> {
+	if (!isHostedSnapshotConfigured()) {
+		throw new Error("Hosted snapshot manifest URL is not configured.");
+	}
+
+	const remoteManifest = mapManifest(await fetchRemoteJson<ApiFrontendManifest>(REMOTE_MANIFEST_URL));
+	const checkedAt = new Date().toISOString();
+
+	if (currentVersion && remoteManifest.version === currentVersion) {
+		return {
+			status: "up-to-date",
+			message: `Hosted S3 already matches version ${remoteManifest.version}.`,
+			checkedAt,
+			remoteManifest,
+		};
+	}
 
 	return {
-		manifest,
-		snapshot,
-		indexes: buildSnapshotIndexes(snapshot),
-		loadedFrom: "api-snapshot",
+		status: "update-available",
+		message: `Hosted S3 has version ${remoteManifest.version} ready to download.`,
+		checkedAt,
+		remoteManifest,
 	};
 }
 
-export function getSnapshotStorageKeys() {
+export function createIdleSnapshotUpdateCheck(): SnapshotUpdateCheck {
 	return {
-		manifest: MANIFEST_KEY,
-		snapshot: SNAPSHOT_KEY,
+		status: "idle",
+		message: null,
+		checkedAt: null,
+		remoteManifest: null,
 	};
 }
 
-export function getCachedSnapshotStorageStats() {
-	const manifestRaw = localStorage.getItem(MANIFEST_KEY);
-	const snapshotRaw = localStorage.getItem(SNAPSHOT_KEY);
+export function getCachedSnapshotStorageStats(source: StoredSnapshotSource) {
+	if (typeof window === "undefined") {
+		return {
+			manifestBytes: 0,
+			snapshotBytes: 0,
+			totalBytes: 0,
+		};
+	}
+
+	const storageKeys = getStorageKeys(source);
+	const manifestRaw = localStorage.getItem(storageKeys.manifest);
+	const snapshotRaw = localStorage.getItem(storageKeys.snapshot);
 	const manifestBytes = manifestRaw ? estimateStringStorageBytes(manifestRaw) : 0;
 	const snapshotBytes = snapshotRaw ? estimateStringStorageBytes(snapshotRaw) : 0;
 
@@ -286,12 +361,12 @@ export function getApiSnapshotManifestUrl() {
 	return `${API_BASE_URL}${API_MANIFEST_PATH}`;
 }
 
-export function getRecommendedRefreshMs(manifest: FrontendManifest | null) {
-	const hours = manifest?.recommendedRefreshIntervalHours ?? 168;
-	return hours * 60 * 60 * 1000;
-}
+export function clearCachedSnapshot(source: StoredSnapshotSource) {
+	if (typeof window === "undefined") {
+		return;
+	}
 
-export function clearCachedSnapshot() {
-	localStorage.removeItem(MANIFEST_KEY);
-	localStorage.removeItem(SNAPSHOT_KEY);
+	const storageKeys = getStorageKeys(source);
+	localStorage.removeItem(storageKeys.manifest);
+	localStorage.removeItem(storageKeys.snapshot);
 }

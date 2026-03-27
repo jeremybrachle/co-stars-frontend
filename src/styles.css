@@ -1347,6 +1347,10 @@ button:hover {
   border-color: rgba(52, 211, 153, 0.45);
 }
 
+.dataIndicatorButton--online-api-unavailable {
+  border-color: rgba(251, 146, 60, 0.55);
+}
+
 .dataIndicatorButton--offline-snapshot {
   border-color: rgba(251, 191, 36, 0.45);
 }
@@ -1374,9 +1378,18 @@ button:hover {
   animation: data-icon-pulse 1.35s ease-in-out infinite;
 }
 
+.dataIndicatorIcon--alert {
+  animation: data-icon-alert 0.8s steps(2, jump-none) infinite;
+}
+
 @keyframes data-icon-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
+}
+
+@keyframes data-icon-alert {
+  0%, 49% { opacity: 1; transform: scale(1); }
+  50%, 100% { opacity: 0.2; transform: scale(1.06); }
 }
 
 .dataIndicatorGlyph {
@@ -1414,6 +1427,10 @@ button:hover {
 
 .dataIndicatorGlyph--online-api {
   color: #34d399;
+}
+
+.dataIndicatorGlyph--online-api-unavailable {
+  color: #fb923c;
 }
 
 .dataIndicatorGlyph--offline-snapshot {

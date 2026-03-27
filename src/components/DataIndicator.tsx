@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { getApiConnectionState, subscribeToApiConnectionState } from "../api/costars";
 import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
 import { getDataIndicatorLabel, getDataIndicatorVariant } from "../data/dataSourcePreferences";
@@ -9,13 +10,14 @@ import type { DataIndicatorVariant } from "../types";
 const VARIANT_ICONS: Record<DataIndicatorVariant, string> = {
 	"online-snapshot": "⚡",
 	"online-api": "📡",
+	"online-api-unavailable": "⚠️",
 	"offline-snapshot": "💾",
 	"offline-demo": "🎭",
 };
 
-function DataIndicatorIcon({ variant, loading }: { variant: DataIndicatorVariant; loading: boolean }) {
+function DataIndicatorIcon({ variant, loading, alert }: { variant: DataIndicatorVariant; loading: boolean; alert: boolean }) {
 	return (
-		<span className={`dataIndicatorIcon${loading ? " dataIndicatorIcon--pulse" : ""}`} aria-hidden="true">
+		<span className={`dataIndicatorIcon${loading ? " dataIndicatorIcon--pulse" : ""}${alert ? " dataIndicatorIcon--alert" : ""}`} aria-hidden="true">
 			{VARIANT_ICONS[variant]}
 		</span>
 	);
@@ -26,15 +28,23 @@ function DataIndicator() {
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const { mode } = useDataSourceMode();
 	const { snapshot, isLoading } = useSnapshotData();
+	const apiConnectionState = useSyncExternalStore(subscribeToApiConnectionState, getApiConnectionState, getApiConnectionState);
 	const isBrowserOnline = useBrowserOnlineStatus();
+	const isApiUnavailable = mode.connectionMode === "online"
+		&& mode.onlineSource === "api"
+		&& apiConnectionState.status === "unavailable";
+	const isApiAttempting = mode.connectionMode === "online"
+		&& mode.onlineSource === "api"
+		&& apiConnectionState.status === "attempting";
 	const variant = useMemo(
 		() => getDataIndicatorVariant({
 			mode,
 			isBrowserOnline,
 			hasSnapshot: !!snapshot,
 			isSnapshotLoading: isLoading,
+			isApiUnavailable,
 		}),
-		[isBrowserOnline, isLoading, mode, snapshot],
+		[isApiUnavailable, isBrowserOnline, isLoading, mode, snapshot],
 	);
 	const summary = getDataIndicatorLabel(variant);
 
@@ -71,9 +81,9 @@ function DataIndicator() {
 				className={`dataIndicatorButton dataIndicatorButton--${variant}`}
 				onClick={() => setIsOpen((currentOpen) => !currentOpen)}
 				aria-expanded={isOpen}
-				aria-label={summary}
+				aria-label={isApiUnavailable && apiConnectionState.lastError ? `${summary}. ${apiConnectionState.lastError}` : summary}
 			>
-				<DataIndicatorIcon variant={variant} loading={isLoading && mode.connectionMode === "online" && mode.onlineSource === "snapshot"} />
+				<DataIndicatorIcon variant={variant} loading={(isLoading && mode.connectionMode === "online") || isApiAttempting} alert={isApiUnavailable} />
 				<span className="dataIndicatorButtonText">Data</span>
 			</button>
 			{isOpen ? (

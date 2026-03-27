@@ -1,21 +1,26 @@
 import { createContext, useContext } from "react";
-import type { FrontendManifest, FrontendSnapshot, HealthCheckResponse, SnapshotBundle, SnapshotIndexes } from "../types";
+import type { FrontendManifest, FrontendSnapshot, SnapshotBundle, SnapshotIndexes, SnapshotUpdateCheck, StoredSnapshotSource } from "../types";
+
+export type SnapshotErrorSource = "installed" | "api" | "s3";
 
 export type SnapshotDataContextValue = {
 	snapshot: FrontendSnapshot | null;
 	manifest: FrontendManifest | null;
 	indexes: SnapshotIndexes | null;
-	health: HealthCheckResponse | null;
 	isLoading: boolean;
+	isCheckingForS3Update: boolean;
 	errorMessage: string | null;
-	errorSource: "api" | "s3" | null;
+	errorSource: SnapshotErrorSource | null;
 	loadedFrom: SnapshotBundle["loadedFrom"] | null;
 	lastRefreshAt: string | null;
-	waitTimeoutRemainingMs: number | null;
-	recommendedRefreshMs: number;
+	installedBundle: SnapshotBundle | null;
+	s3Bundle: SnapshotBundle | null;
+	apiBundle: SnapshotBundle | null;
+	s3UpdateCheck: SnapshotUpdateCheck;
 	fetchSnapshotFromApi: () => Promise<SnapshotBundle | null>;
 	fetchSnapshotFromS3: () => Promise<SnapshotBundle | null>;
-	clearSnapshotCache: () => void;
+	checkForS3SnapshotUpdate: () => Promise<SnapshotUpdateCheck>;
+	clearSnapshotCache: (source: StoredSnapshotSource) => void;
 };
 
 export const SnapshotDataContext = createContext<SnapshotDataContextValue | null>(null);

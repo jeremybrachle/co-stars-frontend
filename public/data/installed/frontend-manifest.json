@@ -1,0 +1,10 @@
+{
+  "version": "2.1.0",
+  "source_updated_at": "2026-03-14T21:24:10.648693+00:00",
+  "actor_count": 1482,
+  "movie_count": 19,
+  "relationship_count": 1526,
+  "level_count": 3,
+  "recommended_refresh_interval_hours": 168,
+  "snapshot_endpoint": "frontend-snapshot.json"
+}
