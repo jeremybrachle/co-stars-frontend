@@ -14,5 +14,13 @@
     "releaseYearCutoff": null,
     "optimalHops": null,
     "optimalPath": []
+  },
+  {
+    "startNode": { "id": 234352, "type": "actor", "label": "Margot Robbie" },
+    "targetNode": { "id": 414906, "type": "movie", "label": "The Batman" },
+    "actorPopularityCutoff": 0,
+    "releaseYearCutoff": null,
+    "optimalHops": null,
+    "optimalPath": []
   }
 ]
