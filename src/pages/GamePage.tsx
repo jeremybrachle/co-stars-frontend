@@ -76,6 +76,7 @@ import {
   subscribeToLevelHistoryUpdates,
   type LevelHistoryRecord,
 } from "../utils/levelHistoryStorage.ts";
+import { savePlayerCustomLevel, type CustomLevelDraft } from "../utils/customLevelsStorage.ts";
 import {
   calculateAverageReleaseYear,
   calculatePathPopularityScore,
@@ -123,6 +124,8 @@ type GamePageRouteState = {
   optimalPath?: NodeSummary[];
   levelIndex?: number;
   totalLevels?: number;
+  customLevelId?: string | null;
+  customLevelDraft?: CustomLevelDraft | null;
 };
 
 type SelectedSide = "top" | "bottom";
@@ -606,6 +609,9 @@ function GamePage() {
   const [completion, setCompletion] = useState<CompletionState | null>(null);
   const [isCompletionDialogOpen, setIsCompletionDialogOpen] = useState(false);
   const [isSavedHistoryDialogOpen, setIsSavedHistoryDialogOpen] = useState(false);
+  const [customLevelSaveMessage, setCustomLevelSaveMessage] = useState<string | null>(null);
+  const [savedCustomLevelId, setSavedCustomLevelId] = useState<string | null>(routeState?.customLevelId ?? null);
+  const [didJustSaveCustomLevel, setDidJustSaveCustomLevel] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
   const [currentLevelIdentity, setCurrentLevelIdentity] = useState<{ startLabel: string; endLabel: string } | null>(null);
   const [levelHistory, setLevelHistory] = useState<LevelHistoryRecord | null>(null);
@@ -937,6 +943,12 @@ function GamePage() {
   }, [completion]);
 
   useEffect(() => {
+    setSavedCustomLevelId(routeState?.customLevelId ?? null);
+    setCustomLevelSaveMessage(null);
+    setDidJustSaveCustomLevel(false);
+  }, [routeState?.customLevelId, routeState?.customLevelDraft]);
+
+  useEffect(() => {
     let isMounted = true;
 
     const buildLocalSetup = async (localSource: "snapshot" | "demo") => {
@@ -1063,6 +1075,7 @@ function GamePage() {
       setSuggestionError(null);
       setCompletion(null);
       setIsCompletionDialogOpen(false);
+      setCustomLevelSaveMessage(null);
       setSuggestions([]);
       setTopPath([]);
       setBottomPath([]);
@@ -2243,6 +2256,7 @@ function GamePage() {
     setCompletion(null);
     setIsCompletionDialogOpen(false);
     setIsSavedHistoryDialogOpen(false);
+    setCustomLevelSaveMessage(null);
   };
 
   const handleShuffle = () => {
@@ -2277,12 +2291,50 @@ function GamePage() {
     handleResetBoard();
   };
 
-  const handleReturnToLevelList = () => {
-    navigate("/adventure", {
-      state: {
-        focusLevelIndex: routeState?.levelIndex,
-      },
-    });
+  const handleReturnToOrigin = () => {
+    if (backDestination === "/adventure") {
+      navigate("/adventure", {
+        state: {
+          focusLevelIndex: routeState?.levelIndex,
+        },
+      });
+      return;
+    }
+
+    if (backDestination === "/quick-play") {
+      navigate("/quick-play", {
+        state: {
+          draftLevel: routeState?.customLevelDraft ?? null,
+        },
+      });
+      return;
+    }
+
+    navigate(backDestination);
+  };
+
+  const handleReturnToPlayNow = () => {
+    navigate("/play-now");
+  };
+
+  const handleSaveCustomLevel = () => {
+    if (!routeState?.customLevelDraft || savedCustomLevelId) {
+      return;
+    }
+
+    try {
+      const { savedLevel } = savePlayerCustomLevel(routeState.customLevelDraft);
+      setSavedCustomLevelId(savedLevel.id);
+      setCustomLevelSaveMessage(null);
+      setDidJustSaveCustomLevel(true);
+    } catch (error) {
+      setDidJustSaveCustomLevel(false);
+      setCustomLevelSaveMessage(error instanceof Error ? error.message : "This quick play matchup could not be saved.");
+    }
+  };
+
+  const handleOpenArchive = () => {
+    navigate("/level-archive");
   };
 
   const handleNextLevel = () => {
@@ -2548,10 +2600,21 @@ function GamePage() {
 
 
   const backDestination = routeState?.returnTo ?? "/play-now";
+  const isQuickPlayRun = backDestination === "/quick-play";
+  const isArchiveRun = backDestination === "/level-archive";
   const canOpenLevelList = backDestination === "/adventure" || typeof routeState?.levelIndex === "number";
   const hasNextLevel = typeof routeState?.levelIndex === "number"
     && typeof routeState?.totalLevels === "number"
     && routeState.levelIndex < routeState.totalLevels - 1;
+  const canSaveCurrentCustomLevel = isQuickPlayRun && Boolean(routeState?.customLevelDraft) && !savedCustomLevelId;
+  const pinnedPrimaryActionLabel = isQuickPlayRun
+    ? "Quick play"
+    : isArchiveRun
+      ? "Archive"
+      : "Replay";
+  const pinnedPrimaryAction = isQuickPlayRun || isArchiveRun
+    ? handleReturnToOrigin
+    : handleRetryCompletedLevel;
   const shouldShowMobileHistoryTab = isCompactPhoneViewport && currentLevelCompleted;
   const inspectorHistory = useMemo<EntityDetailsHistoryEntry[]>(() => {
     return inspectorTrail.map((node) => ({
@@ -2779,9 +2842,9 @@ function GamePage() {
                 <button
                   type="button"
                   className="gameCompletionPinnedScoreButton"
-                  onClick={handleRetryCompletedLevel}
+                  onClick={pinnedPrimaryAction}
                 >
-                  Replay
+                  {pinnedPrimaryActionLabel}
                 </button>
                 {hasNextLevel ? (
                   <button
@@ -2804,9 +2867,9 @@ function GamePage() {
                 <button
                   type="button"
                   className="gameCompletionPinnedScoreButton"
-                  onClick={handleRetryCompletedLevel}
+                  onClick={pinnedPrimaryAction}
                 >
-                  Replay
+                  {pinnedPrimaryActionLabel}
                 </button>
               </div>
               <div className="gameCompletionPinnedSection gameCompletionPinnedSection--score">
@@ -3250,22 +3313,49 @@ function GamePage() {
             </details>
 
             <div className="gameCompletionActions">
+              {customLevelSaveMessage ? <p className="gameRulesText gameCompletionLead">{customLevelSaveMessage}</p> : null}
               <div className="gameCompletionActionGrid">
-                <button type="button" className="gameCompletionActionButton gameCompletionActionButtonSecondary" onClick={handleRetryCompletedLevel}>
-                  Retry level
-                </button>
-                {canOpenLevelList ? (
+                {isQuickPlayRun ? (
+                  <button
+                    type="button"
+                    className="gameCompletionActionButton gameCompletionActionButtonSecondary"
+                    onClick={handleReturnToOrigin}
+                  >
+                    Quick play creator
+                  </button>
+                ) : (
+                  <button type="button" className="gameCompletionActionButton gameCompletionActionButtonSecondary" onClick={handleRetryCompletedLevel}>
+                    Retry level
+                  </button>
+                )}
+                {isQuickPlayRun ? (
+                  <div className="gameCompletionActionStack">
+                    {didJustSaveCustomLevel ? <span className="gameCompletionSuccessBadge">Level successfully saved</span> : null}
+                    <button
+                      type="button"
+                      className="gameCompletionActionButton gameCompletionActionButtonList"
+                      onClick={savedCustomLevelId ? handleOpenArchive : handleSaveCustomLevel}
+                      disabled={!savedCustomLevelId && !canSaveCurrentCustomLevel}
+                    >
+                      {savedCustomLevelId ? "Go to archive" : "Save to archive"}
+                    </button>
+                  </div>
+                ) : canOpenLevelList || isArchiveRun ? (
                   <button
                     type="button"
                     className="gameCompletionActionButton gameCompletionActionButtonList"
-                    onClick={handleReturnToLevelList}
+                    onClick={handleReturnToOrigin}
                   >
-                    Main level list
+                    {isArchiveRun ? "Level archive" : "Main level list"}
                   </button>
                 ) : (
                   <div className="gameCompletionActionSpacer" aria-hidden="true" />
                 )}
-                {hasNextLevel ? (
+                {isQuickPlayRun ? (
+                  <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary gameCompletionActionButtonNext gameCompletionActionButtonNext--wide" onClick={handleReturnToPlayNow}>
+                    Back to Play Now
+                  </button>
+                ) : hasNextLevel ? (
                   <button type="button" className="gameCompletionActionButton gameCompletionActionButtonPrimary gameCompletionActionButtonNext gameCompletionActionButtonNext--wide" onClick={handleNextLevel}>
                     Next level
                   </button>

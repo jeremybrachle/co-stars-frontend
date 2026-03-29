@@ -61,45 +61,41 @@ export function getDataIndicatorVariant({ mode, isBrowserOnline, hasSnapshot, is
 }
 
 export function getDataIndicatorLabel(variant: DataIndicatorVariant) {
-	if (variant === "online-api") {
-		return "Online using API data";
-	}
-
 	if (variant === "online-api-unavailable") {
-		return "API mode selected, backend unavailable";
+		return "Connection pending";
 	}
 
-	if (variant === "online-snapshot") {
-		return "Online using snapshot data";
+	if (variant === "online-snapshot" || variant === "online-api") {
+		return "Online";
 	}
 
-	if (variant === "offline-snapshot") {
-		return "Offline using snapshot data";
+	if (variant === "offline-snapshot" || variant === "offline-demo") {
+		return "Offline";
 	}
 
-	return "Offline using demo data";
+	return "Offline";
 }
 
 export function getDataIndicatorDescription(options: IndicatorStateOptions) {
 	const variant = getDataIndicatorVariant(options);
 
 	if (variant === "online-api") {
-		return "Online API mode is selected. Live API requests are used when available, and the installed snapshot remains available as a fallback.";
+		return "Online mode is active and API-assisted data is available.";
 	}
 
 	if (variant === "online-api-unavailable") {
-		return "API mode is selected, but the backend is not responding right now. Gameplay can still fall back to installed or downloaded snapshot graph data.";
+		return "Online mode is selected, but the active source is still pending a successful connection.";
 	}
 
 	if (variant === "online-snapshot") {
 		return options.hasSnapshot
-			? "Online S3 mode is selected. The installed snapshot stays available, and any downloaded S3 snapshot replaces it for online snapshot play."
-			: "Online S3 mode is selected, but no snapshot is ready yet. Check for an update or switch back to demo data.";
+			? "Online mode is active and using snapshot data."
+			: "Online mode is selected, but the current source is still loading.";
 	}
 
 	if (variant === "offline-snapshot") {
-		return "The app is operating offline and using the installed snapshot bundled with this frontend build.";
+		return "Offline mode is active and using the installed snapshot bundled with this frontend build.";
 	}
 
-	return "The app is operating offline and using the built-in demo dataset.";
+	return "Offline mode is active and using the built-in demo dataset.";
 }

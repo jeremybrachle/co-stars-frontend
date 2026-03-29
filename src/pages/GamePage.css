@@ -1748,6 +1748,26 @@
   min-height: 1px;
 }
 
+.gameCompletionActionStack {
+  display: grid;
+  gap: 8px;
+}
+
+.gameCompletionSuccessBadge {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(134, 239, 172, 0.38);
+  background: rgba(20, 83, 45, 0.42);
+  color: #dcfce7;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
 .gameCompletionActionButton {
   min-width: 156px;
   display: inline-flex;

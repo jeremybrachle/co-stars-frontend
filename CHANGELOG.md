@@ -10,6 +10,18 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.0.10] - 2026-03-28
+
+Quick Play and Level Archive
+
+### Added
+
+- New game play mode for "quick play". This will enable the player to create and save new custom levels. On demand they can generate as many levels as they want but they can save up to 10 locally. These levels can be either player generated or randomly generated
+- Also added a new page for Level Archive. This will be a combined list of player created levels and pre-defined levels that I created locally and uploaded as the developer
+- Simplification for data to be either online or offline
+    - Offline will be installed snapshot or demo data
+    - Online will be fetching the hosted s3 snapshot or connecting to the API
+
 ## [2.0.9] - 2026-03-26
 
 Data Load Default

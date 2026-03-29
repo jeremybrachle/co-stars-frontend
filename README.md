@@ -49,3 +49,11 @@ Current refresh approach:
 To manually pull a fresh bundled snapshot into this frontend project, run `npm run data:refresh`.
 
 For a more detailed technical overview, see [TECHNICAL_README.md](TECHNICAL_README.md). For command-line refresh and recovery steps, see [DATA_REFRESH_USAGE.md](DATA_REFRESH_USAGE.md).
+
+## Developer Levels
+
+Developer archive levels now have a single source of truth: edit [public/data/developer-levels.json](public/data/developer-levels.json).
+
+- Do not edit `dist/data/developer-levels.json` directly. That file is build output and should be treated as generated.
+- Keep each level entry in the same JSON array format that already exists in [public/data/developer-levels.json](public/data/developer-levels.json).
+- After updating the file, restart or rebuild the frontend if you need the generated `dist/` output to pick up the change.

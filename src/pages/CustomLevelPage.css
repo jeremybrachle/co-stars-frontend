@@ -1,0 +1,329 @@
+.quickPlayPage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: auto;
+  min-height: 100vh;
+  overflow: auto;
+}
+
+.quickPlayPage .quickPlayPanel {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  margin-inline: auto;
+}
+
+.quickPlayPage .quickPlayPanelScrollArea {
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow: visible;
+  padding-right: 0;
+  margin-right: 0;
+  padding-bottom: 0;
+  display: block;
+}
+
+.quickPlayPage .quickPlaySection--creator {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  padding: 24px 24px 22px;
+}
+
+.quickPlayPage .quickPlaySection--creator > * {
+  margin: 0;
+}
+
+.quickPlayPage .quickPlaySection--creator h2,
+.quickPlayPage .quickPlaySection--creator p,
+.quickPlayPage .quickPlaySection--creator label,
+.quickPlayPage .quickPlaySection--creator span,
+.quickPlayPage .quickPlaySection--creator button {
+  margin-block: 0;
+}
+
+.quickPlayPage .quickPlaySectionHeader {
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 18px;
+}
+
+.quickPlayPage .quickPlaySectionHeader .settingsHint {
+  margin-top: 0;
+  line-height: 1.25;
+}
+
+.quickPlayPage .quickPlayCreatorHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.quickPlayPage .quickPlayTypeField {
+  gap: 0;
+}
+
+.quickPlayPage .quickPlayTypeField > span {
+  line-height: 1.15;
+}
+
+.quickPlayPage .quickPlayTypeGrid,
+.quickPlayPage .quickPlayInputGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.quickPlayPage .quickPlayTypeGrid {
+  padding: 14px 0 20px;
+}
+
+.quickPlayPage .quickPlayInputGrid {
+  padding: 8px 0 22px;
+}
+
+.quickPlayPage .formField {
+  gap: 8px;
+}
+
+.quickPlayPage .quickPlayTypeField select,
+.quickPlayPage .quickPlayInputCard input,
+.quickPlayPage .findPathSearchInput {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.72);
+  box-sizing: border-box;
+  color: white;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.quickPlayPage .quickPlayInputCard {
+  display: grid;
+  gap: 10px;
+}
+
+.quickPlayPage .quickPlayInputControlRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quickPlayPage .write-in-autosuggest {
+  gap: 8px;
+}
+
+.quickPlayPage .quickPlaySelectionArtworkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.quickPlayPage .quickPlaySelectionArtworkButton:hover {
+  transform: translateY(-1px);
+}
+
+.quickPlayPage .quickPlaySelectionArtworkButton:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.85);
+  outline-offset: 3px;
+  border-radius: 16px;
+}
+
+.quickPlayPage .quickPlaySelectionArtwork {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.22);
+}
+
+.quickPlayPage .quickPlayInputFieldWrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.quickPlayPage .quickPlayInputLabel {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.quickPlayPage .quickPlayRandomButton {
+  min-width: 106px;
+  min-height: 38px;
+  padding-inline: 10px;
+  background: rgba(14, 116, 144, 0.82);
+}
+
+.quickPlayPage .quickPlayRandomButton:hover {
+  background: rgba(8, 145, 178, 0.92);
+}
+
+.quickPlayPage .quickPlayValidationLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.46);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.quickPlayPage .quickPlayValidationLabel--ready {
+  border-color: rgba(125, 211, 252, 0.5);
+  background: rgba(8, 47, 73, 0.58);
+  color: #e0f2fe;
+}
+
+.quickPlayPage .quickPlayValidationLabel--ready:hover {
+  background: rgba(12, 74, 110, 0.72);
+}
+
+.quickPlayPage .quickPlayValidationLabel--blocked {
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(127, 29, 29, 0.34);
+  color: #ffe4e6;
+}
+
+.quickPlayPage .quickPlayValidationLabel--idle {
+  border-color: rgba(148, 163, 184, 0.3);
+  color: rgba(226, 232, 240, 0.82);
+}
+
+.quickPlayPage .quickPlayCreatorFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 0;
+  padding-top: 6px;
+}
+
+.quickPlayPage .quickPlayCreatorStatusRow {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.quickPlayPage .quickPlayStartButton {
+  margin: 0;
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 1rem;
+}
+
+.quickPlayPage .quickPlaySection--creator > .settingsError {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.quickPlayPage .quickPlayFilterDialog {
+  width: min(100%, 760px);
+}
+
+.quickPlayPage .quickPlayFooter {
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.quickPlayPage .quickPlayIconButton--save {
+  border-color: rgba(96, 165, 250, 0.42);
+  background: rgba(30, 64, 175, 0.34);
+  color: #dbeafe;
+}
+
+.quickPlayPage .quickPlayIconButton--save:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.44);
+  border-color: rgba(147, 197, 253, 0.56);
+}
+
+.quickPlayPage .quickPlayFilterPanel--dialog {
+  margin-top: 10px;
+}
+
+.quickPlayPage .quickPlayIconButton--filter {
+  width: auto;
+  min-width: 0;
+  padding: 0 10px;
+  gap: 6px;
+  border-color: rgba(251, 191, 36, 0.34);
+  background: rgba(120, 53, 15, 0.28);
+  color: #fef3c7;
+}
+
+.quickPlayPage .quickPlayIconButton--filter:hover:not(:disabled) {
+  background: rgba(146, 64, 14, 0.42);
+  border-color: rgba(252, 211, 77, 0.56);
+}
+
+.quickPlayPage .quickPlayIconGlyph {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 820px) {
+  .quickPlayPage .quickPlaySection--creator {
+    gap: 0;
+    padding: 18px 16px 16px;
+  }
+
+  .quickPlayPage .quickPlayTypeGrid,
+  .quickPlayPage .quickPlayInputGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .quickPlayPage .quickPlaySectionHeader,
+  .quickPlayPage .quickPlayCreatorHeaderActions {
+    align-items: stretch;
+  }
+
+  .quickPlayPage .quickPlayInputControlRow {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .quickPlayPage .quickPlayCreatorHeaderActions,
+  .quickPlayPage .quickPlayCreatorFooter,
+  .quickPlayPage .quickPlayStartButton,
+  .quickPlayPage .quickPlayIconButton,
+  .quickPlayPage .quickPlayRandomButton {
+    width: 100%;
+  }
+
+  .quickPlayPage .quickPlayValidationLabel {
+    width: auto;
+    max-width: 100%;
+  }
+
+  .quickPlayPage .quickPlayIconButton--filter {
+    justify-content: center;
+  }
+
+  .quickPlayPage .quickPlaySelectionArtwork {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+  }
+}

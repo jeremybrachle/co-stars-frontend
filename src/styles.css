@@ -609,6 +609,34 @@ button:hover {
   font-size: 1rem;
 }
 
+.settingsCustomPanel--compact {
+  padding: 12px;
+}
+
+.settingsCustomPanel--compact .settingsCustomHeader {
+  margin-bottom: 8px;
+}
+
+.settingsCustomPanel--compact .settingsHint {
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.settingsCustomPanel--compact .settingsDataFilterField span {
+  min-height: 2.1em;
+  font-size: 0.74rem;
+  line-height: 1.1;
+}
+
+.settingsCustomPanel--compact .settingsDataFilterField input {
+  padding: 8px 10px;
+  font-size: 0.88rem;
+}
+
+.settingsCustomPanel--compact .settingsDataFilterRow {
+  gap: 8px;
+}
+
 .settingsToggleSection {
   display: grid;
   gap: 8px;
@@ -754,6 +782,23 @@ button:hover {
   align-items: end;
 }
 
+.settingsDataFilterGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.settingsDataFilterGrid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.settingsDataFilterCard {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
 .settingsDataFilterField {
   display: flex;
   flex-direction: column;
@@ -850,6 +895,31 @@ button:hover {
   background: rgba(120, 53, 15, 0.22);
   color: #fde68a;
   line-height: 1.4;
+}
+
+.settingsCustomPanel--compact .settingsCountSummary {
+  gap: 6px;
+  margin-top: 4px;
+  padding: 5px 8px;
+  border-radius: 12px;
+}
+
+.settingsCustomPanel--compact .settingsCountSummaryLabel {
+  font-size: 0.66rem;
+}
+
+.settingsCustomPanel--compact .settingsCountSummaryValue {
+  font-size: 0.9rem;
+}
+
+.settingsCustomPanel--compact .settingsCountSummaryMeta {
+  font-size: 0.72rem;
+}
+
+.settingsCustomPanel--compact .settingsWarning {
+  margin-top: 4px;
+  padding: 6px 8px;
+  font-size: 0.76rem;
 }
 
 .settingsChoiceList {
@@ -1235,6 +1305,24 @@ button:hover {
   padding: 14px;
 }
 
+.footerPopover--compactData-offline {
+  border-color: rgba(96, 165, 250, 0.34);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%);
+  box-shadow: 0 22px 54px rgba(30, 64, 175, 0.22);
+}
+
+.footerPopover--compactData-online {
+  border-color: rgba(74, 222, 128, 0.34);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.98) 0%, rgba(20, 83, 45, 0.98) 100%);
+  box-shadow: 0 22px 54px rgba(21, 128, 61, 0.22);
+}
+
+.footerPopover--compactData-online-pending {
+  border-color: rgba(250, 204, 21, 0.38);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.98) 0%, rgba(113, 63, 18, 0.98) 100%);
+  box-shadow: 0 22px 54px rgba(161, 98, 7, 0.22);
+}
+
 .footerPopover--compactData .footerPopoverHeader {
   margin-bottom: 8px;
 }
@@ -1358,20 +1446,19 @@ button:hover {
 .dataIndicatorButton--offline-demo {
   border-color: rgba(248, 113, 113, 0.45);
 }
-
-.dataIndicatorButton:hover {
-  background: rgba(255, 255, 255, 0.16);
+.dataIndicatorButton--offline {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(30, 64, 175, 0.18);
 }
 
-.dataIndicatorButtonText {
-  color: white;
+.dataIndicatorButton--online {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(20, 83, 45, 0.2);
 }
 
-.dataIndicatorIcon {
-  font-size: 1rem;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
+.dataIndicatorButton--online-pending {
+  border-color: rgba(250, 204, 21, 0.5);
+  background: rgba(113, 63, 18, 0.22);
 }
 
 .dataIndicatorIcon--pulse {
@@ -1477,6 +1564,8 @@ button:hover {
 }
 
 .dataSettingsHeader {
+  justify-content: center;
+  width: 1rem;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -1497,6 +1586,21 @@ button:hover {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dataSettingsCurrentState--offline {
+  background: rgba(30, 64, 175, 0.14);
+  border-color: rgba(96, 165, 250, 0.28);
+}
+
+.dataSettingsCurrentState--online {
+  background: rgba(20, 83, 45, 0.16);
+  border-color: rgba(74, 222, 128, 0.28);
+}
+
+.dataSettingsCurrentState--pending {
+  background: rgba(113, 63, 18, 0.18);
+  border-color: rgba(250, 204, 21, 0.28);
 }
 
 .dataSettingsCurrentState strong,
@@ -1526,6 +1630,9 @@ button:hover {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
+.dataModeGrid--binary {
+  margin-bottom: 14px;
+}
 
 .dataModeGrid--popover {
   gap: 10px;
@@ -1538,6 +1645,35 @@ button:hover {
 .dataModeGrid--popover.dataModeGrid--three {
   grid-template-columns: 1fr;
   gap: 8px;
+}
+.dataSettingsGroupedModes {
+  display: grid;
+  gap: 14px;
+}
+.dataSettingsModeGroup {
+  display: grid;
+  gap: 10px;
+}
+.dataSettingsModeGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.dataSettingsModeGroupHeader h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.dataSettingsModeGroupHeader .settingsHint {
+  margin: 4px 0 0;
+}
+.dataSettingsModeGroupHeader span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .settingsOption--card {
@@ -1622,6 +1758,7 @@ button:hover {
   display: inline-block;
   margin-right: 2px;
   font-style: normal;
+  color: rgba(255, 255, 255, 0.46);
 }
 
 .dataSettingsStats {
@@ -1778,6 +1915,9 @@ button:hover {
   padding: 0.58em 0.92em;
   font-size: 0.85rem;
 }
+.catalogFilterSection {
+  margin-bottom: 20px;
+}
 
 .fullDataWaitingLink {
   color: rgba(255, 255, 255, 0.9);
@@ -1864,7 +2004,7 @@ button:hover {
 .catalogDialogOverlay {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 220;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2072,6 +2212,78 @@ button:hover {
   align-items: end;
 }
 
+.catalogFilterInputRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.catalogInputActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.catalogInputAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.55);
+  color: rgba(255, 255, 255, 0.86);
+  box-shadow: none;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.catalogInputAction:hover {
+  background: rgba(30, 41, 59, 0.78);
+}
+
+.catalogInputAction--secondary {
+  min-width: 108px;
+}
+
+.catalogInlineFilterRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.catalogFilterToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.55);
+  box-shadow: none;
+}
+
+.catalogFilterToggle:hover {
+  background: rgba(30, 41, 59, 0.78);
+}
+
+.catalogFilterToggle--active {
+  border-color: rgba(125, 211, 252, 0.38);
+  background: rgba(8, 47, 73, 0.52);
+}
+
+.catalogFilterToggleIcon {
+  width: 16px;
+  height: 16px;
+}
+
 .catalogFutureAction {
   opacity: 0;
   pointer-events: none;
@@ -2254,6 +2466,41 @@ button:hover {
   width: min(100%, 1100px);
 }
 
+.utilityPage--catalog {
+  height: 100vh;
+  min-height: 100vh;
+  align-items: flex-start;
+  padding-top: 88px;
+  overflow: hidden;
+}
+
+.utilityPanel--catalog {
+  height: calc(100vh - 228px);
+  max-height: calc(100vh - 228px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.utilityPanelBody--catalog {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  overflow: hidden;
+  padding-right: 8px;
+  margin-right: -8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.utilityPanelBody--catalog::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 .pageEyebrow {
   margin-bottom: 10px;
   color: rgba(255, 255, 255, 0.72);
@@ -2290,6 +2537,45 @@ button:hover {
   font-weight: 700;
 }
 
+.utilityPanelTopBar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.utilityPanelTopBar .pageLead {
+  margin-bottom: 0;
+}
+
+.utilityInfoButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  background: rgba(8, 47, 73, 0.34);
+  color: #e0f2fe;
+  box-shadow: none;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.utilityInfoButtonIcon {
+	width: 16px;
+	height: 16px;
+	flex: 0 0 auto;
+}
+
+.utilityInfoButton:hover {
+  background: rgba(12, 74, 110, 0.48);
+  border-color: rgba(125, 211, 252, 0.56);
+}
+
 .placeholderPanel {
   margin-top: 24px;
   padding: 24px;
@@ -2306,6 +2592,1459 @@ button:hover {
   margin-bottom: 0;
   color: rgba(255, 255, 255, 0.82);
   line-height: 1.6;
+}
+
+.quickPlayPage {
+  display: grid;
+  gap: 20px;
+}
+
+.quickPlayWorkspace {
+  --settings-footer-clearance: 108px;
+}
+
+.quickPlayPanel {
+  width: min(100%, 1120px);
+}
+
+.quickPlayPanelHeader {
+  flex: 0 0 auto;
+}
+
+.quickPlayPanelHeaderTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.quickPlayPanelHeaderTop h1 {
+  margin-bottom: 0;
+}
+
+.quickPlayPanelHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.quickPlayPanelHeaderActions--stacked {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.quickPlayPanelScrollArea {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.quickPlayFooter {
+  margin-top: 4px;
+}
+
+.quickPlaySection {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quickPlaySection--archive {
+  align-self: start;
+  justify-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding-bottom: 10px;
+}
+
+.quickPlaySectionHeader,
+.quickPlayToolbar,
+.quickPlayArchiveMetaRow,
+.quickPlayArchiveActions,
+.quickPlayPreviewMetrics,
+.quickPlayActionRow,
+.quickPlayPreviewToggles,
+.quickPlayInputRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quickPlaySectionHeader h2,
+.quickPlayArchiveCard h3 {
+  margin: 0;
+}
+
+.quickPlaySectionHeader .settingsHint {
+  max-width: 52ch;
+}
+
+.quickPlayToolbar {
+  margin-top: -4px;
+}
+
+.quickPlayToolbarStatus,
+.quickPlayArchiveType,
+.quickPlayPreviewMetricLabel,
+.quickPlayArchiveTimestamp {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.9rem;
+}
+
+.quickPlayToolbarStatus--header {
+  margin: 0;
+  text-align: right;
+}
+
+.quickPlayToolbarLink,
+.quickPlayArchiveCreateLink {
+  margin-top: 0;
+}
+
+.quickPlayArchiveCreateButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(21, 128, 61, 0.96) 0%, rgba(22, 163, 74, 0.96) 100%);
+  border: 1px solid rgba(134, 239, 172, 0.34);
+  color: #f0fdf4;
+  box-shadow: 0 8px 20px rgba(20, 83, 45, 0.28);
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.quickPlayArchiveCreateButton:hover {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 1) 0%, rgba(34, 197, 94, 1) 100%);
+  border-color: rgba(187, 247, 208, 0.48);
+  color: #f7fee7;
+}
+
+.quickPlayArtworkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  line-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.quickPlayArtworkButton:disabled {
+  cursor: default;
+  opacity: 0.86;
+}
+
+.quickPlayArtworkButton:hover:not(:disabled) .quickPlayArchiveArtwork,
+.quickPlayArtworkButton:hover:not(:disabled) .quickPlayPreviewArtwork,
+.quickPlayArtworkButton:focus-visible .quickPlayArchiveArtwork,
+.quickPlayArtworkButton:focus-visible .quickPlayPreviewArtwork,
+.quickPlaySelectionArtworkButton:hover:not(:disabled) .quickPlaySelectionArtwork,
+.quickPlaySelectionArtworkButton:focus-visible .quickPlaySelectionArtwork {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.26);
+}
+
+.quickPlayArtworkButton--dialog {
+  border-radius: 14px;
+}
+
+.quickPlayTypeGrid,
+.quickPlayInputGrid,
+.quickPlayArchiveGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.quickPlayArchiveGrid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin-top: 14px;
+}
+
+.quickPlayInputRow {
+  justify-content: space-between;
+}
+
+.quickPlayActionRow {
+  margin-top: 16px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.quickPlayStatusPill {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.54);
+}
+
+.quickPlayStatusPill--ready {
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
+.quickPlayStatusPill--blocked {
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.quickPlayStatusPillLabel {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.quickPlayValidationRow {
+  margin-top: 12px;
+}
+
+.quickPlayPreviewCard,
+.quickPlayArchiveCard {
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quickPlayPreviewCard--ready {
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+.quickPlayPreviewCard--blocked {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.quickPlayPreviewHeadline {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.quickPlayPreviewHeadline--subtle {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.quickPlayPreviewMetrics {
+  margin-top: 16px;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.quickPlayPreviewMetrics--secondary {
+  margin-top: 10px;
+}
+
+.quickPlayPreviewMetric {
+  min-width: 150px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.quickPlayPreviewMetric strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.2rem;
+}
+
+.quickPlayPreviewPath,
+.quickPlayArchiveSummary {
+  margin: 14px 0 0;
+  color: rgba(255, 255, 255, 0.84);
+  line-height: 1.6;
+}
+
+.quickPlayPreviewDetails {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding-left: 18px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.quickPlayPreviewDisclosure {
+  margin-top: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.quickPlayPreviewDisclosureSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.quickPlayPreviewDisclosureSummary::-webkit-details-marker {
+  display: none;
+}
+
+.quickPlayPreviewDisclosureSummary::after {
+  content: "+";
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.quickPlayPreviewDisclosure[open] .quickPlayPreviewDisclosureSummary::after {
+  content: "−";
+}
+
+.quickPlayPreviewDisclosureBody {
+  padding: 0 14px 14px;
+}
+
+.quickPlayPreviewDisclosureMetric {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.quickPlayPreviewDetailsItem {
+  line-height: 1.45;
+}
+
+.quickPlayPreviewDetailsLabel {
+  margin-right: 6px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.quickPlayPreviewPathTitle {
+  margin-bottom: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quickPlayPreviewPathTitle--inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.quickPlayPreviewPathTitle--inline strong {
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
+}
+
+.quickPlayPreviewPathFlow {
+  display: grid;
+  gap: 10px;
+  padding: 4px 2px 8px;
+}
+
+.quickPlayPreviewPathRowWrap {
+  display: grid;
+  gap: 8px;
+}
+
+.quickPlayPreviewPathRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.quickPlayPreviewPathRow--forward {
+  justify-content: flex-start;
+}
+
+.quickPlayPreviewPathRow--reverse {
+  justify-content: flex-end;
+}
+
+.quickPlayPreviewPathStep {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  gap: clamp(10px, 1.8vw, 16px);
+}
+
+.quickPlayPreviewNode {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.quickPlayPreviewNode:disabled {
+  cursor: default;
+}
+
+.quickPlayPreviewArtwork {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 999px;
+  overflow: hidden;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.quickPlayPreviewConnector {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 clamp(38px, 5vw, 72px);
+  min-width: clamp(38px, 5vw, 72px);
+  gap: 8px;
+}
+
+.quickPlayPreviewConnectorLine {
+  flex: 1 1 auto;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.34) 0%, rgba(226, 232, 240, 0.68) 100%);
+}
+
+.quickPlayPreviewPathTurn {
+  width: 30px;
+  height: 28px;
+  border-bottom: 2px solid rgba(226, 232, 240, 0.58);
+}
+
+.quickPlayPreviewPathTurn--forward {
+  justify-self: end;
+  border-right: 2px solid rgba(226, 232, 240, 0.58);
+  border-bottom-right-radius: 18px;
+}
+
+.quickPlayPreviewPathTurn--reverse {
+  justify-self: start;
+  border-left: 2px solid rgba(226, 232, 240, 0.58);
+  border-bottom-left-radius: 18px;
+}
+
+.quickPlayPreviewChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.quickPlayPreviewChip--actor {
+  background: rgba(21, 128, 61, 0.24);
+  border: 1px solid rgba(74, 222, 128, 0.34);
+  color: #dcfce7;
+}
+
+.quickPlayPreviewChip--movie {
+  background: rgba(153, 27, 27, 0.24);
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  color: #fee2e2;
+}
+
+.quickPlayPreviewArrow {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.quickPlayCreatorFooter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.quickPlayCreatorStatusRow {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.quickPlaySaveButton {
+  background: rgba(180, 83, 9, 0.86);
+  border-color: rgba(251, 191, 36, 0.34);
+  color: #fff7ed;
+}
+
+.quickPlaySaveButton:hover:not(:disabled) {
+  background: rgba(217, 119, 6, 0.92);
+}
+
+.quickPlaySaveButton:disabled {
+  opacity: 0.46;
+}
+
+.quickPlayStartButton {
+  width: min(100%, 320px);
+  min-width: 220px;
+  min-height: 56px;
+  padding: 0 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  color: white;
+  font-size: 1.06rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.quickPlayStartButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.quickPlayIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid rgba(248, 113, 113, 0.34);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.2);
+  color: #ffe4e6;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, opacity 160ms ease;
+}
+
+.quickPlayIconEmoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.quickPlayIconGlyph {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.quickPlayIconButton--filter {
+  border-color: rgba(125, 211, 252, 0.34);
+  background: rgba(8, 47, 73, 0.34);
+  color: #e0f2fe;
+}
+
+.quickPlayIconButton--filter:hover:not(:disabled) {
+  background: rgba(12, 74, 110, 0.48);
+  border-color: rgba(125, 211, 252, 0.56);
+}
+
+.quickPlayIconButton--shuffle {
+  border-color: rgba(74, 222, 128, 0.34);
+  background: rgba(20, 83, 45, 0.28);
+  color: #dcfce7;
+}
+
+.quickPlayIconButton--shuffle:hover:not(:disabled) {
+  background: rgba(21, 128, 61, 0.4);
+  border-color: rgba(74, 222, 128, 0.54);
+}
+
+.quickPlayIconButton--save {
+  border-color: rgba(251, 191, 36, 0.34);
+  background: rgba(146, 64, 14, 0.3);
+  color: #ffedd5;
+}
+
+.quickPlayIconButton--save:hover:not(:disabled) {
+  background: rgba(180, 83, 9, 0.42);
+  border-color: rgba(251, 191, 36, 0.56);
+}
+
+.quickPlayIconButton:hover:not(:disabled) {
+  background: rgba(127, 29, 29, 0.34);
+  border-color: rgba(251, 113, 133, 0.52);
+  transform: translateY(-1px);
+}
+
+.quickPlayIconButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.quickPlayArchiveBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quickPlayArchiveBadge--developer {
+  background: rgba(96, 165, 250, 0.22);
+  border: 1px solid rgba(147, 197, 253, 0.34);
+}
+
+.quickPlayArchiveBadge--player {
+  background: rgba(74, 222, 128, 0.2);
+  border: 1px solid rgba(134, 239, 172, 0.34);
+}
+
+.quickPlayArchiveActions {
+  margin-top: 16px;
+  justify-content: flex-start;
+}
+
+.quickPlayArchiveActions--player {
+  gap: 10px;
+}
+
+.quickPlayArchiveTimestamp {
+  margin: 12px 0 0;
+}
+
+.quickPlayDialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.quickPlayDialog {
+  position: relative;
+  width: min(100%, 860px);
+  max-height: min(86vh, 900px);
+  overflow: auto;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.52);
+}
+
+.quickPlayFilterDialog {
+  width: min(100%, 760px);
+}
+
+.gameFilterDialog {
+  width: min(100%, 980px);
+  max-height: min(80vh, 780px);
+  padding: 24px;
+}
+
+.gameFilterDialogHeader {
+  margin-bottom: 16px;
+}
+
+.gameFilterDialogCopy {
+  max-width: 72ch;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.gameFilterDialogBody {
+  margin-top: 0;
+}
+
+.gameFilterDialogPanel {
+  margin-top: 0;
+}
+
+.gameFilterDialogPanel.settingsCustomPanel {
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gameFilterDialogPanel .settingsCustomHeader {
+  margin-bottom: 14px;
+}
+
+.gameFilterDialogPanel .settingsCustomHeader h3 {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.gameFilterDialogPanel .settingsHint {
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.gameFilterDialogPanel .settingsDataFilterGrid {
+  gap: 16px;
+}
+
+.gameFilterDialogPanel .settingsDataFilterCard {
+  gap: 8px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gameFilterDialogPanel .settingsDataFilterRow {
+  gap: 14px;
+}
+
+.gameFilterDialogPanel .settingsDataFilterField {
+  gap: 8px;
+}
+
+.gameFilterDialogPanel .settingsDataFilterField span {
+  font-size: 0.84rem;
+}
+
+.gameFilterDialogPanel .settingsDataFilterField input {
+  padding: 0.95em 1em;
+  font-size: 0.98rem;
+}
+
+.gameFilterDialogPanel .settingsCountSummary {
+  margin-top: 6px;
+  padding: 10px 14px;
+}
+
+.quickPlayDialogClose {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.quickPlayDialogClose:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.quickPlayDialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.quickPlayFilterPanel--dialog {
+  margin-top: 12px;
+}
+
+.quickPlayFilterPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quickPlayArchiveTableWrap {
+  --quickPlayArchiveRowHeight: 80px;
+  --quickPlayArchiveVisibleRows: 5;
+  --quickPlayArchiveHeaderHeight: 48px;
+  --quickPlayArchivePaginationHeight: 44px;
+  position: relative;
+  display: block;
+  height: calc(
+    var(--quickPlayArchiveHeaderHeight)
+    + (var(--quickPlayArchiveRowHeight) * var(--quickPlayArchiveVisibleRows))
+    + var(--quickPlayArchivePaginationHeight)
+    + 10px
+  );
+  padding-bottom: calc(var(--quickPlayArchivePaginationHeight) + 10px);
+  min-width: 0;
+  overflow-x: auto;
+  width: 100%;
+}
+
+.quickPlayArchiveTable {
+  width: 100%;
+  min-width: 980px;
+  height: calc(
+    var(--quickPlayArchiveHeaderHeight)
+    + (var(--quickPlayArchiveRowHeight) * var(--quickPlayArchiveVisibleRows))
+  );
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.quickPlayArchiveCol--source {
+  width: 128px;
+}
+
+.quickPlayArchiveCol--matchup {
+  width: 44%;
+}
+
+.quickPlayArchiveCol--type {
+  width: 92px;
+}
+
+.quickPlayArchiveCol--completed {
+  width: 96px;
+}
+
+.quickPlayArchiveCol--actions {
+  width: 184px;
+}
+
+.quickPlayArchiveTable tbody {
+  display: table-row-group;
+}
+
+.quickPlayArchiveTable th,
+.quickPlayArchiveTable td {
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.quickPlayArchiveTable tbody td {
+  box-sizing: border-box;
+  height: calc(var(--quickPlayArchiveRowHeight) - 1px);
+}
+
+.quickPlayArchiveTableRow {
+  height: var(--quickPlayArchiveRowHeight);
+}
+
+.quickPlayArchiveTable th {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quickPlayArchiveTable th:nth-child(2) {
+  text-align: center;
+}
+
+.quickPlayArchiveTable th:nth-child(4),
+.quickPlayArchiveTable td:nth-child(4) {
+  text-align: center;
+}
+
+.quickPlayArchiveTable th:last-child {
+  text-align: center;
+}
+
+.quickPlayArchiveTable td:last-child {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+
+.quickPlayArchiveActionsHeader {
+  text-align: center;
+}
+
+.quickPlayArchiveTableToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quickPlayArchivePaginationCluster {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.quickPlayArchivePaginationStatus,
+.quickPlayArchivePageIndicator {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.quickPlayArchivePaginationControls {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.quickPlayArchivePaginationControls--bottom {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  min-height: var(--quickPlayArchivePaginationHeight);
+  margin-top: 0;
+  padding-top: 10px;
+}
+
+.quickPlayArchiveTableRow--placeholder td {
+  height: calc(var(--quickPlayArchiveRowHeight) - 1px);
+  padding: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quickPlayArchivePlaceholderCell {
+  background: transparent;
+}
+
+.quickPlayArchiveSortButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.quickPlayArchiveSortButton:hover {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.quickPlayArchiveSortGlyph {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.quickPlayArchiveTableRow--active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.quickPlayArchiveTableRow--completed {
+  background: rgba(21, 128, 61, 0.12);
+}
+
+.quickPlayArchiveTableRow--completed:hover {
+  background: rgba(21, 128, 61, 0.18);
+}
+
+.quickPlayArchiveLevelCell {
+  font-size: 1rem;
+  font-weight: 800;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.quickPlayArchiveTypeCell {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.quickPlayArchiveSourceCell {
+  vertical-align: top;
+}
+
+.quickPlayArchiveSourceStack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.quickPlayArchiveSourceManageActions {
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 4px;
+  width: 60px;
+}
+
+.quickPlayArchiveCompletedCell {
+  padding-left: 6px;
+  padding-right: 6px;
+  vertical-align: middle;
+}
+
+.quickPlayArchiveCompletedTrophy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.02rem;
+  line-height: 1;
+}
+
+.quickPlayArchiveMatchup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+}
+
+.quickPlayArchiveMatchup--dialog {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.quickPlayArchiveNode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quickPlayArchiveNode--start {
+  justify-self: end;
+  text-align: right;
+}
+
+.quickPlayArchiveNode--start .quickPlayArtworkButton {
+  order: 2;
+}
+
+.quickPlayArchiveNode--start > div:last-child {
+  order: 1;
+}
+
+.quickPlayArchiveNode--target {
+  justify-self: start;
+  text-align: left;
+}
+
+.quickPlayArchiveNode > div:last-child {
+  min-width: 0;
+  max-width: 10ch;
+}
+
+.quickPlayArchiveNode > div:last-child > div:first-child {
+  font-weight: 800;
+  font-size: 0.88rem;
+  line-height: 1.15;
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.quickPlayArchiveArtwork {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.quickPlayArchiveArtwork--large {
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
+}
+
+.quickPlayArchiveArtworkImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.quickPlayArchiveArtworkFallback {
+  font-size: 1.2rem;
+}
+
+.quickPlayArchiveVs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.quickPlayArchiveHistory {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(51, 65, 85, 0.3);
+  color: rgba(226, 232, 240, 0.86);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.quickPlayArchiveHistory--completed {
+  border-color: rgba(134, 239, 172, 0.38);
+  background: rgba(20, 83, 45, 0.42);
+  color: #dcfce7;
+}
+
+.quickPlayRowActionsCell {
+  white-space: nowrap;
+}
+
+.quickPlayRowActions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.quickPlayRowActionButton {
+  box-shadow: none;
+  min-width: 84px;
+}
+
+.quickPlayRowActionButton--icon {
+  min-width: 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.quickPlayRowActionButton--sourceManage {
+  min-width: 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.quickPlayRowActionButton--sourceManage .quickPlayRowActionIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.quickPlayRowActionButton--icon:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.quickPlayRowActionIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.quickPlayRowActionButton--play {
+  order: 3;
+  padding: 0.56em 1em;
+  font-size: 0.86rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  border: 1px solid rgba(254, 202, 202, 0.28);
+  color: white;
+}
+
+.quickPlayRowActionButton--play:hover {
+  background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+}
+
+.quickPlayRowActionButton--preview {
+  order: 2;
+  background: rgba(30, 64, 175, 0.28);
+  border: 1px solid rgba(147, 197, 253, 0.28);
+  color: #dbeafe;
+}
+
+.quickPlayRowActionButton--preview:hover {
+  background: rgba(37, 99, 235, 0.36);
+}
+
+.quickPlayRowActionButton--edit {
+  order: 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.quickPlayRowActionButton--edit:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.quickPlayRowActionButton--delete {
+  order: 1;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.quickPlayRowActionButton--delete:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.quickPlayIconButtonTooltipWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.quickPlayIconButtonTooltipWrap--disabled::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24);
+  z-index: 3;
+}
+
+.quickPlayIconButtonTooltipWrap--disabled::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  width: 10px;
+  height: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  transform: translateX(-50%) rotate(45deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+  z-index: 2;
+}
+
+.quickPlayIconButtonTooltipWrap--disabled:hover::after,
+.quickPlayIconButtonTooltipWrap--disabled:hover::before {
+  opacity: 1;
+}
+
+.quickPlayPreviewPrimaryAction {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  border-color: rgba(254, 202, 202, 0.28);
+  color: white;
+}
+
+.quickPlayPreviewPrimaryAction:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+}
+
+.quickPlayFilterPanel .settingsCustomHeader .settingsHint {
+  max-width: 44ch;
+}
+
+.quickPlayFilterPanel {
+  margin-top: 0;
+}
+
+.quickPlaySection--collapsed .quickPlaySectionHeader .settingsHint {
+  display: none;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact {
+  padding: 8px 10px;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsCustomHeader h3 {
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsDataFilterGrid--compact {
+  gap: 8px;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsDataFilterCard {
+  gap: 4px;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsHint,
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsWarning {
+  font-size: 0.7rem;
+  line-height: 1.18;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsCountSummary {
+  margin-top: 1px;
+  padding: 4px 7px;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsDataFilterField input {
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsDataFilterField span {
+  min-height: 0;
+  font-size: 0.68rem;
+}
+
+.quickPlayFilterPanel.settingsCustomPanel--compact .settingsDataFilterRow {
+  gap: 6px;
+}
+
+.quickPlaySection--collapsed .quickPlayFilterPanel,
+.quickPlaySection--collapsed .settingsCustomPanel,
+.quickPlaySection--collapsed .settingsCustomHeader,
+.quickPlaySection--collapsed .settingsDataFilterGrid,
+.quickPlaySection--collapsed .settingsDataFilterCard,
+.quickPlaySection--collapsed .settingsCountSummary,
+.quickPlaySection--collapsed .settingsWarning {
+  margin: 0;
+}
+
+@media (max-width: 820px) {
+  .settingsDataFilterGrid--compact {
+    grid-template-columns: 1fr;
+  }
+  .dataSettingsModeGroupHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .quickPlayArchiveTable th:nth-child(4),
+  .quickPlayArchiveTable td:nth-child(4) {
+    display: none;
+  }
+
+  .quickPlaySection,
+  .quickPlayPreviewCard,
+  .quickPlayArchiveCard,
+  .quickPlayDialog {
+    padding: 16px;
+  }
+
+  .quickPlayPanelHeaderTop,
+  .utilityPanelTopBar,
+  .quickPlayFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .quickPlayArchiveTableToolbar,
+  .quickPlayArchivePaginationControls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .quickPlayArchivePaginationCluster {
+    justify-content: center;
+  }
+
+  .quickPlayArchiveMatchup {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    row-gap: 8px;
+  }
+
+  .quickPlayArchiveNode--start,
+  .quickPlayArchiveNode--target {
+    justify-self: auto;
+    text-align: left;
+  }
+
+  .quickPlayArchiveNode--start .quickPlayArchiveArtwork,
+  .quickPlayArchiveNode--start > div:last-child {
+    order: initial;
+  }
+
+  .quickPlayPanelHeaderActions,
+  .quickPlayActionRow {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .quickPlayPanelHeaderActions--stacked {
+    align-items: stretch;
+  }
+
+  .quickPlayRowActions {
+    flex-wrap: wrap;
+  }
+
+  .quickPlayPreviewPathRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .quickPlayPreviewPathStep {
+    width: 100%;
+  }
+
+  .quickPlayPreviewConnector,
+  .quickPlayPreviewPathTurn {
+    display: none;
+  }
+
+  .quickPlayStartButton,
+  .quickPlayIconButton {
+    width: 100%;
+  }
+
+  .utilityInfoButton {
+    align-self: flex-end;
+  }
+
+  .quickPlayArchiveVs {
+    padding-left: 52px;
+  }
 }
 
 .findPathControls {
@@ -2497,7 +4236,8 @@ button:hover {
 }
 
 .findPathActionRow {
-  display: flex;
+  display: grid;
+  gap: 10px;
   align-items: end;
   min-height: 100%;
 }
@@ -2604,11 +4344,17 @@ button:hover {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 24px;
 }
 
 .catalogPanel {
-  min-height: 380px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
   padding: 20px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.06);
@@ -2665,6 +4411,9 @@ button:hover {
 
 .catalogListShell {
   position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .catalogListShell::after {
@@ -2681,7 +4430,9 @@ button:hover {
 }
 
 .catalogList {
-  max-height: 46vh;
+  max-height: none;
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -2784,7 +4535,7 @@ button:hover {
   }
 
   .catalogPanel {
-    min-height: 320px;
+    min-height: 280px;
   }
 
   .dataSettingsHeader,
@@ -3011,6 +4762,22 @@ button:hover {
     padding: 0.72em 0.85em;
     border-radius: 10px;
     font-size: 0.9rem;
+  }
+
+  .catalogFilterInputRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .catalogInputActions,
+  .catalogInlineFilterRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .catalogFilterToggle,
+  .catalogInputAction {
+    width: 100%;
+    min-width: 0;
   }
 
   .catalogDialogListHeader {

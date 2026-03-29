@@ -5,20 +5,19 @@ import { useSnapshotData } from "../context/snapshotData";
 import { getDataIndicatorLabel, getDataIndicatorVariant } from "../data/dataSourcePreferences";
 import { useBrowserOnlineStatus } from "../hooks/useBrowserOnlineStatus";
 import DataSettingsPanel from "./DataSettingsPanel";
-import type { DataIndicatorVariant } from "../types";
 
-const VARIANT_ICONS: Record<DataIndicatorVariant, string> = {
-	"online-snapshot": "⚡",
-	"online-api": "📡",
-	"online-api-unavailable": "⚠️",
-	"offline-snapshot": "💾",
-	"offline-demo": "🎭",
+type DataIndicatorVisualState = "offline" | "online" | "online-pending";
+
+const VISUAL_STATE_ICONS: Record<DataIndicatorVisualState, string> = {
+	offline: "◌",
+	online: "●",
+	"online-pending": "◔",
 };
 
-function DataIndicatorIcon({ variant, loading, alert }: { variant: DataIndicatorVariant; loading: boolean; alert: boolean }) {
+function DataIndicatorIcon({ visualState, loading }: { visualState: DataIndicatorVisualState; loading: boolean }) {
 	return (
-		<span className={`dataIndicatorIcon${loading ? " dataIndicatorIcon--pulse" : ""}${alert ? " dataIndicatorIcon--alert" : ""}`} aria-hidden="true">
-			{VARIANT_ICONS[variant]}
+		<span className={`dataIndicatorIcon dataIndicatorIcon--${visualState}${loading ? " dataIndicatorIcon--pulse" : ""}`} aria-hidden="true">
+			{VISUAL_STATE_ICONS[visualState]}
 		</span>
 	);
 }
@@ -27,15 +26,12 @@ function DataIndicator() {
 	const [isOpen, setIsOpen] = useState(false);
 	const rootRef = useRef<HTMLDivElement | null>(null);
 	const { mode } = useDataSourceMode();
-	const { snapshot, isLoading } = useSnapshotData();
+	const { snapshot, isLoading, loadedFrom, s3Bundle, apiBundle } = useSnapshotData();
 	const apiConnectionState = useSyncExternalStore(subscribeToApiConnectionState, getApiConnectionState, getApiConnectionState);
 	const isBrowserOnline = useBrowserOnlineStatus();
 	const isApiUnavailable = mode.connectionMode === "online"
 		&& mode.onlineSource === "api"
 		&& apiConnectionState.status === "unavailable";
-	const isApiAttempting = mode.connectionMode === "online"
-		&& mode.onlineSource === "api"
-		&& apiConnectionState.status === "attempting";
 	const variant = useMemo(
 		() => getDataIndicatorVariant({
 			mode,
@@ -47,6 +43,21 @@ function DataIndicator() {
 		[isApiUnavailable, isBrowserOnline, isLoading, mode, snapshot],
 	);
 	const summary = getDataIndicatorLabel(variant);
+	const hasOnlineSuccess = mode.connectionMode === "online"
+		&& (mode.onlineSource === "api"
+			? apiConnectionState.status === "available" || loadedFrom === "api-snapshot" || Boolean(apiBundle)
+			: loadedFrom === "s3-snapshot" || Boolean(s3Bundle));
+	const visualState: DataIndicatorVisualState = mode.connectionMode === "offline"
+		? "offline"
+		: hasOnlineSuccess
+			? "online"
+			: "online-pending";
+	const buttonLabel = mode.connectionMode === "offline" ? "Offline" : "Online";
+	const statusDetail = mode.connectionMode === "offline"
+		? summary
+		: hasOnlineSuccess
+			? "Online"
+			: "Connection pending";
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -78,16 +89,16 @@ function DataIndicator() {
 		<div className={`dataIndicator${isOpen ? " dataIndicator--open" : ""}`} ref={rootRef}>
 			<button
 				type="button"
-				className={`dataIndicatorButton dataIndicatorButton--${variant}`}
+				className={`dataIndicatorButton dataIndicatorButton--${visualState}`}
 				onClick={() => setIsOpen((currentOpen) => !currentOpen)}
 				aria-expanded={isOpen}
-				aria-label={isApiUnavailable && apiConnectionState.lastError ? `${summary}. ${apiConnectionState.lastError}` : summary}
+				aria-label={isApiUnavailable && apiConnectionState.lastError ? `${statusDetail}. ${apiConnectionState.lastError}` : statusDetail}
 			>
-				<DataIndicatorIcon variant={variant} loading={(isLoading && mode.connectionMode === "online") || isApiAttempting} alert={isApiUnavailable} />
-				<span className="dataIndicatorButtonText">Data</span>
+				<DataIndicatorIcon visualState={visualState} loading={visualState === "online-pending"} />
+				<span className="dataIndicatorButtonText">{buttonLabel}</span>
 			</button>
 			{isOpen ? (
-				<div className="footerPopover footerPopover--compactData">
+				<div className={`footerPopover footerPopover--compactData footerPopover--compactData-${visualState}`}>
 					<div className="footerPopoverHeader">
 						<a href="/settings?tab=data" className="footerPopoverHeaderLink" title="Open advanced data settings">
 							<h3>Data Controls</h3>

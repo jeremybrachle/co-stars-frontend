@@ -58,6 +58,10 @@ export type HopLeaderboardGroup = {
 
 const LEVEL_HISTORY_STORAGE_KEY = "costars.level-history.v1";
 const LEVEL_HISTORY_UPDATED_EVENT = "costars:level-history-updated";
+const EMPTY_LEVEL_HISTORY_COLLECTION = {} as LevelHistoryCollection;
+
+let cachedRawLevelHistory: string | null | undefined;
+let cachedLevelHistorySnapshot: LevelHistoryCollection = EMPTY_LEVEL_HISTORY_COLLECTION;
 
 function canUseBrowserStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -165,7 +169,7 @@ function isSavedLevelAttempt(value: unknown): value is SavedLevelAttempt {
 
 function parseCollection(rawValue: string | null): LevelHistoryCollection {
   if (!rawValue) {
-    return {};
+    return EMPTY_LEVEL_HISTORY_COLLECTION;
   }
 
   try {
@@ -189,16 +193,23 @@ function parseCollection(rawValue: string | null): LevelHistoryCollection {
         }),
     );
   } catch {
-    return {};
+    return EMPTY_LEVEL_HISTORY_COLLECTION;
   }
 }
 
 function readCollectionFromStorage() {
   if (!canUseBrowserStorage()) {
-    return {};
+    return EMPTY_LEVEL_HISTORY_COLLECTION;
   }
 
-  return parseCollection(window.localStorage.getItem(LEVEL_HISTORY_STORAGE_KEY));
+  const rawValue = window.localStorage.getItem(LEVEL_HISTORY_STORAGE_KEY);
+  if (rawValue === cachedRawLevelHistory) {
+    return cachedLevelHistorySnapshot;
+  }
+
+  cachedRawLevelHistory = rawValue;
+  cachedLevelHistorySnapshot = parseCollection(rawValue);
+  return cachedLevelHistorySnapshot;
 }
 
 function writeCollectionToStorage(collection: LevelHistoryCollection) {
@@ -206,7 +217,10 @@ function writeCollectionToStorage(collection: LevelHistoryCollection) {
     return;
   }
 
-  window.localStorage.setItem(LEVEL_HISTORY_STORAGE_KEY, JSON.stringify(collection));
+  const serializedCollection = JSON.stringify(collection);
+  cachedRawLevelHistory = serializedCollection;
+  cachedLevelHistorySnapshot = collection;
+  window.localStorage.setItem(LEVEL_HISTORY_STORAGE_KEY, serializedCollection);
   if (typeof window.dispatchEvent === "function") {
     window.dispatchEvent(new Event(LEVEL_HISTORY_UPDATED_EVENT));
   }
@@ -345,6 +359,8 @@ export function clearLevelHistoryStorage() {
     return;
   }
 
+  cachedRawLevelHistory = null;
+  cachedLevelHistorySnapshot = EMPTY_LEVEL_HISTORY_COLLECTION;
   window.localStorage.removeItem(LEVEL_HISTORY_STORAGE_KEY);
   if (typeof window.dispatchEvent === "function") {
     window.dispatchEvent(new Event(LEVEL_HISTORY_UPDATED_EVENT));

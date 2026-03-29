@@ -19,7 +19,7 @@ import { resolveCatalogSource } from "../data/catalogSource"
 import { isOfflineDemoMode, isOnlineApiMode } from "../data/dataSourcePreferences"
 import { buildNextDetailTrail, sortMoviesByReleaseDateDescending } from "../data/entityDetails"
 import { formatActorInlineMeta, formatMovieInlineMeta } from "../data/presentation"
-import type { Actor, EffectiveDataSource, Movie, SnapshotIndexes } from "../types"
+import type { Actor, EffectiveDataSource, GameDataFilters, Movie, SnapshotIndexes } from "../types"
 
 type GameDataPageRouteState = {
   backTo?: string
@@ -64,6 +64,10 @@ function getSortIndicator(isAscending: boolean) {
   return isAscending ? "↑" : "↓"
 }
 
+function formatFilteredCount(filteredCount: number, totalCount: number, hasFilter: boolean) {
+  return hasFilter ? `${filteredCount}/${totalCount}` : `${totalCount}`
+}
+
 function formatActorMeta(actor: Actor) {
   return formatActorInlineMeta(actor)
 }
@@ -88,6 +92,14 @@ function GameDataPage() {
   const [actorSearch, setActorSearch] = useState("")
   const [movieSearch, setMovieSearch] = useState("")
   const [actorSortMode, setActorSortMode] = useState<ActorSortMode>("popularity-desc")
+  const [isActorFilterOpen, setIsActorFilterOpen] = useState(false)
+  const [isMovieFilterOpen, setIsMovieFilterOpen] = useState(false)
+  const [pageFilters, setPageFilters] = useState<GameDataFilters>({
+    actorPopularityCutoff: null,
+    releaseYearCutoff: null,
+    movieSortMode: "releaseYear",
+    actorSortMode: "popularity",
+  })
   const [detailTrail, setDetailTrail] = useState<CatalogDetailEntry[]>([])
   const [relationSearch, setRelationSearch] = useState("")
   const [relatedEntities, setRelatedEntities] = useState<EntityDetailsRelatedEntity[]>([])
@@ -205,6 +217,10 @@ function GameDataPage() {
     const normalizedSearch = normalizeSearchValue(actorSearch)
 
     const filtered = actors.filter((actor) => {
+      if (pageFilters.actorPopularityCutoff !== null && (actor.popularity ?? Number.NEGATIVE_INFINITY) < pageFilters.actorPopularityCutoff) {
+        return false
+      }
+
       if (!normalizedSearch) {
         return true
       }
@@ -227,12 +243,19 @@ function GameDataPage() {
 
       return compareNullableNumber(left.popularity, right.popularity) || left.name.localeCompare(right.name)
     })
-  }, [actorSearch, actorSortMode, actors])
+  }, [actorSearch, actorSortMode, actors, pageFilters.actorPopularityCutoff])
 
   const filteredMovies = useMemo(() => {
     const normalizedSearch = normalizeSearchValue(movieSearch)
 
     const filtered = movies.filter((movie) => {
+      if (pageFilters.releaseYearCutoff !== null) {
+        const releaseYear = movie.releaseDate ? Number.parseInt(movie.releaseDate.slice(0, 4), 10) : Number.NaN
+        if (!Number.isFinite(releaseYear) || releaseYear < pageFilters.releaseYearCutoff) {
+          return false
+        }
+      }
+
       if (!normalizedSearch) {
         return true
       }
@@ -241,7 +264,7 @@ function GameDataPage() {
     })
 
     return sortMoviesByReleaseDateDescending(filtered, (movie) => movie.releaseDate, (movie) => movie.title)
-  }, [movieSearch, movies])
+  }, [movieSearch, movies, pageFilters.releaseYearCutoff])
 
   const actorCanStageAdd = useMemo(() => {
     const normalized = normalizeSearchValue(actorSearch)
@@ -262,6 +285,37 @@ function GameDataPage() {
 
     return !movies.some((movie) => normalizeSearchValue(movie.title) === normalized)
   }, [movieSearch, movies])
+
+  const hasActorSearchFilter = normalizeSearchValue(actorSearch).length > 0
+  const hasMovieSearchFilter = normalizeSearchValue(movieSearch).length > 0
+  const hasActorDetailFilter = pageFilters.actorPopularityCutoff !== null
+  const hasMovieDetailFilter = pageFilters.releaseYearCutoff !== null
+  const actorCountLabel = formatFilteredCount(filteredActors.length, actors.length, hasActorSearchFilter || hasActorDetailFilter)
+  const movieCountLabel = formatFilteredCount(filteredMovies.length, movies.length, hasMovieSearchFilter || hasMovieDetailFilter)
+
+  const clearActorSearch = () => {
+    setActorSearch("")
+  }
+
+  const clearMovieSearch = () => {
+    setMovieSearch("")
+  }
+
+  const clearActorFilter = () => {
+    setPageFilters((current) => ({
+      ...current,
+      actorPopularityCutoff: null,
+    }))
+    setIsActorFilterOpen(false)
+  }
+
+  const clearMovieFilter = () => {
+    setPageFilters((current) => ({
+      ...current,
+      releaseYearCutoff: null,
+    }))
+    setIsMovieFilterOpen(false)
+  }
 
   const handleOpenRelatedEntity = (entity: EntityDetailsRelatedEntity) => {
     if (entity.type === "actor") {
@@ -319,35 +373,85 @@ function GameDataPage() {
   }, [actors, movies, routeState?.focusEntity])
 
   return (
-    <div className="utilityPage">
+    <div className="utilityPage utilityPage--catalog">
       <PageNavigationHeader backTo={routeState?.backTo ?? "/"} backLabel={routeState?.backLabel ?? "Back"} />
-      <div className="utilityPanel utilityPanel--wide">
+      <div className="utilityPanel utilityPanel--wide utilityPanel--catalog">
         <div className="pageEyebrow">Game Data</div>
         <h1>Browse the game catalog</h1>
         <p className="pageLead">Select any actor or movie to inspect its details, browse connected entries, and preview the future add-to-list workflow.</p>
 
-        {isWaitingForFullData ? <FullDataWaitingMessage onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
+        <div className="utilityPanelBody utilityPanelBody--catalog">
 
-        {isLoading ? <div className="pageStatus">Loading game data…</div> : null}
-        {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}
+          {isWaitingForFullData ? <FullDataWaitingMessage onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 
-        <div className="catalogGrid">
+          {isLoading ? <div className="pageStatus">Loading game data…</div> : null}
+          {loadError ? <div className="pageStatus pageStatus--error">{loadError}</div> : null}
+
+          <div className="catalogGrid">
           <section className="catalogPanel">
             <div className="catalogPanelHeader">
               <h2>Actors</h2>
-              <span>{filteredActors.length}</span>
+              <span>{actorCountLabel}</span>
             </div>
             <div className="catalogControls">
               <div className="catalogSearchRow">
                 <label className="catalogControlField">
                   <span>Search or stage an add</span>
-                  <input
-                    type="text"
-                    value={actorSearch}
-                    onChange={(event) => setActorSearch(event.target.value)}
-                    placeholder="Search actors by name or type a new one"
-                    disabled={isLoading}
-                  />
+                  <div className="catalogFilterInputRow">
+                    <input
+                      type="text"
+                      value={actorSearch}
+                      onChange={(event) => setActorSearch(event.target.value)}
+                      placeholder="Search actors by name or type a new one"
+                      disabled={isLoading}
+                    />
+                    <div className="catalogInputActions">
+                      {hasActorSearchFilter ? (
+                        <button
+                          type="button"
+                          className="catalogInputAction"
+                          onClick={clearActorSearch}
+                          aria-label="Clear actor search"
+                          title="Clear actor search"
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={`catalogFilterToggle${isActorFilterOpen ? " catalogFilterToggle--active" : ""}`}
+                        onClick={() => setIsActorFilterOpen((current) => !current)}
+                        aria-label="Toggle actor search filter"
+                        title="Toggle actor search filter"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="catalogFilterToggleIcon">
+                          <path d="M3.5 5.5h17l-6.8 7.6v4.7l-3.4 1.7v-6.4L3.5 5.5z" fill="currentColor" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  {isActorFilterOpen ? (
+                    <div className="catalogInlineFilterRow">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={pageFilters.actorPopularityCutoff ?? ""}
+                        onChange={(event) => {
+                          const nextValue = event.target.value.trim()
+                          setPageFilters((current) => ({
+                            ...current,
+                            actorPopularityCutoff: nextValue ? Math.max(0, Number(nextValue)) : null,
+                          }))
+                        }}
+                        placeholder="Actor popularity cutoff"
+                        disabled={isLoading}
+                      />
+                      <button type="button" className="catalogInputAction catalogInputAction--secondary" onClick={clearActorFilter}>
+                        Clear filter
+                      </button>
+                    </div>
+                  ) : null}
                 </label>
                 <div className={`catalogFutureAction${actorCanStageAdd ? " catalogFutureAction--visible" : ""}`}>
                   <button type="button" disabled aria-disabled="true">Add</button>
@@ -394,19 +498,67 @@ function GameDataPage() {
           <section className="catalogPanel">
             <div className="catalogPanelHeader">
               <h2>Movies</h2>
-              <span>{filteredMovies.length}</span>
+              <span>{movieCountLabel}</span>
             </div>
             <div className="catalogControls">
               <div className="catalogSearchRow">
                 <label className="catalogControlField">
                   <span>Search or stage an add</span>
-                  <input
-                    type="text"
-                    value={movieSearch}
-                    onChange={(event) => setMovieSearch(event.target.value)}
-                    placeholder="Search movies by title or type a new one"
-                    disabled={isLoading}
-                  />
+                  <div className="catalogFilterInputRow">
+                    <input
+                      type="text"
+                      value={movieSearch}
+                      onChange={(event) => setMovieSearch(event.target.value)}
+                      placeholder="Search movies by title or type a new one"
+                      disabled={isLoading}
+                    />
+                    <div className="catalogInputActions">
+                      {hasMovieSearchFilter ? (
+                        <button
+                          type="button"
+                          className="catalogInputAction"
+                          onClick={clearMovieSearch}
+                          aria-label="Clear movie search"
+                          title="Clear movie search"
+                        >
+                          Clear
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={`catalogFilterToggle${isMovieFilterOpen ? " catalogFilterToggle--active" : ""}`}
+                        onClick={() => setIsMovieFilterOpen((current) => !current)}
+                        aria-label="Toggle movie search filter"
+                        title="Toggle movie search filter"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="catalogFilterToggleIcon">
+                          <path d="M3.5 5.5h17l-6.8 7.6v4.7l-3.4 1.7v-6.4L3.5 5.5z" fill="currentColor" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  {isMovieFilterOpen ? (
+                    <div className="catalogInlineFilterRow">
+                      <input
+                        type="number"
+                        min="1800"
+                        step="1"
+                        value={pageFilters.releaseYearCutoff ?? ""}
+                        onChange={(event) => {
+                          const nextValue = event.target.value.trim()
+                          setPageFilters((current) => ({
+                            ...current,
+                            releaseYearCutoff: nextValue ? Math.max(1800, Number(nextValue)) : null,
+                          }))
+                        }}
+                        placeholder="Movie release year cutoff"
+                        disabled={isLoading}
+                      />
+                      <button type="button" className="catalogInputAction catalogInputAction--secondary" onClick={clearMovieFilter}>
+                        Clear filter
+                      </button>
+                    </div>
+                  ) : null}
                 </label>
                 <div className={`catalogFutureAction${movieCanStageAdd ? " catalogFutureAction--visible" : ""}`}>
                   <button type="button" disabled aria-disabled="true">Add</button>
@@ -443,9 +595,10 @@ function GameDataPage() {
               </div>
             </div>
           </section>
-        </div>
+          </div>
 
-        <Link to="/" className="pageBackLink">Back to Home</Link>
+          <Link to="/" className="pageBackLink">Back to Home</Link>
+        </div>
       </div>
 
       <EntityDetailsDialog
