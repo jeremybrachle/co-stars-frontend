@@ -3586,17 +3586,15 @@ button:hover {
 }
 
 .quickPlayArchiveCompletedCell {
-  display: grid;
-  place-items: center;
   padding-left: 6px;
   padding-right: 6px;
+  vertical-align: middle;
 }
 
 .quickPlayArchiveCompletedTrophy {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
   font-size: 1.02rem;
   line-height: 1;
 }
