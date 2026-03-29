@@ -4,7 +4,6 @@ import { useDataSourceMode } from "../context/dataSourceMode";
 import { useSnapshotData } from "../context/snapshotData";
 import { getCachedSnapshotStorageStats, getHostedSnapshotManifestUrl } from "../data/frontendSnapshot";
 import {
-	getDataIndicatorDescription,
 	getDataIndicatorLabel,
 	getDataIndicatorVariant,
 	isOfflineDemoMode,
@@ -25,6 +24,12 @@ import {
 	readAllLevelHistory,
 	subscribeToLevelHistoryUpdates,
 } from "../utils/levelHistoryStorage";
+import {
+	clearPlayerCustomLevels,
+	getPlayerCustomLevelsStorageSizeBytes,
+	readPlayerCustomLevels,
+	subscribeToPlayerCustomLevels,
+} from "../utils/customLevelsStorage";
 import DataIndicatorGlyph from "./DataIndicatorGlyph";
 import type { SnapshotErrorSource } from "../context/snapshotData";
 
@@ -35,7 +40,7 @@ type DataSettingsPanelProps = {
 
 type SourceChoice = {
 	id: string;
-	emoji: string;
+	group: "offline" | "online";
 	label: string;
 	hint: string;
 	checked: boolean;
@@ -45,8 +50,10 @@ type SourceChoice = {
 type GameDataStorageStats = {
 	completedLevelCount: number;
 	savedRouteCount: number;
+	customLevelCount: number;
 	historyBytes: number;
 	completionBytes: number;
+	customLevelBytes: number;
 	totalBytes: number;
 };
 
@@ -67,18 +74,22 @@ function formatStorageSize(bytes: number) {
 function getGameDataStorageStats(): GameDataStorageStats {
 	const completedLevels = readCompletedLevels();
 	const levelHistoryCollection = readAllLevelHistory();
+	const customLevels = readPlayerCustomLevels();
 	const completedLevelCount = Object.keys(completedLevels).length;
 	const savedRouteCount = Object.values(levelHistoryCollection)
 		.reduce((totalCount, record) => totalCount + record.attempts.length, 0);
 	const historyBytes = getLevelHistoryStorageSizeBytes(levelHistoryCollection);
 	const completionBytes = getCompletedLevelsStorageSizeBytes(completedLevels);
+	const customLevelBytes = getPlayerCustomLevelsStorageSizeBytes(customLevels);
 
 	return {
 		completedLevelCount,
 		savedRouteCount,
+		customLevelCount: customLevels.length,
 		historyBytes,
 		completionBytes,
-		totalBytes: historyBytes + completionBytes,
+		customLevelBytes,
+		totalBytes: historyBytes + completionBytes + customLevelBytes,
 	};
 }
 
@@ -159,10 +170,12 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 		syncGameDataStats();
 		const unsubscribeHistory = subscribeToLevelHistoryUpdates(syncGameDataStats);
 		const unsubscribeCompletion = subscribeToLevelCompletionUpdates(syncGameDataStats);
+		const unsubscribeCustomLevels = subscribeToPlayerCustomLevels(syncGameDataStats);
 
 		return () => {
 			unsubscribeHistory();
 			unsubscribeCompletion();
+			unsubscribeCustomLevels();
 		};
 	}, []);
 
@@ -170,7 +183,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 		() => [
 			{
 				id: `mode-offline-snapshot-${layout}`,
-				emoji: "💾",
+				group: "offline",
 				label: "Installed Snapshot",
 				hint: "Uses the snapshot files bundled inside this frontend build. This is the default startup mode and works offline.",
 				checked: isOfflineSnapshotMode(mode),
@@ -178,7 +191,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			},
 			{
 				id: `mode-offline-demo-${layout}`,
-				emoji: "🎭",
+				group: "offline",
 				label: "Demo",
 				hint: "Built-in offline dataset. No network required — works immediately.",
 				checked: isOfflineDemoMode(mode),
@@ -186,7 +199,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			},
 			{
 				id: `mode-online-s3-${layout}`,
-				emoji: "⚡",
+				group: "online",
 				label: "Hosted S3 Snapshot",
 				hint: "Manual online snapshot mode. Check S3 when you want to see whether a newer hosted snapshot exists.",
 				checked: isOnlineSnapshotMode(mode),
@@ -194,7 +207,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			},
 			{
 				id: `mode-online-api-${layout}`,
-				emoji: "📡",
+				group: "online",
 				label: "API Mode",
 				hint: "Experimental. Tries live API requests first and falls back to local graph lookups when backend calls fail.",
 				checked: isOnlineApiMode(mode),
@@ -202,6 +215,14 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			},
 		],
 		[layout, mode, setMode],
+	);
+	const offlineModeChoices = useMemo(
+		() => modeChoices.filter((choice) => choice.group === "offline"),
+		[modeChoices],
+	);
+	const onlineModeChoices = useMemo(
+		() => modeChoices.filter((choice) => choice.group === "online"),
+		[modeChoices],
 	);
 
 	const renderModeChoice = (choice: SourceChoice) => (
@@ -212,7 +233,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 			<input type="radio" name={`data-mode-${layout}`} checked={choice.checked} onChange={choice.onSelect} />
 			<span className="settingsOptionControl" aria-hidden="true" />
 			<span>
-				<strong><span className="settingsOptionEmoji" aria-hidden="true">{choice.emoji}</span> {choice.label}</strong>
+				<strong>{choice.label}</strong>
 				{isCompact ? null : <span className="settingsHint">{choice.hint}</span>}
 			</span>
 		</label>
@@ -221,6 +242,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 	const handleClearGameData = () => {
 		clearLevelHistoryStorage();
 		clearCompletedLevelsStorage();
+		clearPlayerCustomLevels();
 		setGameDataStats(getGameDataStorageStats());
 	};
 
@@ -236,6 +258,26 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 		void fetchSnapshotFromApi();
 	};
 
+	const hasOnlineSuccess = mode.connectionMode === "online"
+		&& (mode.onlineSource === "api"
+			? apiConnectionState.status === "available" || loadedFrom === "api-snapshot" || Boolean(apiBundle)
+			: loadedFrom === "s3-snapshot" || Boolean(s3Bundle));
+	const currentStateTone = mode.connectionMode === "offline" ? "offline" : hasOnlineSuccess ? "online" : "pending";
+	const currentStateTitle = mode.connectionMode === "offline" ? "Offline" : hasOnlineSuccess ? "Online" : "Connection pending";
+	const currentStateSummary = getDataIndicatorLabel(variant);
+	const apiConnectionLabel = hasOnlineSuccess
+		? "Connected"
+		: apiConnectionState.status === "attempting"
+			? "Attempting"
+			: apiConnectionState.status === "unavailable"
+				? "Unavailable"
+				: "Idle";
+	const currentStateDescription = mode.connectionMode === "offline"
+		? currentStateSummary
+		: hasOnlineSuccess
+			? "Online mode is active and connected successfully."
+			: "Online mode is selected, but no live connection has succeeded yet.";
+
 	return (
 		<div className={`dataSettingsPanel dataSettingsPanel--${layout}`}>
 			{showHeading ? (
@@ -244,20 +286,43 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 						<div className="pageEyebrow">Data Mode</div>
 						<h2>Connection and dataset controls</h2>
 					</div>
-					<div className="dataSettingsCurrentState">
+					<div className={`dataSettingsCurrentState dataSettingsCurrentState--${currentStateTone}`}>
 						<DataIndicatorGlyph variant={variant} pulse={(isLoading && mode.connectionMode === "online") || isApiAttempting || isApiUnavailable} />
 						<div>
-							<strong>{getDataIndicatorLabel(variant)}</strong>
-							<span>{getDataIndicatorDescription({ mode, isBrowserOnline, hasSnapshot, isSnapshotLoading: isLoading, isApiUnavailable })}</span>
+							<strong>{currentStateTitle}</strong>
+							<span>{currentStateDescription}</span>
 						</div>
 					</div>
 				</div>
 			) : null}
 
 			<section className="settingsSection dataSettingsSection">
-				<h3>{isCompact ? "Mode" : "Data source"}</h3>
-				<div className={`dataModeGrid dataModeGrid--${layout}`}>
-					{modeChoices.map(renderModeChoice)}
+				{/* <h3>{isCompact ? "Mode" : "Data source"}</h3> */}
+				<div className="dataSettingsGroupedModes">
+					<div className="dataSettingsModeGroup">
+						<div className="dataSettingsModeGroupHeader">
+							<div>
+								<h4>Offline Mode</h4>
+								{/* <p className="settingsHint">Installed snapshot and demo</p> */}
+							</div>
+							{/* <span>No network</span> */}
+						</div>
+						<div className={`dataModeGrid dataModeGrid--${layout}`}>
+							{offlineModeChoices.map(renderModeChoice)}
+						</div>
+					</div>
+					<div className="dataSettingsModeGroup">
+						<div className="dataSettingsModeGroupHeader">
+							<div>
+								<h4>Online Mode</h4>
+								{/* <p className="settingsHint">Hosted S3 and API mode</p> */}
+							</div>
+							{/* <span>Network enabled</span> */}
+						</div>
+						<div className={`dataModeGrid dataModeGrid--${layout}`}>
+							{onlineModeChoices.map(renderModeChoice)}
+						</div>
+					</div>
 				</div>
 
 				<p className="settingsHint">
@@ -358,15 +423,7 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 						<div className="dataSettingsStorageCard">
 							<div className="dataSettingsStorageRow">
 								<span>Connection status</span>
-								<strong>
-									{apiConnectionState.status === "attempting"
-										? "Attempting"
-										: apiConnectionState.status === "unavailable"
-											? "Unavailable"
-											: apiConnectionState.status === "available"
-												? "Connected"
-												: "Idle"}
-								</strong>
+								<strong>{apiConnectionLabel}</strong>
 							</div>
 								<div className="dataSettingsStorageRow">
 									<span>Downloaded API version</span>
@@ -395,9 +452,9 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 
 			{isCompact ? null : (
 				<section className="settingsSection dataSettingsSection">
-					<h3>Game progress data</h3>
+					<h3>Local game data</h3>
 						<p className="settingsHint">
-							Saved routes, scores, and level completion markers are stored locally in this browser.
+							Saved routes, scores, completed levels, and custom quick-play levels are stored locally in this browser.
 						</p>
 						<div className="dataSettingsStorageCard">
 							<div className="dataSettingsStorageRow">
@@ -413,12 +470,20 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 								<strong>{gameDataStats.completedLevelCount}</strong>
 							</div>
 							<div className="dataSettingsStorageRow">
+								<span>Saved custom levels</span>
+								<strong>{gameDataStats.customLevelCount}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
 								<span>Routes + scores data</span>
 								<strong>{formatStorageSize(gameDataStats.historyBytes)}</strong>
 							</div>
 							<div className="dataSettingsStorageRow">
 								<span>Completion markers</span>
 								<strong>{formatStorageSize(gameDataStats.completionBytes)}</strong>
+							</div>
+							<div className="dataSettingsStorageRow">
+								<span>Custom level storage</span>
+								<strong>{formatStorageSize(gameDataStats.customLevelBytes)}</strong>
 							</div>
 							<div className="dataSettingsStorageMeter" aria-hidden="true">
 								<span style={{ width: `${gameDataUsagePercent}%` }} />
@@ -433,13 +498,13 @@ function DataSettingsPanel({ layout = "page", showHeading = true }: DataSettings
 								type="button"
 								className={`settingsActionButton settingsDangerButton${isCompact ? " settingsActionButton--compact" : ""}`}
 								onClick={handleClearGameData}
-								disabled={gameDataStats.totalBytes === 0}
+								disabled={gameDataStats.totalBytes === 0 && gameDataStats.customLevelCount === 0}
 							>
-								Clear play history
+								Clear local game data
 							</button>
 						</div>
 						<p className="settingsHint">
-							This clears saved paths, scores, leaderboard entries, and completed-level markers for this browser only.
+							This clears saved paths, scores, completed-level markers, and all saved custom archive levels for this browser only.
 						</p>
 				</section>
 			)}

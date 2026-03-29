@@ -1,10 +1,10 @@
-import { useCountdownTimer } from "../context/useCountdownTimer";
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import EntityDetailsDialog, {
   type EntityDetailsHistoryEntry,
   type EntityDetailsRelatedEntity,
 } from "../components/EntityDetailsDialog"
+import GameFilterSettingsDialog from "../components/GameFilterSettingsDialog"
 import { generatePath } from "../api/costars"
 import EntityArtwork from "../components/EntityArtwork"
 import PageNavigationHeader from "../components/PageNavigationHeader"
@@ -18,9 +18,11 @@ import { useDataSourceMode } from "../context/dataSourceMode"
 import { useSnapshotData } from "../context/snapshotData"
 import { formatActorInlineMeta, formatMovieInlineMeta, formatYear, getMovieBadges } from "../data/presentation"
 import { resolveCatalogSource } from "../data/catalogSource"
+import { getActorFilterCountSummary, getMovieFilterCountSummary } from "../data/filterCounts"
 import { isOfflineDemoMode, isOnlineApiMode } from "../data/dataSourcePreferences"
 import { buildNextDetailTrail, compareNullableDateDescending } from "../data/entityDetails"
 import { findNodeByLabel, generateLocalPath } from "../data/localGraph"
+import { useGameSettings } from "../context/gameSettings"
 import type { Actor, EffectiveDataSource, Movie, NodeSummary, NodeType, SnapshotIndexes } from "../types"
 
 type PathResult = {
@@ -176,13 +178,7 @@ function compareSearchOptions(left: SearchOption, right: SearchOption) {
 }
 
 function FindPathPage() {
-    const { secondsLeft, isRunning, start } = useCountdownTimer();
-    // Start timer on mount if not running
-    useEffect(() => {
-      if (!isRunning) start();
-      // Only run on mount
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+  const { settings, setActorPopularityCutoff, setReleaseYearCutoff } = useGameSettings()
   const { mode, setMode } = useDataSourceMode()
   const { snapshot, indexes: snapshotIndexes, isLoading: isSnapshotLoading } = useSnapshotData()
   const isWaitingForFullData = !isOfflineDemoMode(mode) && !isOnlineApiMode(mode) && (!snapshot || !snapshotIndexes) && isSnapshotLoading
@@ -201,6 +197,7 @@ function FindPathPage() {
   const [result, setResult] = useState<PathResult | null>(null)
   const [pathError, setPathError] = useState<string | null>(null)
   const [isFindingPath, setIsFindingPath] = useState(false)
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false)
   const [detailTrail, setDetailTrail] = useState<CatalogDetailEntry[]>([])
   const [relationSearch, setRelationSearch] = useState("")
   const [relatedEntities, setRelatedEntities] = useState<EntityDetailsRelatedEntity[]>([])
@@ -365,6 +362,16 @@ function FindPathPage() {
     })
   }, [endQuery, searchOptions])
 
+  const actorCountSummary = useMemo(
+    () => getActorFilterCountSummary(actors, settings.dataFilters.actorPopularityCutoff),
+    [actors, settings.dataFilters.actorPopularityCutoff],
+  )
+
+  const movieCountSummary = useMemo(
+    () => getMovieFilterCountSummary(movies, settings.dataFilters.releaseYearCutoff),
+    [movies, settings.dataFilters.releaseYearCutoff],
+  )
+
   const handleStartQueryChange = (value: string) => {
     setStartQuery(value)
     setIsStartOpen(true)
@@ -499,20 +506,29 @@ function FindPathPage() {
       setIsFindingPath(false)
     }
   }
-
-  const min = Math.floor(secondsLeft / 60);
-  const sec = secondsLeft % 60;
   return (
     <div className="utilityPage">
-      {/* Countdown timer display, style as needed */}
-      <div style={{ position: "fixed", right: 24, bottom: 80, background: "#fffbe6", border: "1px solid #e67e22", borderRadius: 8, padding: "8px 16px", zIndex: 9999, fontWeight: "bold", color: "#e67e22" }}>
-        Time remaining: {min}:{sec.toString().padStart(2, "0")}
-      </div>
       <PageNavigationHeader backTo="/" backLabel="Back" />
       <div className="utilityPanel utilityPanel--wide">
-        <div className="pageEyebrow">Find Path</div>
-        <h1>Let the system solve it</h1>
-        <p className="pageLead">Choose any two actors or movies from the currently available game data and Co-Stars will generate the shortest path it can find between them.</p>
+        <div className="utilityPanelTopBar">
+          <div>
+            <div className="pageEyebrow">Find Path</div>
+            <h1>Let the system solve it</h1>
+            <p className="pageLead">Choose any two actors or movies from the currently available game data and Co-Stars will generate the shortest path it can find between them.</p>
+          </div>
+          <button
+            type="button"
+            className="utilityInfoButton"
+            onClick={() => setIsFilterDialogOpen(true)}
+            aria-label="Open current filter settings"
+            title="Open current filter settings"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="utilityInfoButtonIcon">
+              <path d="M3.5 5.5h17l-6.8 7.6v4.7l-3.4 1.7v-6.4L3.5 5.5z" fill="currentColor" />
+            </svg>
+            <span>Filter Settings</span>
+          </button>
+        </div>
 
         {isWaitingForFullData ? <FullDataWaitingMessage onSwitchToDemo={() => setMode({ ...mode, connectionMode: "offline", offlineSource: "demo" })} /> : null}
 
@@ -659,6 +675,21 @@ function FindPathPage() {
           }, true)
         }}
         onNavigateHistory={(index) => setDetailTrail((currentTrail) => currentTrail.slice(0, index + 1))}
+      />
+      <GameFilterSettingsDialog
+        isOpen={isFilterDialogOpen}
+        onClose={() => setIsFilterDialogOpen(false)}
+        eyebrow="Find Path"
+        title="Current Filter Settings"
+        description="These are the current filter rules for Find Path. Update them here to change which actors and movies are available while you search and solve routes."
+        dataFilters={settings.dataFilters}
+        actorCountSummary={actorCountSummary}
+        movieCountSummary={movieCountSummary}
+        closeLabel="Close filters"
+        editorTitle="Find Path Filter Overrides"
+        editorDescription="Change the actor and movie cutoffs here to update the current Find Path filter rules."
+        onActorPopularityCutoffChange={setActorPopularityCutoff}
+        onReleaseYearCutoffChange={setReleaseYearCutoff}
       />
     </div>
   )

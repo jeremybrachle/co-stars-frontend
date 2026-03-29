@@ -16,5 +16,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["tests/**/*.ts", "tests/**/*.tsx", "src/data/localGraph.ts", "src/data/entityDetails.ts", "src/context/gameSettings.ts", "src/context/snapshotRefreshPolicy.ts", "src/types.ts", "src/utils/calculateLevelScore.ts", "src/utils/levelHistoryStorage.ts", "src/utils/pageNavigation.ts"]
+  "include": ["tests/**/*.ts", "tests/**/*.tsx", "tests/utils/customLevelsStorage.test.ts", "src/data/localGraph.ts", "src/data/entityDetails.ts", "src/context/gameSettings.ts", "src/context/snapshotRefreshPolicy.ts", "src/types.ts", "src/utils/calculateLevelScore.ts", "src/utils/customLevelsStorage.ts", "src/utils/levelHistoryStorage.ts", "src/utils/pageNavigation.ts"]
 }

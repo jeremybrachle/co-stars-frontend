@@ -7,6 +7,7 @@ import GameDataPage from "../pages/GameDataPage"
 import SpeedRoundPage from "../pages/SpeedRoundPage"
 import AdventurePage from "../pages/AdventurePage"
 import CustomLevelPage from "../pages/CustomLevelPage"
+import LevelArchivePage from "../pages/LevelArchivePage"
 import SettingsPage from "../pages/SettingsPage"
 import GamePage from "../pages/GamePage"
 
@@ -18,8 +19,11 @@ function AppRouter() {
       <Route path="/find-path" element={<FindPathPage />} />
       <Route path="/game-data" element={<GameDataPage />} />
       <Route path="/speed-round" element={<SpeedRoundPage />} />
+      <Route path="/challenge-mode" element={<SpeedRoundPage />} />
       <Route path="/adventure" element={<AdventurePage />} />
+      <Route path="/quick-play" element={<CustomLevelPage />} />
       <Route path="/custom-level" element={<CustomLevelPage />} />
+      <Route path="/level-archive" element={<LevelArchivePage />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/game" element={<GamePage />} />
     </Routes>
