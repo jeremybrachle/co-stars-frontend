@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import EntityDetailsDialog, {
+	type EntityDetailsDialogData,
+	type EntityDetailsHistoryEntry,
+	type EntityDetailsRelatedEntity,
+} from "../components/EntityDetailsDialog";
 import EntityArtwork from "../components/EntityArtwork";
 import LevelPreviewDialog from "../components/LevelPreviewDialog";
 import PageNavigationHeader from "../components/PageNavigationHeader";
+import {
+	buildCatalogDetailDialogData,
+	createActorRelations,
+	createMovieRelations,
+	type CatalogDetailEntry,
+} from "../data/catalogEntityDetails";
 import { useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
@@ -12,7 +23,7 @@ import { buildLevelStorageKey, readAllLevelHistory, subscribeToLevelHistoryUpdat
 import { buildCustomLevelLabel, deletePlayerCustomLevel, MAX_PLAYER_CUSTOM_LEVELS, readPlayerCustomLevels, subscribeToPlayerCustomLevels, type CustomLevelDraft } from "../utils/customLevelsStorage";
 import { createPreviewPathNodes, hydrateCustomLevelDraft } from "../utils/customLevelPreview";
 
-type ArchiveSortKey = "source" | "matchup" | "history";
+type ArchiveSortKey = "source" | "matchup" | "type" | "history";
 type SortDirection = "asc" | "desc";
 type ArchiveSource = "player" | "developer";
 
@@ -90,6 +101,16 @@ function isCustomLevelDraft(value: unknown): value is CustomLevelDraft {
 		&& Array.isArray(candidate.optimalPath);
 }
 
+function getCatalogDetailEntry(node: CustomLevelDraft["startNode"], indexes: ReturnType<typeof getDemoSnapshotBundle>["indexes"]): CatalogDetailEntry | null {
+	if (node.type === "actor") {
+		const actor = indexes.actorsById.get(node.id);
+		return actor ? { type: "actor", item: actor } : null;
+	}
+
+	const movie = indexes.moviesById.get(node.id);
+	return movie ? { type: "movie", item: movie } : null;
+}
+
 function LevelArchivePage() {
 	const navigate = useNavigate();
 	const { indexes } = useSnapshotData();
@@ -103,6 +124,8 @@ function LevelArchivePage() {
 	const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 	const [currentPage, setCurrentPage] = useState(1);
 	const [previewKey, setPreviewKey] = useState<string | null>(null);
+	const [detailTrail, setDetailTrail] = useState<CatalogDetailEntry[]>([]);
+	const [detailRelationSearch, setDetailRelationSearch] = useState("");
 
 	useEffect(() => {
 		let isMounted = true;
@@ -207,6 +230,10 @@ function LevelArchivePage() {
 				comparison = compareText(left.matchupLabel, right.matchupLabel);
 			}
 
+			if (sortKey === "type") {
+				comparison = compareText(formatNodePairType(left.level), formatNodePairType(right.level));
+			}
+
 			if (sortKey === "history") {
 				comparison = Number(right.isCompleted) - Number(left.isCompleted);
 				if (comparison === 0) {
@@ -240,6 +267,33 @@ function LevelArchivePage() {
 		() => previewRow ? createPreviewPathNodes(previewRow.level.optimalPath, previewIndexes) : [],
 		[previewIndexes, previewRow],
 	);
+	const activeDetail = detailTrail.length > 0 ? detailTrail[detailTrail.length - 1] : null;
+	const detailRelatedEntities = useMemo<EntityDetailsRelatedEntity[]>(() => {
+		if (!activeDetail) {
+			return [];
+		}
+
+		return activeDetail.type === "actor"
+			? createActorRelations(activeDetail.item, previewIndexes)
+			: createMovieRelations(activeDetail.item, previewIndexes);
+	}, [activeDetail, previewIndexes]);
+	const detailDialogData = useMemo<EntityDetailsDialogData | null>(
+		() => (activeDetail ? buildCatalogDetailDialogData(activeDetail, detailRelatedEntities.length) : null),
+		[activeDetail, detailRelatedEntities.length],
+	);
+	const detailHistory = useMemo<EntityDetailsHistoryEntry[]>(
+		() => detailTrail.map((entry) => ({
+			key: `${entry.type}-${entry.item.id}`,
+			type: entry.type,
+			label: entry.type === "actor" ? entry.item.name : entry.item.title,
+		})),
+		[detailTrail],
+	);
+
+	const handleDelete = (levelId: string) => {
+		deletePlayerCustomLevel(levelId);
+		setPreviewKey((currentKey) => currentKey === `player-${levelId}` ? null : currentKey);
+	};
 
 	useEffect(() => {
 		setCurrentPage(1);
@@ -267,9 +321,33 @@ function LevelArchivePage() {
 		});
 	};
 
-	const handleDelete = (levelId: string) => {
-		deletePlayerCustomLevel(levelId);
-		setPreviewKey((currentKey) => currentKey === `player-${levelId}` ? null : currentKey);
+	const openEntityDetails = (node: CustomLevelDraft["startNode"] | null) => {
+		if (!node) {
+			return;
+		}
+
+		const entry = getCatalogDetailEntry(node, previewIndexes);
+		if (!entry) {
+			return;
+		}
+
+		setDetailTrail([entry]);
+		setDetailRelationSearch("");
+	};
+
+	const handleOpenRelatedEntity = (entity: EntityDetailsRelatedEntity) => {
+		const entry = getCatalogDetailEntry({ id: entity.id, type: entity.type, label: entity.label }, previewIndexes);
+		if (!entry) {
+			return;
+		}
+
+		setDetailTrail((current) => [...current, entry]);
+		setDetailRelationSearch("");
+	};
+
+	const handleNavigateDetailHistory = (index: number) => {
+		setDetailTrail((current) => current.slice(0, index + 1));
+		setDetailRelationSearch("");
 	};
 
 	const handleSort = (nextSortKey: ArchiveSortKey) => {
@@ -309,28 +387,22 @@ function LevelArchivePage() {
 			</div>
 		);
 	};
-
-								{Array.from({ length: placeholderRowCount }, (_, index) => (
-									<tr
-										key={`archive-placeholder-${index}`}
-										aria-hidden="true"
-										className="quickPlayArchiveTableRow quickPlayArchiveTableRow--placeholder"
-									>
-										<td colSpan={5} className="quickPlayArchivePlaceholderCell" />
-									</tr>
-								))}
 	return (
 		<div className="settingsPage quickPlayWorkspace">
 			<PageNavigationHeader backTo="/play-now" backLabel="Back" />
 			<div className="settingsPanel quickPlayPanel">
 				<div className="quickPlayPanelHeader">
-					<div className="pageEyebrow">Play Now</div>
-					<h1>Level Archive</h1>
-					<p className="pageLead">Browse the local developer JSON levels and the custom levels saved from quick play. Preview a row first, then decide whether to play, edit, or delete it.</p>
-					<div className="quickPlayToolbar">
-						<div className="quickPlayToolbarStatus">{archiveUsageLabel}</div>
-						<Link to="/quick-play" className="pageBackLink quickPlayToolbarLink">Open level creator</Link>
+					<div className="quickPlayPanelHeaderTop">
+						<div>
+							<div className="pageEyebrow">Play Now</div>
+							<h1>Level Archive</h1>
+						</div>
+						<div className="quickPlayPanelHeaderActions quickPlayPanelHeaderActions--stacked">
+							<Link to="/quick-play" className="settingsActionButton quickPlayArchiveCreateButton">Open Level Creator</Link>
+							<div className="quickPlayToolbarStatus quickPlayToolbarStatus--header">{archiveUsageLabel}</div>
+						</div>
 					</div>
+					<p className="pageLead">Browse the local developer JSON levels and the custom levels saved from quick play. Preview a row first, then decide whether to play, edit, or delete it.</p>
 					{developerLevelsError ? <p className="pageStatus pageStatus--error">{developerLevelsError}</p> : null}
 				</div>
 
@@ -355,6 +427,13 @@ function LevelArchivePage() {
 						) : (
 							<div className="quickPlayArchiveTableWrap">
 								<table className="quickPlayArchiveTable">
+									<colgroup>
+										<col className="quickPlayArchiveCol quickPlayArchiveCol--source" />
+										<col className="quickPlayArchiveCol quickPlayArchiveCol--matchup" />
+										<col className="quickPlayArchiveCol quickPlayArchiveCol--type" />
+										<col className="quickPlayArchiveCol quickPlayArchiveCol--completed" />
+										<col className="quickPlayArchiveCol quickPlayArchiveCol--actions" />
+									</colgroup>
 									<thead>
 										<tr>
 											<th aria-sort={sortKey === "source" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}>
@@ -369,14 +448,19 @@ function LevelArchivePage() {
 													<span className="quickPlayArchiveSortGlyph" aria-hidden="true">{sortKey === "matchup" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</span>
 												</button>
 											</th>
-											<th>Type</th>
+											<th aria-sort={sortKey === "type" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}>
+												<button type="button" className="quickPlayArchiveSortButton" onClick={() => handleSort("type")}>
+													Type
+													<span className="quickPlayArchiveSortGlyph" aria-hidden="true">{sortKey === "type" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</span>
+												</button>
+											</th>
 											<th aria-sort={sortKey === "history" ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}>
 												<button type="button" className="quickPlayArchiveSortButton" onClick={() => handleSort("history")}>
-													History
+													Completed
 													<span className="quickPlayArchiveSortGlyph" aria-hidden="true">{sortKey === "history" ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</span>
 												</button>
 											</th>
-											<th>Actions</th>
+												<th className="quickPlayArchiveActionsHeader">Actions</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -386,36 +470,76 @@ function LevelArchivePage() {
 
 											return (
 											<tr key={row.key} className={`${previewRow?.key === row.key ? "quickPlayArchiveTableRow quickPlayArchiveTableRow--active" : "quickPlayArchiveTableRow"}${row.isCompleted ? " quickPlayArchiveTableRow--completed" : ""}`}>
-												<td>
-													<span className={`quickPlayArchiveBadge ${row.source === "developer" ? "quickPlayArchiveBadge--developer" : "quickPlayArchiveBadge--player"}`}>
-														{row.source === "developer" ? "Developer" : "Player"}
-													</span>
+												<td className="quickPlayArchiveSourceCell">
+													<div className="quickPlayArchiveSourceStack">
+														<span className={`quickPlayArchiveBadge ${row.source === "developer" ? "quickPlayArchiveBadge--developer" : "quickPlayArchiveBadge--player"}`}>
+															{row.source === "developer" ? "Developer" : "Player"}
+														</span>
+														{row.source === "player" ? (
+															<div className="quickPlayArchiveSourceManageActions">
+																{row.canEdit ? (
+																	<button type="button" className="settingsActionButton settingsActionButton--compact quickPlayRowActionButton quickPlayRowActionButton--icon quickPlayRowActionButton--sourceManage" onClick={() => navigate(`/quick-play?levelId=${encodeURIComponent(row.playerLevelId ?? "")}`)} aria-label="Edit level" title="Edit level">
+																		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="quickPlayRowActionIcon">
+																			<path d="M4 20l3.5-.8L18 8.7 15.3 6 4.8 16.5 4 20z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+																			<path d="M13.9 7.4l2.7 2.7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+																		</svg>
+																	</button>
+																) : null}
+																{row.canDelete ? (
+																	<button type="button" className="settingsActionButton settingsActionButton--compact quickPlayRowActionButton quickPlayRowActionButton--icon quickPlayRowActionButton--sourceManage" onClick={() => handleDelete(row.playerLevelId ?? "") } aria-label="Delete level" title="Delete level">
+																		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="quickPlayRowActionIcon">
+																			<path d="M5 7h14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+																			<path d="M9 7V5.8c0-.4.3-.8.8-.8h4.4c.5 0 .8.4.8.8V7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+																			<path d="M7.8 7l.7 11.2c0 .4.3.8.8.8h5.4c.5 0 .8-.4.8-.8L17 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+																			<path d="M10 10.5v5.2M14 10.5v5.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+																		</svg>
+																	</button>
+																) : null}
+															</div>
+														) : null}
+													</div>
 												</td>
 												<td className="quickPlayArchiveLevelCell">
 													<div className="quickPlayArchiveMatchup">
 														<div className="quickPlayArchiveNode quickPlayArchiveNode--start">
-															<EntityArtwork
-																type={startNode.type}
-																label={startNode.label}
-																imageUrl={startNode.imageUrl}
-																className="quickPlayArchiveArtwork"
-																imageClassName="quickPlayArchiveArtworkImage"
-																placeholderClassName="quickPlayArchiveArtworkFallback"
-															/>
+															<button
+																type="button"
+																className="quickPlayArtworkButton"
+																onClick={() => openEntityDetails(row.level.startNode)}
+																aria-label={`Open details for ${row.level.startNode.label}`}
+																title={`Open details for ${row.level.startNode.label}`}
+															>
+																<EntityArtwork
+																	type={startNode.type}
+																	label={startNode.label}
+																	imageUrl={startNode.imageUrl}
+																	className="quickPlayArchiveArtwork"
+																	imageClassName="quickPlayArchiveArtworkImage"
+																	placeholderClassName="quickPlayArchiveArtworkFallback"
+																/>
+															</button>
 															<div>
 																	<div>{row.level.startNode.label}</div>
 															</div>
 														</div>
 														<span className="quickPlayArchiveVs">vs.</span>
 														<div className="quickPlayArchiveNode quickPlayArchiveNode--target">
-															<EntityArtwork
-																type={targetNode.type}
-																label={targetNode.label}
-																imageUrl={targetNode.imageUrl}
-																className="quickPlayArchiveArtwork"
-																imageClassName="quickPlayArchiveArtworkImage"
-																placeholderClassName="quickPlayArchiveArtworkFallback"
-															/>
+															<button
+																type="button"
+																className="quickPlayArtworkButton"
+																onClick={() => openEntityDetails(row.level.targetNode)}
+																aria-label={`Open details for ${row.level.targetNode.label}`}
+																title={`Open details for ${row.level.targetNode.label}`}
+															>
+																<EntityArtwork
+																	type={targetNode.type}
+																	label={targetNode.label}
+																	imageUrl={targetNode.imageUrl}
+																	className="quickPlayArchiveArtwork"
+																	imageClassName="quickPlayArchiveArtworkImage"
+																	placeholderClassName="quickPlayArchiveArtworkFallback"
+																/>
+															</button>
 															<div>
 																	<div>{row.level.targetNode.label}</div>
 															</div>
@@ -423,32 +547,14 @@ function LevelArchivePage() {
 													</div>
 												</td>
 													<td className="quickPlayArchiveTypeCell">{formatNodePairType(row.level).toLowerCase()}</td>
-												<td>
-													<span className={`quickPlayArchiveHistory${row.isCompleted ? " quickPlayArchiveHistory--completed" : ""}`}>{row.historySummary}</span>
+												<td className="quickPlayArchiveCompletedCell" title={row.historySummary}>
+														{row.isCompleted ? <span className="quickPlayArchiveCompletedTrophy" aria-label="Completed" role="img">🏆</span> : null}
 												</td>
 												<td className="quickPlayRowActionsCell">
 													<div className="quickPlayRowActions">
 														<button type="button" className="settingsActionButton settingsActionButton--compact quickPlayRowActionButton quickPlayRowActionButton--preview" onClick={() => setPreviewKey(row.key)}>
 															Preview
 														</button>
-														{row.canEdit ? (
-															<button type="button" className="settingsActionButton settingsActionButton--compact quickPlayRowActionButton quickPlayRowActionButton--icon quickPlayRowActionButton--edit" onClick={() => navigate(`/quick-play?levelId=${encodeURIComponent(row.playerLevelId ?? "")}`)} aria-label="Edit level" title="Edit level">
-																<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="quickPlayRowActionIcon">
-																	<path d="M4 20l3.5-.8L18 8.7 15.3 6 4.8 16.5 4 20z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-																	<path d="M13.9 7.4l2.7 2.7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-																</svg>
-															</button>
-														) : null}
-														{row.canDelete ? (
-															<button type="button" className="settingsActionButton settingsActionButton--compact quickPlayRowActionButton quickPlayRowActionButton--icon quickPlayRowActionButton--delete" onClick={() => handleDelete(row.playerLevelId ?? "") } aria-label="Delete level" title="Delete level">
-																<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" className="quickPlayRowActionIcon">
-																	<path d="M5 7h14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-																	<path d="M9 7V5.8c0-.4.3-.8.8-.8h4.4c.5 0 .8.4.8.8V7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-																	<path d="M7.8 7l.7 11.2c0 .4.3.8.8.8h5.4c.5 0 .8-.4.8-.8L17 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-																	<path d="M10 10.5v5.2M14 10.5v5.2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-																</svg>
-															</button>
-														) : null}
 														<button type="button" className="settingsActionButton settingsActionButton--compact quickPlayRowActionButton quickPlayRowActionButton--play" onClick={() => launchLevel(row.level, { levelId: row.playerLevelId })}>
 															Play Now
 														</button>
@@ -457,6 +563,15 @@ function LevelArchivePage() {
 											</tr>
 											);
 										})}
+									{Array.from({ length: placeholderRowCount }, (_, index) => (
+										<tr
+											key={`archive-placeholder-${index}`}
+											aria-hidden="true"
+											className="quickPlayArchiveTableRow quickPlayArchiveTableRow--placeholder"
+										>
+											<td colSpan={5} className="quickPlayArchivePlaceholderCell" />
+										</tr>
+									))}
 									</tbody>
 								</table>
 								{renderPaginationControls("bottom")}
@@ -490,10 +605,31 @@ function LevelArchivePage() {
 					{ label: "Filters", value: formatFilterSummary(previewRow.level) },
 					{ label: "History", value: previewRow.historySummary },
 				] : []}
+				onNodeSelect={(node) => {
+					if (node.id === undefined) {
+						return;
+					}
+
+					openEntityDetails({ id: node.id, type: node.type, label: node.label });
+				}}
 				actions={previewRow ? [
-					...(previewRow.canEdit ? [{ label: "Edit", onClick: () => navigate(`/quick-play?levelId=${encodeURIComponent(previewRow.playerLevelId ?? "")}`) }] : []),
 					{ label: "Play now", onClick: () => launchLevel(previewRow.level, { levelId: previewRow.playerLevelId }), variant: "primary" as const },
 				] : []}
+			/>
+			<EntityDetailsDialog
+				detail={detailDialogData}
+				history={detailHistory}
+				relationSearch={detailRelationSearch}
+				relatedEntities={detailRelatedEntities}
+				isLoading={false}
+				errorMessage={null}
+				onClose={() => {
+					setDetailTrail([]);
+					setDetailRelationSearch("");
+				}}
+				onRelationSearchChange={setDetailRelationSearch}
+				onOpenRelatedEntity={handleOpenRelatedEntity}
+				onNavigateHistory={handleNavigateDetailHistory}
 			/>
 		</div>
 	);

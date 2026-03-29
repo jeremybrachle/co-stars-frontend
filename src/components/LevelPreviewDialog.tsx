@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import EntityArtwork from "./EntityArtwork";
 import type { GameNode } from "../types";
 
@@ -30,7 +31,29 @@ type LevelPreviewDialogProps = {
 	details: LevelPreviewDetail[];
 	actions: LevelPreviewAction[];
 	detailsSummaryLabel?: string;
+	onNodeSelect?: (node: GameNode) => void;
 };
+
+
+function resolvePreviewRowPattern(viewportWidth: number, pathLength: number) {
+	if (pathLength <= 1) {
+		return { firstRowCount: 1, subsequentRowCount: 1 };
+	}
+
+	if (viewportWidth < 640) {
+		return { firstRowCount: Math.min(2, pathLength), subsequentRowCount: Math.min(2, pathLength) };
+	}
+
+	if (viewportWidth < 1180) {
+		return { firstRowCount: Math.min(3, pathLength), subsequentRowCount: Math.min(2, pathLength) };
+	}
+
+	if (viewportWidth < 1480) {
+		return { firstRowCount: Math.min(3, pathLength), subsequentRowCount: Math.min(3, pathLength) };
+	}
+
+	return { firstRowCount: Math.min(4, pathLength), subsequentRowCount: Math.min(3, pathLength) };
+}
 
 function LevelPreviewDialog({
 	isOpen,
@@ -49,10 +72,59 @@ function LevelPreviewDialog({
 	details,
 	actions,
 	detailsSummaryLabel = "More info",
+	onNodeSelect,
 }: LevelPreviewDialogProps) {
+	const [viewportWidth, setViewportWidth] = useState(() => (typeof window === "undefined" ? 1280 : window.innerWidth));
+
+	useEffect(() => {
+		if (typeof window === "undefined") {
+			return undefined;
+		}
+
+		const handleResize = () => {
+			setViewportWidth(window.innerWidth);
+		};
+
+		window.addEventListener("resize", handleResize);
+		return () => window.removeEventListener("resize", handleResize);
+	}, []);
+
+	const { firstRowCount, subsequentRowCount } = resolvePreviewRowPattern(viewportWidth, pathNodes.length);
+	const pathRows = useMemo(() => {
+		const rows: Array<{
+			nodes: GameNode[];
+			direction: "forward" | "reverse";
+			hasTurn: boolean;
+		}> = [];
+		let startIndex = 0;
+
+		while (startIndex < pathNodes.length) {
+			const rowIndex = rows.length;
+			const rowSize = rowIndex === 0 ? firstRowCount : subsequentRowCount;
+			const slice = pathNodes.slice(startIndex, startIndex + rowSize);
+			const direction = rowIndex % 2 === 0 ? "forward" : "reverse";
+			rows.push({
+				nodes: direction === "forward" ? slice : [...slice].reverse(),
+				direction,
+				hasTurn: startIndex + rowSize < pathNodes.length,
+			});
+			startIndex += rowSize;
+		}
+
+		return rows;
+	}, [firstRowCount, pathNodes, subsequentRowCount]);
+
 	if (!isOpen) {
 		return null;
 	}
+
+	const handleNodeSelect = (node: GameNode) => {
+		if (!onNodeSelect) {
+			return;
+		}
+
+		onNodeSelect(node);
+	};
 
 	return (
 		<div className="quickPlayDialogOverlay" onClick={onClose}>
@@ -71,28 +143,32 @@ function LevelPreviewDialog({
 					{startNode && targetNode ? (
 						<div className="quickPlayArchiveMatchup quickPlayArchiveMatchup--dialog">
 							<div className="quickPlayArchiveNode quickPlayArchiveNode--start">
-								<EntityArtwork
-									type={startNode.type}
-									label={startNode.label}
-									imageUrl={startNode.imageUrl}
-									className="quickPlayArchiveArtwork quickPlayArchiveArtwork--large"
-									imageClassName="quickPlayArchiveArtworkImage"
-									placeholderClassName="quickPlayArchiveArtworkFallback"
-								/>
+								<button type="button" className="quickPlayArtworkButton quickPlayArtworkButton--dialog" aria-label={startNode.label} disabled={!onNodeSelect} onClick={() => handleNodeSelect(startNode)}>
+									<EntityArtwork
+										type={startNode.type}
+										label={startNode.label}
+										imageUrl={startNode.imageUrl}
+										className="quickPlayArchiveArtwork quickPlayArchiveArtwork--large"
+										imageClassName="quickPlayArchiveArtworkImage"
+										placeholderClassName="quickPlayArchiveArtworkFallback"
+									/>
+								</button>
 								<div>
 									<div>{startNode.label}</div>
 								</div>
 							</div>
 							<span className="quickPlayArchiveVs">vs.</span>
 							<div className="quickPlayArchiveNode quickPlayArchiveNode--target">
-								<EntityArtwork
-									type={targetNode.type}
-									label={targetNode.label}
-									imageUrl={targetNode.imageUrl}
-									className="quickPlayArchiveArtwork quickPlayArchiveArtwork--large"
-									imageClassName="quickPlayArchiveArtworkImage"
-									placeholderClassName="quickPlayArchiveArtworkFallback"
-								/>
+								<button type="button" className="quickPlayArtworkButton quickPlayArtworkButton--dialog" aria-label={targetNode.label} disabled={!onNodeSelect} onClick={() => handleNodeSelect(targetNode)}>
+									<EntityArtwork
+										type={targetNode.type}
+										label={targetNode.label}
+										imageUrl={targetNode.imageUrl}
+										className="quickPlayArchiveArtwork quickPlayArchiveArtwork--large"
+										imageClassName="quickPlayArchiveArtworkImage"
+										placeholderClassName="quickPlayArchiveArtworkFallback"
+									/>
+								</button>
 								<div>
 									<div>{targetNode.label}</div>
 								</div>
@@ -106,20 +182,32 @@ function LevelPreviewDialog({
 								<strong>{optimalIntermediates ?? 0}</strong>
 							</div>
 							<div className="quickPlayPreviewPathFlow">
-								{pathNodes.map((node, index) => (
-									<div key={`${node.type}:${node.id ?? node.label}:${index}`} className="quickPlayPreviewPathSegment">
-										<div className={`quickPlayPreviewNode quickPlayPreviewNode--${node.type}`}>
-											<EntityArtwork
-												type={node.type}
-												label={node.label}
-												imageUrl={node.imageUrl}
-												className="quickPlayPreviewArtwork"
-												imageClassName="entityArtwork__image"
-												placeholderClassName="entityArtwork__emoji"
-											/>
-											<span className={`quickPlayPreviewChip quickPlayPreviewChip--${node.type}`}>{node.label}</span>
+								{pathRows.map((row, rowIndex) => (
+									<div key={`preview-row-${rowIndex}`} className="quickPlayPreviewPathRowWrap">
+										<div className={`quickPlayPreviewPathRow quickPlayPreviewPathRow--${row.direction}`}>
+											{row.nodes.map((node, nodeIndex) => (
+												<div key={`${node.type}:${node.id ?? node.label}:${rowIndex}:${nodeIndex}`} className="quickPlayPreviewPathStep">
+													<button type="button" className={`quickPlayPreviewNode quickPlayPreviewNode--${node.type}`} aria-label={node.label} disabled={!onNodeSelect} onClick={() => handleNodeSelect(node)}>
+														<EntityArtwork
+															type={node.type}
+															label={node.label}
+															imageUrl={node.imageUrl}
+															className="quickPlayPreviewArtwork"
+															imageClassName="entityArtwork__image"
+															placeholderClassName="entityArtwork__emoji"
+														/>
+														<span className={`quickPlayPreviewChip quickPlayPreviewChip--${node.type}`}>{node.label}</span>
+													</button>
+													{nodeIndex < row.nodes.length - 1 ? (
+														<div className="quickPlayPreviewConnector" aria-hidden="true">
+															<span className="quickPlayPreviewConnectorLine" />
+															<span className="quickPlayPreviewArrow">{row.direction === "forward" ? "→" : "←"}</span>
+														</div>
+													) : null}
+												</div>
+											))}
 										</div>
-										{index < pathNodes.length - 1 ? <span className="quickPlayPreviewArrow">→</span> : null}
+										{row.hasTurn ? <div className={`quickPlayPreviewPathTurn quickPlayPreviewPathTurn--${row.direction}`} aria-hidden="true" /> : null}
 									</div>
 								))}
 							</div>

@@ -508,9 +508,9 @@ function CustomLevelPage() {
               <div className="pageEyebrow">Play Now</div>
               <h1>Quick Play</h1>
             </div>
-            <div className="quickPlayPanelHeaderActions">
-              <div className="quickPlayToolbarStatus">{playerLevels.length}/{MAX_PLAYER_CUSTOM_LEVELS} archive slots used</div>
-              <Link to="/level-archive" className="pageBackLink quickPlayToolbarLink">Open archive</Link>
+            <div className="quickPlayPanelHeaderActions quickPlayPanelHeaderActions--stacked">
+              <Link to="/level-archive" className="settingsActionButton quickPlayArchiveCreateButton">Open Archive</Link>
+              <div className="quickPlayToolbarStatus quickPlayToolbarStatus--header">{playerLevels.length}/{MAX_PLAYER_CUSTOM_LEVELS} archive slots used</div>
             </div>
           </div>
           <p className="pageLead">Build a single custom matchup, validate it against the active filter cutoffs, and launch it into the normal game board. Saved levels stay in this browser and can be reopened from the archive later.</p>
@@ -673,8 +673,8 @@ function CustomLevelPage() {
                       type="button"
                       className="quickPlaySelectionArtworkButton"
                       onClick={() => openEntityDetails(startNode)}
-                      aria-label={`Preview details for ${startDisplayNode.label}`}
-                      title={`Preview details for ${startDisplayNode.label}`}
+                      aria-label={`Open details for ${startDisplayNode.label}`}
+                      title={`Open details for ${startDisplayNode.label}`}
                     >
                       <EntityArtwork
                         type={startDisplayNode.type}
@@ -720,8 +720,8 @@ function CustomLevelPage() {
                       type="button"
                       className="quickPlaySelectionArtworkButton"
                       onClick={() => openEntityDetails(targetNode)}
-                      aria-label={`Preview details for ${targetDisplayNode.label}`}
-                      title={`Preview details for ${targetDisplayNode.label}`}
+                      aria-label={`Open details for ${targetDisplayNode.label}`}
+                      title={`Open details for ${targetDisplayNode.label}`}
                     >
                       <EntityArtwork
                         type={targetDisplayNode.type}
@@ -772,6 +772,13 @@ function CustomLevelPage() {
         pathNodes={previewPathNodes}
         optimalIntermediates={preview.intermediates}
         optimalHops={preview.steps}
+        onNodeSelect={(node) => {
+          if (node.id === undefined) {
+            return;
+          }
+
+          openEntityDetails({ id: node.id, type: node.type, label: node.label });
+        }}
         details={[
           { label: "Pairing mode", value: pairingLabel },
           { label: "Filters", value: formatFilterSummary(dataFilters) },
