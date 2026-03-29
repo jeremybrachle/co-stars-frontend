@@ -99,17 +99,12 @@ function LevelPreviewDialog({
 							</div>
 						</div>
 					) : null}
-					{status === "ready" ? (
-						<div className="quickPlayPreviewSummary">
-							<div className="quickPlayPreviewSummaryBubble">
-								<span className="quickPlayPreviewSummaryLabel">Optimal intermediates</span>
-								<strong>{optimalIntermediates ?? 0}</strong>
-							</div>
-						</div>
-					) : null}
 					{status === "ready" && pathNodes.length > 0 ? (
 						<div className="quickPlayPreviewPath">
-							<div className="quickPlayPreviewPathTitle">Optimal path</div>
+							<div className="quickPlayPreviewPathTitle quickPlayPreviewPathTitle--inline">
+								<span>Optimal Path:</span>
+								<strong>{optimalIntermediates ?? 0}</strong>
+							</div>
 							<div className="quickPlayPreviewPathFlow">
 								{pathNodes.map((node, index) => (
 									<div key={`${node.type}:${node.id ?? node.label}:${index}`} className="quickPlayPreviewPathSegment">

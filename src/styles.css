@@ -2773,35 +2773,6 @@ button:hover {
   color: rgba(255, 255, 255, 0.76);
 }
 
-.quickPlayPreviewSummary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 16px;
-}
-
-.quickPlayPreviewSummaryBubble {
-  min-width: 150px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.quickPlayPreviewSummaryBubble strong {
-  display: block;
-  margin-top: 4px;
-  font-size: 1.15rem;
-}
-
-.quickPlayPreviewSummaryLabel {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
 .quickPlayPreviewMetrics {
   margin-top: 16px;
   align-items: stretch;
@@ -2905,6 +2876,18 @@ button:hover {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.quickPlayPreviewPathTitle--inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.quickPlayPreviewPathTitle--inline strong {
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 0.92rem;
+  letter-spacing: 0.01em;
 }
 
 .quickPlayPreviewPathFlow {
@@ -3259,6 +3242,10 @@ button:hover {
   border-collapse: collapse;
 }
 
+.quickPlayArchiveTable tbody {
+  display: table-row-group;
+}
+
 .quickPlayArchiveTable th,
 .quickPlayArchiveTable td {
   padding: 14px 12px;
@@ -3310,6 +3297,16 @@ button:hover {
 .quickPlayArchivePaginationControls--bottom {
   margin-top: auto;
   padding-top: 6px;
+}
+
+.quickPlayArchiveTableRow--placeholder td {
+  height: 88px;
+  padding: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quickPlayArchivePlaceholderCell {
+  background: transparent;
 }
 
 .quickPlayArchiveSortButton {
@@ -3741,10 +3738,6 @@ button:hover {
   .quickPlayPreviewPathSegment,
   .quickPlayPreviewNode {
     align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .quickPlayPreviewSummary {
     flex-direction: column;
   }
 

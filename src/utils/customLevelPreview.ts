@@ -86,14 +86,16 @@ export function hydrateCustomLevelDraft(level: CustomLevelDraft, indexes: Snapsh
 	const hasStoredRoute = level.optimalPath.length > 0 && level.optimalHops !== null;
 
 	if (hasStoredRoute) {
+		const storedSteps = level.optimalHops ?? Math.max(0, level.optimalPath.length - 1);
+
 		return {
 			level,
 			preview: {
 				status: "ready" as const,
 				message: "A valid route exists for this pairing.",
 				path: level.optimalPath,
-				steps: level.optimalHops,
-				intermediates: Math.max(0, level.optimalHops - 1),
+				steps: storedSteps,
+				intermediates: Math.max(0, storedSteps - 1),
 			},
 		};
 	}

@@ -231,6 +231,7 @@ function LevelArchivePage() {
 		const startIndex = (currentPage - 1) * ARCHIVE_ROWS_PER_PAGE;
 		return sortedRows.slice(startIndex, startIndex + ARCHIVE_ROWS_PER_PAGE);
 	}, [currentPage, sortedRows]);
+	const placeholderRowCount = Math.max(0, ARCHIVE_ROWS_PER_PAGE - paginatedRows.length);
 	const previewRow = useMemo(
 		() => previewKey ? archiveRows.find((row) => row.key === previewKey) ?? null : null,
 		[archiveRows, previewKey],
@@ -309,6 +310,15 @@ function LevelArchivePage() {
 		);
 	};
 
+								{Array.from({ length: placeholderRowCount }, (_, index) => (
+									<tr
+										key={`archive-placeholder-${index}`}
+										aria-hidden="true"
+										className="quickPlayArchiveTableRow quickPlayArchiveTableRow--placeholder"
+									>
+										<td colSpan={5} className="quickPlayArchivePlaceholderCell" />
+									</tr>
+								))}
 	return (
 		<div className="settingsPage quickPlayWorkspace">
 			<PageNavigationHeader backTo="/play-now" backLabel="Back" />
