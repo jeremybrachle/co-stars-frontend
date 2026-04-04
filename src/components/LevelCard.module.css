@@ -1,18 +1,28 @@
 .card {
+  --adventure-card-local-bg: var(--app-adventure-card-bg);
+  --adventure-card-local-border: var(--app-card-border, rgba(148, 163, 184, 0.16));
+  --adventure-card-local-shadow: var(--app-adventure-card-shadow, 0 16px 32px rgba(15, 23, 42, 0.18));
+  --adventure-card-local-chip-bg: rgba(15, 23, 42, 0.32);
+  --adventure-card-local-chip-border: rgba(255, 255, 255, 0.12);
+  --adventure-card-local-panel-bg: var(--app-card-bg, rgba(255, 255, 255, 0.06));
+  --adventure-card-local-panel-border: rgba(255, 255, 255, 0.1);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(15, 23, 42, 0.12));
+  --adventure-card-local-completed-border: rgba(167, 243, 208, 0.4);
+  --adventure-card-local-completed-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
   display: flex;
   flex-direction: column;
   gap: 0.48rem;
   padding: 0.76rem 0.88rem;
   border-radius: 1.25rem;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.48));
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+  background: var(--adventure-card-local-bg);
+  border: 1px solid var(--adventure-card-local-border);
+  box-shadow: var(--adventure-card-local-shadow);
 }
 
 .cardCompleted {
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.22), rgba(15, 23, 42, 0.12));
-  border: 1px solid rgba(167, 243, 208, 0.4);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+  background: var(--adventure-card-local-completed-bg);
+  border: 1px solid var(--adventure-card-local-completed-border);
+  box-shadow: var(--adventure-card-local-completed-shadow);
 }
 
 .headerRow {
@@ -61,9 +71,131 @@
 .levelHops {
   padding: 0.18em 0.72em;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.32);
+  border: 1px solid var(--adventure-card-local-chip-border);
+  background: var(--adventure-card-local-chip-bg);
   font-size: 0.84em;
   font-weight: 700;
+}
+
+.levelNotesCard,
+.levelNotesDialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  padding: 0.72rem 0.82rem;
+  border-radius: 16px;
+  border: 1px solid var(--adventure-card-local-panel-border);
+  background: var(--adventure-card-local-panel-bg);
+}
+
+.levelNotesDialog {
+  background: var(--app-panel-bg, rgba(30, 41, 59, 0.36));
+}
+
+.themeOriginal {
+  --adventure-card-local-bg: linear-gradient(135deg, rgba(102, 126, 234, 0.88), rgba(118, 75, 162, 0.9));
+  --adventure-card-local-border: rgba(255, 255, 255, 0.22);
+  --adventure-card-local-shadow: 0 18px 34px rgba(79, 70, 165, 0.22);
+  --adventure-card-local-chip-bg: rgba(255, 255, 255, 0.12);
+  --adventure-card-local-chip-border: rgba(255, 255, 255, 0.16);
+  --adventure-card-local-panel-bg: rgba(255, 255, 255, 0.1);
+  --adventure-card-local-panel-border: rgba(255, 255, 255, 0.14);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(59, 130, 246, 0.24), rgba(118, 75, 162, 0.18));
+  --adventure-card-local-completed-border: rgba(191, 219, 254, 0.34);
+  --adventure-card-local-completed-shadow: 0 18px 34px rgba(79, 70, 165, 0.2);
+}
+
+.themeClassic {
+  --adventure-card-local-bg: linear-gradient(160deg, rgba(79, 70, 165, 0.9), rgba(124, 58, 237, 0.9), rgba(192, 132, 252, 0.86));
+  --adventure-card-local-border: rgba(255, 255, 255, 0.18);
+  --adventure-card-local-shadow: 0 18px 34px rgba(76, 29, 149, 0.24);
+  --adventure-card-local-chip-bg: rgba(255, 255, 255, 0.1);
+  --adventure-card-local-chip-border: rgba(255, 255, 255, 0.14);
+  --adventure-card-local-panel-bg: rgba(255, 255, 255, 0.08);
+  --adventure-card-local-panel-border: rgba(255, 255, 255, 0.12);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(99, 102, 241, 0.22), rgba(91, 33, 182, 0.16));
+  --adventure-card-local-completed-border: rgba(216, 180, 254, 0.32);
+  --adventure-card-local-completed-shadow: 0 18px 34px rgba(76, 29, 149, 0.22);
+}
+
+.themeLight {
+  --adventure-card-local-bg: linear-gradient(160deg, rgba(119, 134, 248, 0.88), rgba(125, 211, 252, 0.86), rgba(245, 243, 255, 0.92));
+  --adventure-card-local-border: rgba(255, 255, 255, 0.34);
+  --adventure-card-local-shadow: 0 18px 34px rgba(37, 99, 235, 0.14);
+  --adventure-card-local-chip-bg: rgba(255, 255, 255, 0.18);
+  --adventure-card-local-chip-border: rgba(255, 255, 255, 0.22);
+  --adventure-card-local-panel-bg: rgba(255, 255, 255, 0.14);
+  --adventure-card-local-panel-border: rgba(255, 255, 255, 0.22);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(125, 211, 252, 0.24), rgba(147, 197, 253, 0.18));
+  --adventure-card-local-completed-border: rgba(255, 255, 255, 0.34);
+  --adventure-card-local-completed-shadow: 0 18px 34px rgba(37, 99, 235, 0.12);
+}
+
+.themeDark {
+  --adventure-card-local-bg: linear-gradient(160deg, rgba(17, 33, 58, 0.94), rgba(31, 75, 87, 0.92), rgba(139, 58, 43, 0.88));
+  --adventure-card-local-border: rgba(251, 191, 36, 0.18);
+  --adventure-card-local-shadow: 0 18px 34px rgba(5, 9, 20, 0.24);
+  --adventure-card-local-chip-bg: rgba(15, 23, 42, 0.38);
+  --adventure-card-local-chip-border: rgba(251, 191, 36, 0.14);
+  --adventure-card-local-panel-bg: rgba(15, 23, 42, 0.34);
+  --adventure-card-local-panel-border: rgba(251, 191, 36, 0.14);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(180, 83, 9, 0.26), rgba(15, 23, 42, 0.22));
+  --adventure-card-local-completed-border: rgba(252, 211, 77, 0.28);
+  --adventure-card-local-completed-shadow: 0 18px 34px rgba(5, 9, 20, 0.22);
+}
+
+.themeOcean {
+  --adventure-card-local-bg: linear-gradient(160deg, rgba(15, 118, 110, 0.92), rgba(14, 165, 233, 0.88), rgba(103, 232, 249, 0.82));
+  --adventure-card-local-border: rgba(165, 243, 252, 0.2);
+  --adventure-card-local-shadow: 0 18px 34px rgba(8, 47, 73, 0.2);
+  --adventure-card-local-chip-bg: rgba(8, 47, 73, 0.28);
+  --adventure-card-local-chip-border: rgba(165, 243, 252, 0.18);
+  --adventure-card-local-panel-bg: rgba(8, 47, 73, 0.24);
+  --adventure-card-local-panel-border: rgba(165, 243, 252, 0.16);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(14, 165, 233, 0.24), rgba(15, 118, 110, 0.18));
+  --adventure-card-local-completed-border: rgba(165, 243, 252, 0.26);
+  --adventure-card-local-completed-shadow: 0 18px 34px rgba(8, 47, 73, 0.18);
+}
+
+.themeSunset {
+  --adventure-card-local-bg: linear-gradient(160deg, rgba(127, 29, 29, 0.9), rgba(220, 38, 38, 0.9), rgba(244, 63, 94, 0.8));
+  --adventure-card-local-border: rgba(254, 202, 202, 0.22);
+  --adventure-card-local-shadow: 0 18px 34px rgba(127, 29, 29, 0.2);
+  --adventure-card-local-chip-bg: rgba(69, 10, 10, 0.28);
+  --adventure-card-local-chip-border: rgba(254, 202, 202, 0.16);
+  --adventure-card-local-panel-bg: rgba(69, 10, 10, 0.22);
+  --adventure-card-local-panel-border: rgba(254, 202, 202, 0.16);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(220, 38, 38, 0.24), rgba(190, 24, 93, 0.18));
+  --adventure-card-local-completed-border: rgba(254, 202, 202, 0.3);
+  --adventure-card-local-completed-shadow: 0 18px 34px rgba(127, 29, 29, 0.18);
+}
+
+.themeForest {
+  --adventure-card-local-bg: linear-gradient(160deg, rgba(20, 83, 45, 0.92), rgba(22, 101, 52, 0.9), rgba(74, 222, 128, 0.78));
+  --adventure-card-local-border: rgba(187, 247, 208, 0.2);
+  --adventure-card-local-shadow: 0 18px 34px rgba(20, 83, 45, 0.2);
+  --adventure-card-local-chip-bg: rgba(20, 83, 45, 0.28);
+  --adventure-card-local-chip-border: rgba(187, 247, 208, 0.18);
+  --adventure-card-local-panel-bg: rgba(20, 83, 45, 0.24);
+  --adventure-card-local-panel-border: rgba(187, 247, 208, 0.16);
+  --adventure-card-local-completed-bg: linear-gradient(180deg, rgba(34, 197, 94, 0.24), rgba(20, 83, 45, 0.18));
+  --adventure-card-local-completed-border: rgba(187, 247, 208, 0.26);
+  --adventure-card-local-completed-shadow: 0 18px 34px rgba(20, 83, 45, 0.18);
+}
+
+.levelNotesEyebrow {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.levelNotesText {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(248, 250, 252, 0.92);
 }
 
 .levelHopsCompact {
@@ -727,6 +859,17 @@
   font-size: 0.95rem;
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.78);
+}
+
+@media (max-width: 440px) {
+  .levelNotesCard,
+  .levelNotesDialog {
+    padding: 0.66rem 0.72rem;
+  }
+
+  .levelNotesText {
+    font-size: 0.82rem;
+  }
 }
 
 .leaderboardList {

@@ -10,6 +10,20 @@ This project now starts its tracked release history at `1.0.0`.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-03-31
+
+Frontend Levels V2 migration
+
+### Changed
+
+- Snapshot and live API ingestion now target the grouped v2 level endpoints, with frontend normalization for typed start and target nodes plus the new manifest metadata fields
+- Adventure Mode now uses grouped level selection and launches gameplay from typed endpoint records instead of assuming a flat actor-to-actor list
+- Level completion and history storage now use typed endpoint identities so actor and movie matchups do not collide during the v2 rollout
+
+### Added
+
+- Grouped v2 developer level sample data and archive loading support so local developer JSON matches the new backend contract
+
 ## [2.0.10] - 2026-03-28
 
 Quick Play and Level Archive

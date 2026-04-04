@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import type { DifficultyOption, DifficultySettings, GameDifficultySettings } from "../types";
-import { applyDifficultyToSuggestionDisplay, CUSTOM_SETTING_DEFINITIONS, GAME_SETTINGS_KEY, GameSettingsContext, getDifficultyPresetSettings, inferDifficultyPreset, readStoredGameSettings } from "./gameSettings";
+import type { BoardThemePalette, BoardThemePreset, BoardThemeScope, BoardThemeTone, DifficultyOption, DifficultySettings, GameDifficultySettings } from "../types";
+import { applyDifficultyToSuggestionDisplay, CUSTOM_SETTING_DEFINITIONS, GAME_SETTINGS_KEY, GameSettingsContext, getBoardThemeSettingsForPreset, getDifficultyPresetSettings, inferDifficultyPreset, readStoredGameSettings } from "./gameSettings";
 
 export function GameSettingsProvider({ children }: { children: React.ReactNode }) {
 	const [settings, setSettings] = useState<GameDifficultySettings>(() => readStoredGameSettings());
@@ -42,10 +42,32 @@ export function GameSettingsProvider({ children }: { children: React.ReactNode }
 					customSettings: nextCustomSettings,
 				});
 			},
-			setCompletionDarkMode: (enabled: boolean) => {
+			setBoardThemePreset: (preset: BoardThemePreset) => {
 				persistSettings({
 					...settings,
-					completionDarkMode: enabled,
+					boardTheme: getBoardThemeSettingsForPreset(preset, settings.boardTheme),
+				});
+			},
+			setBoardThemeTone: (scope: BoardThemeScope, tone: BoardThemeTone) => {
+				const toneKey = scope === "adventure" ? "adventureTone" : scope === "standard" ? "standardTone" : "shellTone";
+				persistSettings({
+					...settings,
+					boardTheme: {
+						...settings.boardTheme,
+						preset: "custom",
+						[toneKey]: tone,
+					},
+				});
+			},
+			setBoardThemePalette: (scope: BoardThemeScope, palette: BoardThemePalette) => {
+				const paletteKey = scope === "adventure" ? "adventurePalette" : scope === "standard" ? "standardPalette" : "shellPalette";
+				persistSettings({
+					...settings,
+					boardTheme: {
+						...settings.boardTheme,
+						preset: "custom",
+						[paletteKey]: palette,
+					},
 				});
 			},
 				setActorPopularityCutoff: (cutoff: number | null) => {

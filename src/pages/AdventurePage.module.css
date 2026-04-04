@@ -6,18 +6,320 @@
 /* New Adventure Mode Styles */
 .levelsListWrapper {
   width: 100%;
-  max-width: 620px;
+  max-width: 860px;
   margin: 0.35em 0 0.48em 0;
   display: flex;
   flex-direction: column;
-  gap: 0.42em;
+  gap: 0.72em;
 }
 
 .levelRowWrapper {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.2em;
+  gap: 0.35em;
+}
+
+.levelGroupsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.72rem;
+  width: 100%;
+}
+
+.gamesViewShell {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.levelGroupCard {
+  --adventure-group-bg: var(--app-adventure-card-bg);
+  --adventure-group-border: rgba(255, 255, 255, 0.12);
+  --adventure-group-shadow: var(--app-adventure-card-shadow);
+  --adventure-group-pill-bg: rgba(255, 255, 255, 0.1);
+  --adventure-group-pill-border: rgba(255, 255, 255, 0.08);
+  --adventure-group-action-bg: var(--app-cta-bg);
+  --adventure-group-action-text: #fff;
+  --adventure-group-header-bg: var(--adventure-group-bg);
+  --adventure-group-header-border: var(--adventure-group-border);
+  --adventure-group-header-shadow: var(--adventure-group-shadow);
+  --adventure-group-button-bg: rgba(255, 255, 255, 0.1);
+  --adventure-group-button-border: rgba(255, 255, 255, 0.2);
+  --adventure-group-text: #fffaf0;
+  --adventure-group-muted: rgba(241, 245, 249, 0.86);
+  --adventure-group-subtle: rgba(226, 232, 240, 0.72);
+  --adventure-group-eyebrow: rgba(255, 255, 255, 0.62);
+  width: 100%;
+  padding: 0.84rem 0.96rem;
+  border: 1px solid var(--adventure-group-border);
+  border-radius: 18px;
+  background: var(--adventure-group-bg);
+  color: var(--adventure-group-text);
+  text-align: left;
+  box-shadow: var(--adventure-group-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.levelGroupCard:hover,
+.levelGroupCard:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.26);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.2);
+}
+
+.levelGroupCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.levelGroupEyebrow {
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--adventure-group-eyebrow);
+}
+
+.levelGroupTitle,
+.gamesViewTitle {
+  margin: 0.22rem 0 0;
+  font-size: clamp(1.08rem, 1.8vw, 1.42rem);
+  font-weight: 900;
+  color: var(--adventure-group-text);
+}
+
+.levelGroupMetaStack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.levelGroupMetaPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.9rem;
+  padding: 0.24rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--adventure-group-pill-border);
+  background: var(--adventure-group-pill-bg);
+  font-size: 0.76rem;
+  font-weight: 900;
+  color: var(--adventure-group-text);
+}
+
+.levelGroupDescription,
+.gamesViewSummary {
+  margin: 0.52rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--adventure-group-muted);
+}
+
+.levelGroupFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.7rem;
+}
+
+.levelGroupFootnote {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--adventure-group-subtle);
+}
+
+.levelGroupAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 6rem;
+  min-height: 2rem;
+  padding: 0.34rem 0.72rem;
+  border-radius: 999px;
+  background: var(--adventure-group-action-bg);
+  font-size: 0.76rem;
+  font-weight: 900;
+  color: var(--adventure-group-action-text);
+}
+
+.levelGroupsPagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.2rem;
+}
+
+.levelGroupsPaginationPages {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.levelGroupsPaginationButton {
+  min-width: 2.2rem;
+  min-height: 2.1rem;
+  padding: 0.34rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.levelGroupsPaginationButton:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.levelGroupsPaginationButtonActive {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.gamesViewHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 0.1rem;
+  padding: 1rem 1.05rem;
+  border-radius: 24px;
+  border: 1px solid var(--adventure-group-header-border);
+  background: var(--adventure-group-header-bg);
+  box-shadow: var(--adventure-group-header-shadow);
+}
+
+.gamesViewBackButton {
+  min-width: 7rem;
+  min-height: 2.6rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--adventure-group-button-border);
+  background: var(--adventure-group-button-bg);
+  color: var(--adventure-group-text);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.gamesViewTitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+  min-width: 0;
+}
+
+.themeOriginal {
+  --adventure-group-bg: linear-gradient(135deg, rgba(102, 126, 234, 0.9), rgba(118, 75, 162, 0.92));
+  --adventure-group-border: rgba(255, 255, 255, 0.24);
+  --adventure-group-shadow: 0 24px 42px rgba(79, 70, 165, 0.24);
+  --adventure-group-pill-bg: rgba(255, 255, 255, 0.14);
+  --adventure-group-pill-border: rgba(255, 255, 255, 0.16);
+  --adventure-group-action-bg: rgba(37, 99, 235, 0.74);
+  --adventure-group-header-bg: linear-gradient(135deg, rgba(102, 126, 234, 0.88), rgba(118, 75, 162, 0.9));
+  --adventure-group-header-border: rgba(255, 255, 255, 0.24);
+  --adventure-group-header-shadow: 0 24px 42px rgba(79, 70, 165, 0.24);
+  --adventure-group-button-bg: rgba(255, 255, 255, 0.14);
+  --adventure-group-button-border: rgba(255, 255, 255, 0.22);
+}
+
+.themeClassic {
+  --adventure-group-bg: linear-gradient(160deg, rgba(79, 70, 165, 0.9), rgba(124, 58, 237, 0.9), rgba(192, 132, 252, 0.88));
+  --adventure-group-border: rgba(255, 255, 255, 0.18);
+  --adventure-group-shadow: 0 24px 42px rgba(76, 29, 149, 0.26);
+  --adventure-group-pill-bg: rgba(255, 255, 255, 0.12);
+  --adventure-group-pill-border: rgba(255, 255, 255, 0.14);
+  --adventure-group-action-bg: rgba(99, 102, 241, 0.74);
+  --adventure-group-header-bg: linear-gradient(160deg, rgba(79, 70, 165, 0.88), rgba(124, 58, 237, 0.88), rgba(192, 132, 252, 0.86));
+  --adventure-group-header-border: rgba(255, 255, 255, 0.18);
+  --adventure-group-header-shadow: 0 24px 42px rgba(76, 29, 149, 0.26);
+  --adventure-group-button-bg: rgba(255, 255, 255, 0.12);
+  --adventure-group-button-border: rgba(255, 255, 255, 0.18);
+}
+
+.themeLight {
+  --adventure-group-bg: linear-gradient(160deg, rgba(119, 134, 248, 0.9), rgba(125, 211, 252, 0.88), rgba(245, 243, 255, 0.94));
+  --adventure-group-border: rgba(255, 255, 255, 0.36);
+  --adventure-group-shadow: 0 24px 42px rgba(37, 99, 235, 0.16);
+  --adventure-group-pill-bg: rgba(255, 255, 255, 0.22);
+  --adventure-group-pill-border: rgba(255, 255, 255, 0.24);
+  --adventure-group-action-bg: rgba(37, 99, 235, 0.88);
+  --adventure-group-header-bg: linear-gradient(160deg, rgba(119, 134, 248, 0.9), rgba(125, 211, 252, 0.86), rgba(245, 243, 255, 0.92));
+  --adventure-group-header-border: rgba(255, 255, 255, 0.34);
+  --adventure-group-header-shadow: 0 24px 42px rgba(37, 99, 235, 0.16);
+  --adventure-group-button-bg: rgba(255, 255, 255, 0.22);
+  --adventure-group-button-border: rgba(255, 255, 255, 0.28);
+  --adventure-group-text: #eff6ff;
+  --adventure-group-muted: rgba(239, 246, 255, 0.92);
+  --adventure-group-subtle: rgba(224, 242, 254, 0.88);
+  --adventure-group-eyebrow: rgba(239, 246, 255, 0.78);
+}
+
+.themeDark {
+  --adventure-group-bg: linear-gradient(160deg, rgba(17, 33, 58, 0.94), rgba(31, 75, 87, 0.92), rgba(139, 58, 43, 0.9));
+  --adventure-group-border: rgba(251, 191, 36, 0.2);
+  --adventure-group-shadow: 0 24px 42px rgba(5, 9, 20, 0.28);
+  --adventure-group-pill-bg: rgba(15, 23, 42, 0.34);
+  --adventure-group-pill-border: rgba(251, 191, 36, 0.16);
+  --adventure-group-action-bg: rgba(217, 119, 6, 0.92);
+  --adventure-group-header-bg: linear-gradient(160deg, rgba(17, 33, 58, 0.95), rgba(31, 75, 87, 0.93), rgba(139, 58, 43, 0.91));
+  --adventure-group-header-border: rgba(251, 191, 36, 0.18);
+  --adventure-group-header-shadow: 0 24px 42px rgba(5, 9, 20, 0.28);
+  --adventure-group-button-bg: rgba(15, 23, 42, 0.42);
+  --adventure-group-button-border: rgba(251, 191, 36, 0.18);
+  --adventure-group-text: #fff7ed;
+  --adventure-group-muted: rgba(255, 237, 213, 0.88);
+  --adventure-group-subtle: rgba(254, 215, 170, 0.78);
+  --adventure-group-eyebrow: rgba(254, 215, 170, 0.7);
+}
+
+.themeOcean {
+  --adventure-group-bg: linear-gradient(160deg, rgba(15, 118, 110, 0.94), rgba(14, 165, 233, 0.9), rgba(103, 232, 249, 0.84));
+  --adventure-group-border: rgba(165, 243, 252, 0.22);
+  --adventure-group-shadow: 0 24px 42px rgba(8, 47, 73, 0.24);
+  --adventure-group-pill-bg: rgba(8, 47, 73, 0.28);
+  --adventure-group-pill-border: rgba(165, 243, 252, 0.2);
+  --adventure-group-action-bg: rgba(8, 145, 178, 0.92);
+  --adventure-group-header-bg: linear-gradient(160deg, rgba(15, 118, 110, 0.95), rgba(14, 165, 233, 0.9), rgba(103, 232, 249, 0.86));
+  --adventure-group-header-border: rgba(165, 243, 252, 0.22);
+  --adventure-group-header-shadow: 0 24px 42px rgba(8, 47, 73, 0.24);
+  --adventure-group-button-bg: rgba(8, 47, 73, 0.28);
+  --adventure-group-button-border: rgba(165, 243, 252, 0.22);
+}
+
+.themeSunset {
+  --adventure-group-bg: linear-gradient(160deg, rgba(127, 29, 29, 0.92), rgba(220, 38, 38, 0.9), rgba(244, 63, 94, 0.84));
+  --adventure-group-border: rgba(254, 202, 202, 0.24);
+  --adventure-group-shadow: 0 24px 42px rgba(127, 29, 29, 0.22);
+  --adventure-group-pill-bg: rgba(69, 10, 10, 0.24);
+  --adventure-group-pill-border: rgba(254, 202, 202, 0.18);
+  --adventure-group-action-bg: rgba(190, 24, 93, 0.78);
+  --adventure-group-header-bg: linear-gradient(160deg, rgba(127, 29, 29, 0.92), rgba(220, 38, 38, 0.9), rgba(244, 63, 94, 0.86));
+  --adventure-group-header-border: rgba(254, 202, 202, 0.24);
+  --adventure-group-header-shadow: 0 24px 42px rgba(127, 29, 29, 0.22);
+  --adventure-group-button-bg: rgba(69, 10, 10, 0.24);
+  --adventure-group-button-border: rgba(254, 202, 202, 0.18);
+}
+
+.themeForest {
+  --adventure-group-bg: linear-gradient(160deg, rgba(20, 83, 45, 0.92), rgba(22, 101, 52, 0.92), rgba(74, 222, 128, 0.8));
+  --adventure-group-border: rgba(187, 247, 208, 0.22);
+  --adventure-group-shadow: 0 24px 42px rgba(20, 83, 45, 0.24);
+  --adventure-group-pill-bg: rgba(20, 83, 45, 0.24);
+  --adventure-group-pill-border: rgba(187, 247, 208, 0.2);
+  --adventure-group-action-bg: rgba(21, 128, 61, 0.94);
+  --adventure-group-header-bg: linear-gradient(160deg, rgba(20, 83, 45, 0.94), rgba(22, 101, 52, 0.92), rgba(74, 222, 128, 0.82));
+  --adventure-group-header-border: rgba(187, 247, 208, 0.22);
+  --adventure-group-header-shadow: 0 24px 42px rgba(20, 83, 45, 0.24);
+  --adventure-group-button-bg: rgba(20, 83, 45, 0.24);
+  --adventure-group-button-border: rgba(187, 247, 208, 0.2);
 }
 
 .levelLabel {
@@ -54,7 +356,7 @@
   font-size: calc(1.25em * var(--level-scale));
   padding: calc(1.1em * var(--level-scale)) calc(2.2em * var(--level-scale));
 
-  background: #ff5252;
+  background: rgba(37, 99, 235, 0.82);
   border: none;
   border-radius: 16px;
   color: #fff;
@@ -154,57 +456,6 @@
   letter-spacing: 0.03em;
 }
 
-.paginationNav {
-  position: fixed;
-  left: 50%;
-  bottom: var(--adventure-pagination-clearance);
-  transform: translateX(-50%);
-  z-index: 35;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1em;
-  margin-top: 0;
-  padding: 0.5rem 0.85rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.42);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
-}
-.paginationArrow {
-  background: #ff5252;
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  width: 34px;
-  height: 34px;
-  font-size: 1.05em;
-  font-weight: bold;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.13);
-  transition: background 0.18s, box-shadow 0.18s, transform 0.18s;
-  outline: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.paginationArrow:disabled {
-  background: #e0e0e0;
-  color: #aaa;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-.paginationArrow:not(:disabled):hover, .paginationArrow:not(:disabled):focus {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-  transform: scale(1.08);
-}
-.paginationLabel {
-  color: #fff;
-  font-size: 0.92em;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
 .stateMessage,
 .sourceMessage,
 .errorMessage {
@@ -228,11 +479,10 @@
 }
 .adventurePageWrapper {
   --adventure-footer-clearance: clamp(88px, 11vh, 122px);
-  --adventure-pagination-clearance: calc(var(--adventure-footer-clearance) + clamp(12px, 2vh, 22px));
   min-height: 100svh;
   height: 100svh;
   width: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--app-shell-bg);
   position: relative;
   overflow: hidden;
 }
@@ -251,8 +501,9 @@
   justify-content: flex-start;
   min-height: 100svh;
   height: 100svh;
-  padding: 74px 16px calc(var(--adventure-pagination-clearance) + 18px);
+  padding: 74px 16px calc(var(--adventure-footer-clearance) + 18px);
   box-sizing: border-box;
+  overflow: auto;
 }
 
 .adventureTitle {
@@ -269,18 +520,18 @@
   margin-bottom: 0.44em;
   padding: 0.5em 0.92em;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  background: rgba(15, 23, 42, 0.34);
+  border: 1px solid var(--app-panel-border);
+  background: var(--app-glass-control-bg);
   color: #fff;
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--app-glass-shadow-hover);
 }
 
 .adventureSettingsButton:hover,
 .adventureSettingsButton:focus-visible {
-  background: rgba(30, 41, 59, 0.48);
+  background: var(--app-glass-control-hover-bg);
   transform: translateY(-1px);
 }
 
@@ -302,7 +553,7 @@
   font-size: 1rem;
   font-weight: bold;
   border-radius: 12px;
-  background: #ff5252;
+  background: rgba(37, 99, 235, 0.82);
   border: none;
   color: white;
   cursor: pointer;
@@ -311,7 +562,7 @@
 }
 
 .adventureBackBtn:hover {
-  background: #ff5252;
+  background: rgba(59, 130, 246, 0.88);
   transform: translateY(-3px);
 }
 
@@ -326,7 +577,6 @@
   .adventurePageWrapper {
     min-height: 100svh;
     --adventure-footer-clearance: clamp(54px, 8vh, 68px);
-    --adventure-pagination-clearance: calc(var(--adventure-footer-clearance) + 12px);
   }
 
   .adventurePageWrapper :global(.pageTopBackButton) {
@@ -353,7 +603,7 @@
 
   .adventureContent {
     min-height: 100svh;
-    padding: calc(env(safe-area-inset-top, 0px) + 68px) 10px calc(env(safe-area-inset-bottom, 0px) + var(--adventure-pagination-clearance) + 16px);
+    padding: calc(env(safe-area-inset-top, 0px) + 68px) 10px calc(env(safe-area-inset-bottom, 0px) + var(--adventure-footer-clearance) + 16px);
     box-sizing: border-box;
   }
 
@@ -377,33 +627,33 @@
   .levelsListWrapper {
     width: min(100%, 350px);
     margin: 0.22em 0 0.26em;
-    gap: 0.38em;
+    gap: 0.6em;
   }
 
   .levelRowWrapper {
     gap: 0;
   }
 
-  .paginationNav {
-    gap: 0.38rem;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--adventure-pagination-clearance));
-    padding: 0.28rem 0.42rem;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.5);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  .levelGroupCard {
+    padding: 0.78rem 0.82rem;
+    border-radius: 16px;
   }
 
-  .paginationArrow {
-    width: 28px;
-    height: 28px;
-    font-size: 0.92rem;
+  .levelGroupCardHeader,
+  .levelGroupFooter,
+  .gamesViewHeader {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
-  .paginationLabel {
-    min-width: 2.9rem;
-    text-align: center;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
+  .gamesViewBackButton,
+  .levelGroupAction {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .levelGroupsPagination {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

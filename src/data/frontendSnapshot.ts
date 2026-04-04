@@ -3,6 +3,8 @@ import type {
 	FrontendManifest,
 	FrontendSnapshot,
 	Level,
+	LevelGroup,
+	LevelNode,
 	Movie,
 	SnapshotBundle,
 	SnapshotUpdateCheck,
@@ -12,22 +14,22 @@ import { buildSnapshotIndexes } from "./snapshotIndexes";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 const REMOTE_MANIFEST_URL = import.meta.env.VITE_SNAPSHOT_MANIFEST_URL ?? "";
-const API_MANIFEST_PATH = "/api/export/frontend-manifest";
+const API_MANIFEST_PATH = "/api/v2/export/frontend-manifest";
 const INSTALLED_MANIFEST_PATH = "/data/installed/frontend-manifest.json";
 const INSTALLED_SNAPSHOT_PATH = "/data/installed/frontend-snapshot.json";
 
 const SNAPSHOT_STORAGE_KEYS: Record<StoredSnapshotSource, { manifest: string; snapshot: string }> = {
 	api: {
-		manifest: "co-stars-frontend-api-manifest",
-		snapshot: "co-stars-frontend-api-snapshot",
+		manifest: "co-stars-frontend-api-manifest-v2",
+		snapshot: "co-stars-frontend-api-snapshot-v2",
 	},
 	s3: {
-		manifest: "co-stars-frontend-s3-manifest",
-		snapshot: "co-stars-frontend-s3-snapshot",
+		manifest: "co-stars-frontend-s3-manifest-v2",
+		snapshot: "co-stars-frontend-s3-snapshot-v2",
 	},
 };
 
-type ApiFrontendManifest = {
+type ApiFrontendManifestV1 = {
 	version: string;
 	source_updated_at: string;
 	actor_count: number;
@@ -38,7 +40,14 @@ type ApiFrontendManifest = {
 	snapshot_endpoint: string;
 };
 
-type ApiFrontendSnapshot = {
+type ApiFrontendManifestV2 = ApiFrontendManifestV1 & {
+	level_group_count: number;
+	normal_game_count: number;
+	boss_game_count: number;
+	level_schema_version: number;
+};
+
+type ApiFrontendSnapshotV1 = {
 	meta: {
 		version: string;
 		exported_at: string;
@@ -77,6 +86,54 @@ type ApiFrontendSnapshot = {
 	};
 	levels: Array<{ actor_a: string; actor_b: string; stars: number }>;
 };
+
+type ApiFrontendSnapshotMetaV2 = {
+	version: string;
+	exported_at: string;
+	actor_count: number;
+	movie_count: number;
+	relationship_count: number;
+	level_count: number;
+	level_group_count: number;
+	normal_game_count: number;
+	boss_game_count: number;
+	level_schema_version: number;
+};
+
+type ApiLevelNodeV2 = {
+	id: number;
+	type: "actor" | "movie";
+	label: string;
+};
+
+type ApiLevelGameV2 = {
+	"game-id": string;
+	"game-type": string;
+	startNode: ApiLevelNodeV2;
+	targetNode: ApiLevelNodeV2;
+	notes?: {
+		text?: string;
+	} | null;
+	settings?: Record<string, unknown>;
+};
+
+type ApiLevelGroupV2 = {
+	"level-id": string;
+	"level-name": string;
+	"game-data": ApiLevelGameV2[];
+};
+
+type ApiFrontendSnapshotV2 = {
+	meta: ApiFrontendSnapshotMetaV2;
+	actors: ApiFrontendSnapshotV1["actors"];
+	movies: ApiFrontendSnapshotV1["movies"];
+	movie_actors: ApiFrontendSnapshotV1["movie_actors"];
+	adjacency: ApiFrontendSnapshotV1["adjacency"];
+	levels: ApiLevelGroupV2[];
+};
+
+type ApiFrontendManifest = ApiFrontendManifestV1 | ApiFrontendManifestV2;
+type ApiFrontendSnapshot = ApiFrontendSnapshotV1 | ApiFrontendSnapshotV2;
 
 function isHostedSnapshotConfigured() {
 	return REMOTE_MANIFEST_URL.trim().length > 0;
@@ -118,7 +175,7 @@ async function fetchApiJson<T>(path: string) {
 	return fetchJson<T>(`${API_BASE_URL}${path}`);
 }
 
-function mapActor(actor: ApiFrontendSnapshot["actors"][number]): Actor {
+function mapActor(actor: ApiFrontendSnapshotV1["actors"][number]): Actor {
 	return {
 		id: actor.id,
 		name: actor.name,
@@ -133,7 +190,7 @@ function mapActor(actor: ApiFrontendSnapshot["actors"][number]): Actor {
 	};
 }
 
-function mapMovie(movie: ApiFrontendSnapshot["movies"][number]): Movie {
+function mapMovie(movie: ApiFrontendSnapshotV1["movies"][number]): Movie {
 	return {
 		id: movie.id,
 		title: movie.title,
@@ -147,15 +204,57 @@ function mapMovie(movie: ApiFrontendSnapshot["movies"][number]): Movie {
 	};
 }
 
-function mapLevel(level: ApiFrontendSnapshot["levels"][number]): Level {
+function mapLevelNode(node: ApiLevelNodeV2): LevelNode {
 	return {
-		actorA: level.actor_a,
-		actorB: level.actor_b,
-		stars: level.stars,
+		id: node.id,
+		type: node.type,
+		label: node.label,
+	};
+}
+
+function mapLevel(levelGroupId: string, levelGroupName: string, game: ApiLevelGameV2): Level {
+	return {
+		levelGroupId,
+		levelGroupName,
+		gameId: game["game-id"],
+		gameType: game["game-type"],
+		startNode: mapLevelNode(game.startNode),
+		targetNode: mapLevelNode(game.targetNode),
+		notes: game.notes?.text ? { text: game.notes.text } : null,
+		settings: game.settings ?? {},
+	};
+}
+
+function mapLegacyLevel(level: ApiFrontendSnapshotV1["levels"][number], index: number, actors: Actor[]): Level {
+	const startActor = actors.find((actor) => actor.name.toLowerCase() === level.actor_a.toLowerCase());
+	const targetActor = actors.find((actor) => actor.name.toLowerCase() === level.actor_b.toLowerCase());
+
+	return {
+		levelGroupId: "legacy-v1",
+		levelGroupName: "Legacy Levels",
+		gameId: String(index + 1),
+		gameType: "normal-non-boss",
+		startNode: {
+			id: startActor?.id,
+			type: "actor",
+			label: level.actor_a,
+		},
+		targetNode: {
+			id: targetActor?.id,
+			type: "actor",
+			label: level.actor_b,
+		},
+		notes: { text: "Migrated from the legacy flat levels list." },
+		settings: {},
 	};
 }
 
 function mapManifest(manifest: ApiFrontendManifest): FrontendManifest {
+	const levelGroupCount = "level_group_count" in manifest ? manifest.level_group_count : manifest.level_count;
+	const normalGameCount = "normal_game_count" in manifest ? manifest.normal_game_count : manifest.level_count;
+	const bossGameCount = "boss_game_count" in manifest ? manifest.boss_game_count : 0;
+	const levelSchemaVersion = "level_schema_version" in manifest ? manifest.level_schema_version : 1;
+
 	return {
 		version: manifest.version,
 		sourceUpdatedAt: manifest.source_updated_at,
@@ -163,12 +262,36 @@ function mapManifest(manifest: ApiFrontendManifest): FrontendManifest {
 		movieCount: manifest.movie_count,
 		relationshipCount: manifest.relationship_count,
 		levelCount: manifest.level_count,
+		levelGroupCount,
+		normalGameCount,
+		bossGameCount,
+		levelSchemaVersion,
 		recommendedRefreshIntervalHours: manifest.recommended_refresh_interval_hours,
 		snapshotEndpoint: manifest.snapshot_endpoint,
 	};
 }
 
 function mapSnapshot(snapshot: ApiFrontendSnapshot): FrontendSnapshot {
+	const actors = snapshot.actors.map(mapActor);
+	const levels: LevelGroup[] = "level_schema_version" in snapshot.meta
+		? (snapshot as ApiFrontendSnapshotV2).levels.map((levelGroup) => ({
+			levelId: levelGroup["level-id"],
+			levelName: levelGroup["level-name"],
+			games: levelGroup["game-data"].map((game: ApiLevelGameV2) => mapLevel(levelGroup["level-id"], levelGroup["level-name"], game)),
+		}))
+		: [
+			{
+				levelId: "legacy-v1",
+				levelName: "Legacy Levels",
+				games: (snapshot as ApiFrontendSnapshotV1).levels.map((level, index) => mapLegacyLevel(level, index, actors)),
+			},
+		];
+	const levelCount = snapshot.meta.level_count;
+	const levelGroupCount = "level_group_count" in snapshot.meta ? snapshot.meta.level_group_count : levels.length;
+	const normalGameCount = "normal_game_count" in snapshot.meta ? snapshot.meta.normal_game_count : levelCount;
+	const bossGameCount = "boss_game_count" in snapshot.meta ? snapshot.meta.boss_game_count : 0;
+	const levelSchemaVersion = "level_schema_version" in snapshot.meta ? snapshot.meta.level_schema_version : 1;
+
 	return {
 		meta: {
 			version: snapshot.meta.version,
@@ -176,9 +299,13 @@ function mapSnapshot(snapshot: ApiFrontendSnapshot): FrontendSnapshot {
 			actorCount: snapshot.meta.actor_count,
 			movieCount: snapshot.meta.movie_count,
 			relationshipCount: snapshot.meta.relationship_count,
-			levelCount: snapshot.meta.level_count,
+			levelCount,
+			levelGroupCount,
+			normalGameCount,
+			bossGameCount,
+			levelSchemaVersion,
 		},
-		actors: snapshot.actors.map(mapActor),
+		actors,
 		movies: snapshot.movies.map(mapMovie),
 		movieActors: snapshot.movie_actors.map((link) => ({
 			movieId: link.movie_id,
@@ -188,7 +315,7 @@ function mapSnapshot(snapshot: ApiFrontendSnapshot): FrontendSnapshot {
 			actorToMovies: snapshot.adjacency.actor_to_movies,
 			movieToActors: snapshot.adjacency.movie_to_actors,
 		},
-		levels: snapshot.levels.map(mapLevel),
+		levels,
 	};
 }
 

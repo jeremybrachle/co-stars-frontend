@@ -18,7 +18,7 @@ import { useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
 import { createGameNodeFromSummary } from "../data/localGraph";
-import type { GameNode } from "../types";
+import type { GameNode, LevelNode } from "../types";
 import { buildLevelStorageKey, readAllLevelHistory, subscribeToLevelHistoryUpdates } from "../utils/levelHistoryStorage";
 import { buildCustomLevelLabel, deletePlayerCustomLevel, MAX_PLAYER_CUSTOM_LEVELS, readPlayerCustomLevels, subscribeToPlayerCustomLevels, type CustomLevelDraft } from "../utils/customLevelsStorage";
 import { createPreviewPathNodes, hydrateCustomLevelDraft } from "../utils/customLevelPreview";
@@ -28,6 +28,20 @@ type SortDirection = "asc" | "desc";
 type ArchiveSource = "player" | "developer";
 
 type DeveloperArchiveLevel = CustomLevelDraft;
+
+type DeveloperLevelsDocument = {
+	"schema-version": number;
+	levels: Array<{
+		"level-id": string;
+		"level-name": string;
+		"game-data": Array<{
+			"game-id": string;
+			"game-type": string;
+			startNode: LevelNode;
+			targetNode: LevelNode;
+		}>;
+	}>;
+};
 
 const ARCHIVE_ROWS_PER_PAGE = 5;
 
@@ -101,6 +115,69 @@ function isCustomLevelDraft(value: unknown): value is CustomLevelDraft {
 		&& Array.isArray(candidate.optimalPath);
 }
 
+function isLevelNode(value: unknown): value is LevelNode {
+	if (!value || typeof value !== "object") {
+		return false;
+	}
+
+	const candidate = value as Record<string, unknown>;
+	return typeof candidate.label === "string"
+		&& (candidate.type === "actor" || candidate.type === "movie")
+		&& (candidate.id === undefined || typeof candidate.id === "number");
+}
+
+function isDeveloperLevelsDocument(value: unknown): value is DeveloperLevelsDocument {
+	if (!value || typeof value !== "object") {
+		return false;
+	}
+
+	const candidate = value as Record<string, unknown>;
+	if (typeof candidate["schema-version"] !== "number" || !Array.isArray(candidate.levels)) {
+		return false;
+	}
+
+	return candidate.levels.every((levelGroup) => {
+		if (!levelGroup || typeof levelGroup !== "object") {
+			return false;
+		}
+
+		const levelGroupCandidate = levelGroup as Record<string, unknown>;
+		return typeof levelGroupCandidate["level-id"] === "string"
+			&& typeof levelGroupCandidate["level-name"] === "string"
+			&& Array.isArray(levelGroupCandidate["game-data"])
+			&& (levelGroupCandidate["game-data"] as unknown[]).every((game) => {
+				if (!game || typeof game !== "object") {
+					return false;
+				}
+
+				const gameCandidate = game as Record<string, unknown>;
+				return typeof gameCandidate["game-id"] === "string"
+					&& typeof gameCandidate["game-type"] === "string"
+					&& isLevelNode(gameCandidate.startNode)
+					&& isLevelNode(gameCandidate.targetNode);
+			});
+	});
+}
+
+function mapGroupedDeveloperLevels(document: DeveloperLevelsDocument): DeveloperArchiveLevel[] {
+	return document.levels.flatMap((levelGroup) => levelGroup["game-data"].map((game) => ({
+		startNode: {
+			id: game.startNode.id ?? -1,
+			type: game.startNode.type,
+			label: game.startNode.label,
+		},
+		targetNode: {
+			id: game.targetNode.id ?? -1,
+			type: game.targetNode.type,
+			label: game.targetNode.label,
+		},
+		actorPopularityCutoff: null,
+		releaseYearCutoff: null,
+		optimalHops: null,
+		optimalPath: [],
+	})));
+}
+
 function getCatalogDetailEntry(node: CustomLevelDraft["startNode"], indexes: ReturnType<typeof getDemoSnapshotBundle>["indexes"]): CatalogDetailEntry | null {
 	if (node.type === "actor") {
 		const actor = indexes.actorsById.get(node.id);
@@ -138,7 +215,11 @@ function LevelArchivePage() {
 				}
 
 				const json = await response.json();
-				const parsed = Array.isArray(json) ? json.filter(isCustomLevelDraft) : [];
+				const parsed = Array.isArray(json)
+					? json.filter(isCustomLevelDraft)
+					: isDeveloperLevelsDocument(json)
+					? mapGroupedDeveloperLevels(json)
+					: [];
 				if (isMounted) {
 					setDeveloperLevels(parsed);
 					setDeveloperLevelsError(null);
@@ -164,7 +245,7 @@ function LevelArchivePage() {
 	);
 	const archiveRows = useMemo<ArchiveRow[]>(() => {
 		const buildHistorySummary = (level: CustomLevelDraft) => {
-			const historyRecord = levelHistory[buildLevelStorageKey(level.startNode.label, level.targetNode.label)] ?? null;
+			const historyRecord = levelHistory[buildLevelStorageKey(level.startNode, level.targetNode)] ?? null;
 			const bestScore = historyRecord?.attempts.reduce((highestScore, attempt) => Math.max(highestScore, attempt.score), Number.NEGATIVE_INFINITY);
 			const isCompleted = Boolean(historyRecord && historyRecord.attempts.length > 0);
 

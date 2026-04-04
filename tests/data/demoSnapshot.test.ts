@@ -9,26 +9,29 @@ test("demo snapshot bundle exposes a stable offline source label", () => {
 
 test("demo snapshot bundle contains levels and graph indexes for offline play", () => {
   const bundle = getDemoSnapshotBundle();
+  const games = bundle.snapshot.levels.flatMap((levelGroup) => levelGroup.games);
 
   assert.equal(bundle.loadedFrom, "demo");
-  assert.equal(bundle.snapshot.levels.length, 6);
+  assert.equal(bundle.snapshot.levels.length, 2);
+  assert.equal(games.length, 6);
   assert.equal(bundle.indexes.actorsById.size, 8);
   assert.equal(bundle.indexes.moviesById.size, 5);
 });
 
 test("demo levels stay within short one-movie or two-movie routes", () => {
   const bundle = getDemoSnapshotBundle();
+  const games = bundle.snapshot.levels.flatMap((levelGroup) => levelGroup.games);
 
-  for (const level of bundle.snapshot.levels) {
-    const actorAId = bundle.indexes.actorNameToId.get(level.actorA.toLowerCase());
-    const actorBId = bundle.indexes.actorNameToId.get(level.actorB.toLowerCase());
+  for (const level of games) {
+    const actorAId = bundle.indexes.actorNameToId.get(level.startNode.label.toLowerCase());
+    const actorBId = bundle.indexes.actorNameToId.get(level.targetNode.label.toLowerCase());
 
     assert.notEqual(actorAId, undefined);
     assert.notEqual(actorBId, undefined);
 
     const path = generateLocalPath(
-      { id: actorAId!, type: "actor", label: level.actorA },
-      { id: actorBId!, type: "actor", label: level.actorB },
+      { id: actorAId!, type: "actor", label: level.startNode.label },
+      { id: actorBId!, type: "actor", label: level.targetNode.label },
       bundle.indexes,
     );
 

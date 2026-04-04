@@ -17,12 +17,12 @@ const PLAY_NOW_ITEMS = [
     icon: "🎲",
     description: "Build a single generated level, preview its optimal route, and optionally save it to your local archive.",
   },
-  {
-    to: "/challenge-mode",
-    label: "Challenge Mode",
-    icon: "⚔️",
-    description: "Placeholder route for the future challenge flow.",
-  },
+  // {
+  //   to: "/challenge-mode",
+  //   label: "Challenge Mode",
+  //   icon: "⚔️",
+  //   description: "Placeholder route for the future challenge flow.",
+  // },
   {
     to: "/level-archive",
     label: "Level Archive",

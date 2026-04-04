@@ -1,11 +1,15 @@
 {
   "meta": {
-    "version": "2.1.0",
-    "exported_at": "2026-03-17T21:42:32.177268+00:00",
+    "version": "2.2.0",
+    "exported_at": "2026-04-01T21:18:59.383394+00:00",
     "actor_count": 1482,
     "movie_count": 19,
     "relationship_count": 1526,
-    "level_count": 3
+    "level_count": 5,
+    "level_group_count": 5,
+    "normal_game_count": 5,
+    "boss_game_count": 0,
+    "level_schema_version": 2
   },
   "actors": [
     {
@@ -30245,19 +30249,121 @@
   },
   "levels": [
     {
-      "actor_a": "Matt Damon",
-      "actor_b": "Daniel Craig",
-      "stars": 3
+      "level-id": "1",
+      "level-name": "Level 1 - Early 2000s",
+      "game-data": [
+        {
+          "game-id": "1",
+          "game-type": "normal-non-boss",
+          "startNode": {
+            "id": 1892,
+            "type": "actor",
+            "label": "Matt Damon"
+          },
+          "targetNode": {
+            "id": 8784,
+            "type": "actor",
+            "label": "Daniel Craig"
+          },
+          "notes": {
+            "text": "American Spy vs. British Spy"
+          },
+          "settings": {}
+        },
+        {
+          "game-id": "2",
+          "game-type": "normal-non-boss",
+          "startNode": {
+            "id": 1461,
+            "type": "actor",
+            "label": "George Clooney"
+          },
+          "targetNode": {
+            "id": 2219,
+            "type": "actor",
+            "label": "Tobey Maguire"
+          },
+          "notes": {
+            "text": "Batman vs. Spider-Man"
+          },
+          "settings": {}
+        },
+        {
+          "game-id": "3",
+          "game-type": "normal-non-boss",
+          "startNode": {
+            "id": 287,
+            "type": "actor",
+            "label": "Brad Pitt"
+          },
+          "targetNode": {
+            "id": 6193,
+            "type": "actor",
+            "label": "Leonardo DiCaprio"
+          },
+          "notes": {
+            "text": "Once Upon a Time (not) in Hollywood"
+          },
+          "settings": {}
+        }
+      ]
     },
     {
-      "actor_a": "George Clooney",
-      "actor_b": "Tobey Maguire",
-      "stars": 4
+      "level-id": "2",
+      "level-name": "Level 2 - Name Game",
+      "game-data": [
+        {
+          "game-id": "4",
+          "game-type": "normal-non-boss",
+          "startNode": {
+            "id": 7062,
+            "type": "actor",
+            "label": "Andrew Lincoln"
+          },
+          "targetNode": {
+            "id": 125660,
+            "type": "actor",
+            "label": "Andrew Scott"
+          },
+          "notes": {
+            "text": "Drew Of An"
+          },
+          "settings": {}
+        },
+        {
+          "game-id": "5",
+          "game-type": "normal-non-boss",
+          "startNode": {
+            "id": 3896,
+            "type": "actor",
+            "label": "Liam Neeson"
+          },
+          "targetNode": {
+            "id": 2039,
+            "type": "actor",
+            "label": "Brendan Gleeson"
+          },
+          "notes": {
+            "text": "Irish Bleesons"
+          },
+          "settings": {}
+        }
+      ]
     },
     {
-      "actor_a": "Brad Pitt",
-      "actor_b": "Leonardo DiCaprio",
-      "stars": 5
+      "level-id": "3",
+      "level-name": "Level 3 - Pending Theme",
+      "game-data": []
+    },
+    {
+      "level-id": "4",
+      "level-name": "Level 4 - Pending Theme",
+      "game-data": []
+    },
+    {
+      "level-id": "5",
+      "level-name": "Level 5 - Pending Theme",
+      "game-data": []
     }
   ]
 }

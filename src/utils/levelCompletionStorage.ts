@@ -1,7 +1,14 @@
-const LEVEL_COMPLETION_STORAGE_KEY = "costars.level-completion.v1";
+import type { LevelNode } from "../types";
+
+const LEVEL_COMPLETION_STORAGE_KEY = "costars.level-completion.v2";
 const LEVEL_COMPLETION_UPDATED_EVENT = "costars:level-completion-updated";
 
 export type CompletedLevelsCollection = Record<string, { completedAt: number }>;
+
+const EMPTY_COMPLETED_LEVELS_COLLECTION = {} as CompletedLevelsCollection;
+
+let cachedRawCompletedLevels: string | null | undefined;
+let cachedCompletedLevelsSnapshot: CompletedLevelsCollection = EMPTY_COMPLETED_LEVELS_COLLECTION;
 
 function canUseBrowserStorage() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
@@ -11,22 +18,40 @@ function normalizeKeyPart(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
-export function buildLevelCompletionKey(endpointA: string, endpointB: string) {
+type CompletionEndpoint = string | Pick<LevelNode, "label"> | Pick<LevelNode, "label" | "type">;
+
+function buildLevelKeyPart(endpoint: CompletionEndpoint, includeType: boolean) {
+  if (typeof endpoint === "string") {
+    return normalizeKeyPart(endpoint);
+  }
+
+  const normalizedLabel = normalizeKeyPart(endpoint.label);
+  if (!includeType || !("type" in endpoint) || !endpoint.type) {
+    return normalizedLabel;
+  }
+
+  return `${endpoint.type}:${normalizedLabel}`;
+}
+
+export function buildLevelCompletionKey(endpointA: CompletionEndpoint, endpointB: CompletionEndpoint) {
   const [left, right] = [endpointA, endpointB]
-    .map(normalizeKeyPart)
+    .map((endpoint) => buildLevelKeyPart(endpoint, true))
     .sort((first, second) => first.localeCompare(second));
 
   return `${left}__${right}`;
 }
 
-function readCollectionFromStorage(): CompletedLevelsCollection {
-  if (!canUseBrowserStorage()) {
-    return {};
-  }
+function buildLegacyLevelCompletionKey(endpointA: CompletionEndpoint, endpointB: CompletionEndpoint) {
+  const [left, right] = [endpointA, endpointB]
+    .map((endpoint) => buildLevelKeyPart(endpoint, false))
+    .sort((first, second) => first.localeCompare(second));
 
-  const rawValue = window.localStorage.getItem(LEVEL_COMPLETION_STORAGE_KEY);
+  return `${left}__${right}`;
+}
+
+function parseCollection(rawValue: string | null): CompletedLevelsCollection {
   if (!rawValue) {
-    return {};
+    return EMPTY_COMPLETED_LEVELS_COLLECTION;
   }
 
   try {
@@ -40,8 +65,23 @@ function readCollectionFromStorage(): CompletedLevelsCollection {
       ]),
     );
   } catch {
-    return {};
+    return EMPTY_COMPLETED_LEVELS_COLLECTION;
   }
+}
+
+function readCollectionFromStorage(): CompletedLevelsCollection {
+  if (!canUseBrowserStorage()) {
+    return EMPTY_COMPLETED_LEVELS_COLLECTION;
+  }
+
+  const rawValue = window.localStorage.getItem(LEVEL_COMPLETION_STORAGE_KEY);
+  if (rawValue === cachedRawCompletedLevels) {
+    return cachedCompletedLevelsSnapshot;
+  }
+
+  cachedRawCompletedLevels = rawValue;
+  cachedCompletedLevelsSnapshot = parseCollection(rawValue);
+  return cachedCompletedLevelsSnapshot;
 }
 
 function writeCollectionToStorage(collection: CompletedLevelsCollection) {
@@ -49,7 +89,10 @@ function writeCollectionToStorage(collection: CompletedLevelsCollection) {
     return;
   }
 
-  window.localStorage.setItem(LEVEL_COMPLETION_STORAGE_KEY, JSON.stringify(collection));
+  const serializedCollection = JSON.stringify(collection);
+  cachedRawCompletedLevels = serializedCollection;
+  cachedCompletedLevelsSnapshot = collection;
+  window.localStorage.setItem(LEVEL_COMPLETION_STORAGE_KEY, serializedCollection);
   if (typeof window.dispatchEvent === "function") {
     window.dispatchEvent(new Event(LEVEL_COMPLETION_UPDATED_EVENT));
   }
@@ -68,14 +111,19 @@ export function readCompletedLevels() {
 }
 
 export function isLevelCompleted(
-  endpointA: string,
-  endpointB: string,
+  endpointA: CompletionEndpoint,
+  endpointB: CompletionEndpoint,
   collection: CompletedLevelsCollection = readCollectionFromStorage(),
 ) {
-  return Boolean(collection[buildLevelCompletionKey(endpointA, endpointB)]);
+  const levelKey = buildLevelCompletionKey(endpointA, endpointB);
+  if (collection[levelKey]) {
+    return true;
+  }
+
+  return Boolean(collection[buildLegacyLevelCompletionKey(endpointA, endpointB)]);
 }
 
-export function markLevelCompleted(endpointA: string, endpointB: string, timestamp = Date.now()) {
+export function markLevelCompleted(endpointA: CompletionEndpoint, endpointB: CompletionEndpoint, timestamp = Date.now()) {
   const collection = readCollectionFromStorage();
   const levelKey = buildLevelCompletionKey(endpointA, endpointB);
   const nextCollection: CompletedLevelsCollection = {

@@ -52,7 +52,7 @@ function SettingsPage() {
   const routeState = (location.state as { returnTo?: string } | null) ?? null
   const { mode } = useDataSourceMode()
   const { indexes } = useSnapshotData()
-  const { settings, setDifficulty, setCustomSetting, setCompletionDarkMode, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings()
+  const { settings, setDifficulty, setCustomSetting, setBoardThemePreset, setBoardThemeTone, setBoardThemePalette, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings()
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const requestedTab = searchParams.get("tab")
   const requestedSection = searchParams.get("section")
@@ -141,7 +141,7 @@ function SettingsPage() {
               </div> */}
               
               <p className="settingsHint">Use this version when checking release notes, cache behavior, or troubleshooting data refreshes:</p>
-              <p className="settingsHint">App version: v{APP_VERSION}</p>
+              <p className="settingsHint">App version: {APP_VERSION}</p>
             </section>
           ) : null}
 
@@ -165,8 +165,10 @@ function SettingsPage() {
               <h2>Display</h2>
               <p className="settingsHint settingsTabHint">Adjust interface appearance options that can also be changed mid-game from the desktop info menu.</p>
               <DisplaySettingsPanel
-                completionDarkMode={settings.completionDarkMode}
-                onCompletionDarkModeChange={setCompletionDarkMode}
+                boardTheme={settings.boardTheme}
+                onBoardThemePresetChange={setBoardThemePreset}
+                onBoardThemeToneChange={setBoardThemeTone}
+                onBoardThemePaletteChange={setBoardThemePalette}
               />
             </section>
           ) : null}

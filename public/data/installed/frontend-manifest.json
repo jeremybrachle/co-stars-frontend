@@ -1,10 +1,14 @@
 {
-  "version": "2.1.0",
-  "source_updated_at": "2026-03-14T21:24:10.648693+00:00",
+  "version": "2.2.0",
+  "source_updated_at": "2026-04-01T21:18:58.750180+00:00",
   "actor_count": 1482,
   "movie_count": 19,
   "relationship_count": 1526,
-  "level_count": 3,
+  "level_count": 5,
+  "level_group_count": 5,
+  "normal_game_count": 5,
+  "boss_game_count": 0,
+  "level_schema_version": 2,
   "recommended_refresh_interval_hours": 168,
   "snapshot_endpoint": "frontend-snapshot.json"
 }
