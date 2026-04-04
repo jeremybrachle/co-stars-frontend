@@ -6,10 +6,326 @@
   --game-grid-max-width: 1020px;
   --game-completion-width-with-sidebar: 1180px;
   --game-completion-width-solo: 760px;
+  --game-page-bg:
+    radial-gradient(circle at top, rgba(244, 208, 63, 0.12), transparent 28%),
+    linear-gradient(160deg, #4f46a5 0%, #7c3aed 48%, #c084fc 100%);
+  --game-page-text: white;
+  --game-floating-button-bg: rgba(255, 255, 255, 0.1);
+  --game-floating-button-border: rgba(255, 255, 255, 0.24);
+  --game-floating-button-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-floating-button-hover-border: rgba(255, 255, 255, 0.36);
+  --game-status-bg: rgba(15, 23, 42, 0.42);
+  --game-status-neutral-border: rgba(255, 255, 255, 0.12);
+  --game-rules-overlay-bg: rgba(2, 6, 23, 0.5);
+  --game-rules-dialog-bg: rgba(15, 23, 42, 0.88);
+  --game-rules-dialog-border: rgba(255, 255, 255, 0.18);
+  --game-rules-tab-bg: rgba(255, 255, 255, 0.04);
+  --game-rules-tab-border: rgba(255, 255, 255, 0.12);
+  --game-rules-tab-hover-bg: rgba(255, 255, 255, 0.08);
+  --game-rules-tab-hover-border: rgba(255, 255, 255, 0.18);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(56, 189, 248, 0.18), rgba(255, 255, 255, 0.08));
+  --game-rules-tab-active-border: rgba(125, 211, 252, 0.28);
   min-height: 100vh;
   padding: 104px 25px 92px;
   padding-bottom: 92px;
   box-sizing: border-box;
+  background: var(--game-page-bg);
+  color: var(--game-page-text);
+}
+
+.gameBoardTheme--original {
+  --game-page-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --game-floating-button-bg: rgba(255, 255, 255, 0.1);
+  --game-floating-button-border: rgba(255, 255, 255, 0.24);
+  --game-floating-button-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-floating-button-hover-border: rgba(255, 255, 255, 0.36);
+  --game-status-bg: rgba(15, 23, 42, 0.42);
+  --game-status-neutral-border: rgba(255, 255, 255, 0.12);
+  --game-rules-overlay-bg: rgba(2, 6, 23, 0.5);
+  --game-rules-dialog-bg: rgba(15, 23, 42, 0.88);
+  --game-rules-dialog-border: rgba(255, 255, 255, 0.18);
+  --game-rules-tab-bg: rgba(255, 255, 255, 0.04);
+  --game-rules-tab-border: rgba(255, 255, 255, 0.12);
+  --game-rules-tab-hover-bg: rgba(255, 255, 255, 0.08);
+  --game-rules-tab-hover-border: rgba(255, 255, 255, 0.18);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(56, 189, 248, 0.18), rgba(255, 255, 255, 0.08));
+  --game-rules-tab-active-border: rgba(125, 211, 252, 0.28);
+  --game-board-panel-bg: rgba(255, 255, 255, 0.1);
+  --game-board-panel-border: rgba(0, 0, 0, 0.15);
+  --game-board-panel-shadow: none;
+  --game-board-chip-bg: rgba(255, 255, 255, 0.1);
+  --game-board-chip-border: rgba(255, 255, 255, 0.18);
+  --game-board-chip-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-board-chip-hover-border: rgba(255, 255, 255, 0.3);
+  --game-board-pill-bg: rgba(14, 165, 233, 0.16);
+  --game-board-pill-border: rgba(125, 211, 252, 0.24);
+  --game-board-node-bg: rgba(255, 255, 255, 0.05);
+  --game-board-node-border: rgba(255, 255, 255, 0.3);
+  --game-board-dashed-border: rgba(255, 255, 255, 0.25);
+  --game-board-score-border: rgba(255, 255, 255, 0.3);
+  --game-board-score-bg: rgba(0, 0, 0, 0.25);
+  --game-board-toolbar-bg: rgba(71, 85, 105, 0.32);
+  --game-board-toolbar-hover-bg: rgba(71, 85, 105, 0.42);
+  --game-board-toolbar-highlight-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.5));
+  --game-board-toolbar-highlight-hover-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.65), rgba(139, 92, 246, 0.65));
+  --game-board-message-bg: rgba(15, 23, 42, 0.4);
+  --game-board-card-bg: rgba(255, 255, 255, 0.05);
+  --game-board-card-border: rgba(255, 255, 255, 0.3);
+}
+
+.gameBoardTheme--classic {
+  --game-page-bg:
+    radial-gradient(circle at top, rgba(244, 208, 63, 0.12), transparent 28%),
+    linear-gradient(160deg, #4f46a5 0%, #7c3aed 48%, #c084fc 100%);
+  --game-floating-button-bg: rgba(255, 255, 255, 0.1);
+  --game-floating-button-border: rgba(255, 255, 255, 0.24);
+  --game-floating-button-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-floating-button-hover-border: rgba(255, 255, 255, 0.36);
+  --game-status-bg: rgba(15, 23, 42, 0.42);
+  --game-status-neutral-border: rgba(255, 255, 255, 0.12);
+  --game-rules-overlay-bg: rgba(2, 6, 23, 0.5);
+  --game-rules-dialog-bg: rgba(15, 23, 42, 0.88);
+  --game-rules-dialog-border: rgba(255, 255, 255, 0.18);
+  --game-rules-tab-bg: rgba(255, 255, 255, 0.04);
+  --game-rules-tab-border: rgba(255, 255, 255, 0.12);
+  --game-rules-tab-hover-bg: rgba(255, 255, 255, 0.08);
+  --game-rules-tab-hover-border: rgba(255, 255, 255, 0.18);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(56, 189, 248, 0.18), rgba(255, 255, 255, 0.08));
+  --game-rules-tab-active-border: rgba(125, 211, 252, 0.28);
+  --game-board-panel-bg: rgba(255, 255, 255, 0.1);
+  --game-board-panel-border: rgba(0, 0, 0, 0.15);
+  --game-board-panel-shadow: none;
+  --game-board-chip-bg: rgba(255, 255, 255, 0.1);
+  --game-board-chip-border: rgba(255, 255, 255, 0.18);
+  --game-board-chip-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-board-chip-hover-border: rgba(255, 255, 255, 0.3);
+  --game-board-pill-bg: rgba(14, 165, 233, 0.16);
+  --game-board-pill-border: rgba(125, 211, 252, 0.24);
+  --game-board-node-bg: rgba(255, 255, 255, 0.05);
+  --game-board-node-border: rgba(255, 255, 255, 0.3);
+  --game-board-dashed-border: rgba(255, 255, 255, 0.25);
+  --game-board-score-border: rgba(255, 255, 255, 0.3);
+  --game-board-score-bg: rgba(0, 0, 0, 0.25);
+  --game-board-toolbar-bg: rgba(71, 85, 105, 0.32);
+  --game-board-toolbar-hover-bg: rgba(71, 85, 105, 0.42);
+  --game-board-toolbar-highlight-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.5));
+  --game-board-toolbar-highlight-hover-bg: linear-gradient(135deg, rgba(59, 130, 246, 0.65), rgba(139, 92, 246, 0.65));
+  --game-board-message-bg: rgba(15, 23, 42, 0.4);
+  --game-board-card-bg: rgba(255, 255, 255, 0.05);
+  --game-board-card-border: rgba(255, 255, 255, 0.3);
+}
+
+.gameBoardTheme--light {
+  --game-page-bg:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.14), transparent 28%),
+    linear-gradient(160deg, #7786f8 0%, #7dd3fc 46%, #f5f3ff 100%);
+  --game-page-text: #f8fbff;
+  --game-floating-button-bg: rgba(255, 255, 255, 0.22);
+  --game-floating-button-border: rgba(255, 255, 255, 0.42);
+  --game-floating-button-hover-bg: rgba(255, 255, 255, 0.3);
+  --game-floating-button-hover-border: rgba(255, 255, 255, 0.58);
+  --game-status-bg: rgba(30, 41, 59, 0.28);
+  --game-status-neutral-border: rgba(255, 255, 255, 0.3);
+  --game-rules-overlay-bg: rgba(15, 23, 42, 0.38);
+  --game-rules-dialog-bg:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.32), transparent 30%),
+    rgba(30, 41, 59, 0.9);
+  --game-rules-dialog-border: rgba(255, 255, 255, 0.26);
+  --game-rules-tab-bg: rgba(255, 255, 255, 0.12);
+  --game-rules-tab-border: rgba(255, 255, 255, 0.24);
+  --game-rules-tab-hover-bg: rgba(255, 255, 255, 0.18);
+  --game-rules-tab-hover-border: rgba(255, 255, 255, 0.34);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(125, 211, 252, 0.14));
+  --game-rules-tab-active-border: rgba(186, 230, 253, 0.42);
+  --game-board-panel-bg:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 36%),
+    rgba(255, 255, 255, 0.12);
+  --game-board-panel-border: rgba(255, 255, 255, 0.34);
+  --game-board-panel-shadow: 0 18px 36px rgba(37, 99, 235, 0.16);
+  --game-board-chip-bg: rgba(255, 255, 255, 0.18);
+  --game-board-chip-border: rgba(255, 255, 255, 0.3);
+  --game-board-chip-hover-bg: rgba(255, 255, 255, 0.26);
+  --game-board-chip-hover-border: rgba(255, 255, 255, 0.44);
+  --game-board-pill-bg: rgba(255, 255, 255, 0.16);
+  --game-board-pill-border: rgba(186, 230, 253, 0.4);
+  --game-board-node-bg: rgba(255, 255, 255, 0.12);
+  --game-board-node-border: rgba(255, 255, 255, 0.38);
+  --game-board-dashed-border: rgba(255, 255, 255, 0.32);
+  --game-board-score-border: rgba(255, 255, 255, 0.34);
+  --game-board-score-bg: rgba(30, 41, 59, 0.26);
+  --game-board-toolbar-bg: rgba(37, 99, 235, 0.28);
+  --game-board-toolbar-hover-bg: rgba(37, 99, 235, 0.4);
+  --game-board-toolbar-highlight-bg: linear-gradient(135deg, rgba(56, 189, 248, 0.65), rgba(99, 102, 241, 0.58));
+  --game-board-toolbar-highlight-hover-bg: linear-gradient(135deg, rgba(56, 189, 248, 0.78), rgba(99, 102, 241, 0.72));
+  --game-board-message-bg: rgba(30, 41, 59, 0.34);
+  --game-board-card-bg: rgba(255, 255, 255, 0.14);
+  --game-board-card-border: rgba(255, 255, 255, 0.34);
+}
+
+.gameBoardTheme--dark {
+  --game-page-bg:
+    radial-gradient(circle at top, rgba(255, 214, 102, 0.18), transparent 28%),
+    linear-gradient(160deg, #11213a 0%, #1f4b57 48%, #8b3a2b 100%);
+  --game-floating-button-bg: rgba(15, 23, 42, 0.56);
+  --game-floating-button-border: rgba(255, 248, 220, 0.2);
+  --game-floating-button-hover-bg: rgba(30, 41, 59, 0.72);
+  --game-floating-button-hover-border: rgba(251, 191, 36, 0.34);
+  --game-status-bg: rgba(15, 23, 42, 0.58);
+  --game-status-neutral-border: rgba(255, 248, 220, 0.12);
+  --game-rules-overlay-bg: rgba(5, 9, 20, 0.66);
+  --game-rules-dialog-bg:
+    radial-gradient(circle at top left, rgba(245, 158, 11, 0.12), transparent 34%),
+    rgba(12, 20, 35, 0.94);
+  --game-rules-dialog-border: rgba(251, 191, 36, 0.16);
+  --game-rules-tab-bg: rgba(148, 163, 184, 0.08);
+  --game-rules-tab-border: rgba(255, 248, 220, 0.1);
+  --game-rules-tab-hover-bg: rgba(217, 119, 6, 0.18);
+  --game-rules-tab-hover-border: rgba(251, 191, 36, 0.22);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(245, 158, 11, 0.26), rgba(255, 255, 255, 0.04));
+  --game-rules-tab-active-border: rgba(252, 211, 77, 0.32);
+  --game-board-panel-bg:
+    radial-gradient(circle at top left, rgba(245, 158, 11, 0.12), transparent 36%),
+    rgba(12, 20, 35, 0.78);
+  --game-board-panel-border: rgba(251, 191, 36, 0.18);
+  --game-board-panel-shadow: 0 18px 36px rgba(5, 9, 20, 0.22);
+  --game-board-chip-bg: rgba(15, 23, 42, 0.56);
+  --game-board-chip-border: rgba(255, 248, 220, 0.16);
+  --game-board-chip-hover-bg: rgba(30, 41, 59, 0.74);
+  --game-board-chip-hover-border: rgba(251, 191, 36, 0.28);
+  --game-board-pill-bg: rgba(180, 83, 9, 0.22);
+  --game-board-pill-border: rgba(252, 211, 77, 0.24);
+  --game-board-node-bg: rgba(255, 248, 220, 0.05);
+  --game-board-node-border: rgba(255, 248, 220, 0.22);
+  --game-board-dashed-border: rgba(251, 191, 36, 0.22);
+  --game-board-score-border: rgba(255, 248, 220, 0.18);
+  --game-board-score-bg: rgba(5, 9, 20, 0.42);
+  --game-board-toolbar-bg: rgba(23, 37, 66, 0.58);
+  --game-board-toolbar-hover-bg: rgba(30, 41, 59, 0.82);
+  --game-board-toolbar-highlight-bg: linear-gradient(135deg, rgba(217, 119, 6, 0.6), rgba(14, 165, 233, 0.42));
+  --game-board-toolbar-highlight-hover-bg: linear-gradient(135deg, rgba(245, 158, 11, 0.72), rgba(14, 165, 233, 0.52));
+  --game-board-message-bg: rgba(12, 20, 35, 0.64);
+  --game-board-card-bg: rgba(255, 248, 220, 0.05);
+  --game-board-card-border: rgba(255, 248, 220, 0.22);
+}
+
+.gameBoardTheme--ocean {
+  --game-page-bg: linear-gradient(160deg, #0f766e 0%, #0ea5e9 52%, #67e8f9 100%);
+  --game-floating-button-bg: rgba(8, 47, 73, 0.3);
+  --game-floating-button-border: rgba(207, 250, 254, 0.24);
+  --game-floating-button-hover-bg: rgba(14, 116, 144, 0.38);
+  --game-floating-button-hover-border: rgba(165, 243, 252, 0.34);
+  --game-status-bg: rgba(8, 47, 73, 0.42);
+  --game-status-neutral-border: rgba(207, 250, 254, 0.16);
+  --game-rules-overlay-bg: rgba(8, 47, 73, 0.54);
+  --game-rules-dialog-bg: rgba(8, 47, 73, 0.92);
+  --game-rules-dialog-border: rgba(165, 243, 252, 0.22);
+  --game-rules-tab-bg: rgba(255, 255, 255, 0.08);
+  --game-rules-tab-border: rgba(207, 250, 254, 0.18);
+  --game-rules-tab-hover-bg: rgba(34, 211, 238, 0.18);
+  --game-rules-tab-hover-border: rgba(165, 243, 252, 0.28);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(34, 211, 238, 0.28), rgba(255, 255, 255, 0.05));
+  --game-rules-tab-active-border: rgba(165, 243, 252, 0.34);
+  --game-board-panel-bg: rgba(8, 47, 73, 0.42);
+  --game-board-panel-border: rgba(207, 250, 254, 0.18);
+  --game-board-panel-shadow: 0 18px 36px rgba(8, 47, 73, 0.22);
+  --game-board-chip-bg: rgba(255, 255, 255, 0.1);
+  --game-board-chip-border: rgba(207, 250, 254, 0.18);
+  --game-board-chip-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-board-chip-hover-border: rgba(165, 243, 252, 0.28);
+  --game-board-pill-bg: rgba(34, 211, 238, 0.16);
+  --game-board-pill-border: rgba(165, 243, 252, 0.26);
+  --game-board-node-bg: rgba(255, 255, 255, 0.06);
+  --game-board-node-border: rgba(207, 250, 254, 0.22);
+  --game-board-dashed-border: rgba(165, 243, 252, 0.22);
+  --game-board-score-border: rgba(207, 250, 254, 0.22);
+  --game-board-score-bg: rgba(8, 47, 73, 0.3);
+  --game-board-toolbar-bg: rgba(14, 116, 144, 0.3);
+  --game-board-toolbar-hover-bg: rgba(14, 165, 233, 0.38);
+  --game-board-toolbar-highlight-bg: linear-gradient(135deg, rgba(34, 211, 238, 0.6), rgba(20, 184, 166, 0.54));
+  --game-board-toolbar-highlight-hover-bg: linear-gradient(135deg, rgba(34, 211, 238, 0.72), rgba(20, 184, 166, 0.66));
+  --game-board-message-bg: rgba(8, 47, 73, 0.44);
+  --game-board-card-bg: rgba(255, 255, 255, 0.08);
+  --game-board-card-border: rgba(207, 250, 254, 0.22);
+}
+
+.gameBoardTheme--sunset {
+  --game-page-bg: linear-gradient(160deg, #450a0a 0%, #dc2626 52%, #f43f5e 100%);
+  --game-floating-button-bg: rgba(69, 10, 10, 0.34);
+  --game-floating-button-border: rgba(254, 202, 202, 0.24);
+  --game-floating-button-hover-bg: rgba(127, 29, 29, 0.42);
+  --game-floating-button-hover-border: rgba(254, 202, 202, 0.34);
+  --game-status-bg: rgba(69, 10, 10, 0.44);
+  --game-status-neutral-border: rgba(254, 202, 202, 0.16);
+  --game-rules-overlay-bg: rgba(69, 10, 10, 0.56);
+  --game-rules-dialog-bg: rgba(69, 10, 10, 0.92);
+  --game-rules-dialog-border: rgba(254, 202, 202, 0.22);
+  --game-rules-tab-bg: rgba(255, 255, 255, 0.08);
+  --game-rules-tab-border: rgba(254, 202, 202, 0.16);
+  --game-rules-tab-hover-bg: rgba(244, 63, 94, 0.18);
+  --game-rules-tab-hover-border: rgba(254, 202, 202, 0.24);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(244, 63, 94, 0.28), rgba(255, 255, 255, 0.04));
+  --game-rules-tab-active-border: rgba(254, 202, 202, 0.32);
+  --game-board-panel-bg: rgba(69, 10, 10, 0.44);
+  --game-board-panel-border: rgba(254, 202, 202, 0.18);
+  --game-board-panel-shadow: 0 18px 36px rgba(69, 10, 10, 0.24);
+  --game-board-chip-bg: rgba(255, 255, 255, 0.1);
+  --game-board-chip-border: rgba(254, 202, 202, 0.16);
+  --game-board-chip-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-board-chip-hover-border: rgba(254, 202, 202, 0.26);
+  --game-board-pill-bg: rgba(244, 63, 94, 0.18);
+  --game-board-pill-border: rgba(254, 202, 202, 0.24);
+  --game-board-node-bg: rgba(255, 255, 255, 0.06);
+  --game-board-node-border: rgba(254, 202, 202, 0.2);
+  --game-board-dashed-border: rgba(254, 202, 202, 0.22);
+  --game-board-score-border: rgba(254, 202, 202, 0.2);
+  --game-board-score-bg: rgba(69, 10, 10, 0.3);
+  --game-board-toolbar-bg: rgba(127, 29, 29, 0.32);
+  --game-board-toolbar-hover-bg: rgba(220, 38, 38, 0.4);
+  --game-board-toolbar-highlight-bg: linear-gradient(135deg, rgba(220, 38, 38, 0.62), rgba(244, 63, 94, 0.5));
+  --game-board-toolbar-highlight-hover-bg: linear-gradient(135deg, rgba(220, 38, 38, 0.74), rgba(244, 63, 94, 0.62));
+  --game-board-message-bg: rgba(69, 10, 10, 0.46);
+  --game-board-card-bg: rgba(255, 255, 255, 0.08);
+  --game-board-card-border: rgba(254, 202, 202, 0.2);
+}
+
+.gameBoardTheme--forest {
+  --game-page-bg: linear-gradient(160deg, #14532d 0%, #15803d 52%, #4ade80 100%);
+  --game-floating-button-bg: rgba(20, 83, 45, 0.3);
+  --game-floating-button-border: rgba(220, 252, 231, 0.24);
+  --game-floating-button-hover-bg: rgba(21, 128, 61, 0.4);
+  --game-floating-button-hover-border: rgba(134, 239, 172, 0.34);
+  --game-status-bg: rgba(20, 83, 45, 0.44);
+  --game-status-neutral-border: rgba(220, 252, 231, 0.16);
+  --game-rules-overlay-bg: rgba(20, 83, 45, 0.56);
+  --game-rules-dialog-bg: rgba(20, 83, 45, 0.92);
+  --game-rules-dialog-border: rgba(134, 239, 172, 0.22);
+  --game-rules-tab-bg: rgba(255, 255, 255, 0.08);
+  --game-rules-tab-border: rgba(220, 252, 231, 0.16);
+  --game-rules-tab-hover-bg: rgba(74, 222, 128, 0.18);
+  --game-rules-tab-hover-border: rgba(134, 239, 172, 0.28);
+  --game-rules-tab-active-bg: linear-gradient(180deg, rgba(74, 222, 128, 0.28), rgba(255, 255, 255, 0.04));
+  --game-rules-tab-active-border: rgba(134, 239, 172, 0.34);
+  --game-board-panel-bg: rgba(20, 83, 45, 0.44);
+  --game-board-panel-border: rgba(220, 252, 231, 0.18);
+  --game-board-panel-shadow: 0 18px 36px rgba(20, 83, 45, 0.22);
+  --game-board-chip-bg: rgba(255, 255, 255, 0.1);
+  --game-board-chip-border: rgba(220, 252, 231, 0.16);
+  --game-board-chip-hover-bg: rgba(255, 255, 255, 0.16);
+  --game-board-chip-hover-border: rgba(134, 239, 172, 0.26);
+  --game-board-pill-bg: rgba(74, 222, 128, 0.18);
+  --game-board-pill-border: rgba(134, 239, 172, 0.24);
+  --game-board-node-bg: rgba(255, 255, 255, 0.06);
+  --game-board-node-border: rgba(220, 252, 231, 0.18);
+  --game-board-dashed-border: rgba(134, 239, 172, 0.22);
+  --game-board-score-border: rgba(220, 252, 231, 0.2);
+  --game-board-score-bg: rgba(20, 83, 45, 0.32);
+  --game-board-toolbar-bg: rgba(21, 128, 61, 0.3);
+  --game-board-toolbar-hover-bg: rgba(22, 163, 74, 0.4);
+  --game-board-toolbar-highlight-bg: linear-gradient(135deg, rgba(74, 222, 128, 0.62), rgba(20, 184, 166, 0.46));
+  --game-board-toolbar-highlight-hover-bg: linear-gradient(135deg, rgba(74, 222, 128, 0.74), rgba(20, 184, 166, 0.58));
+  --game-board-message-bg: rgba(20, 83, 45, 0.46);
+  --game-board-card-bg: rgba(255, 255, 255, 0.08);
+  --game-board-card-border: rgba(220, 252, 231, 0.2);
 }
 
 .gameTopInfoButton {
@@ -20,8 +336,8 @@
   height: 28px;
   padding: 0;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--game-floating-button-border);
+  background: var(--game-floating-button-bg);
   color: white;
   font-size: 0.82rem;
   font-weight: 800;
@@ -31,8 +347,8 @@
 
 .gameTopInfoButton:hover,
 .gameTopInfoButton:focus-visible {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: var(--game-floating-button-hover-bg);
+  border-color: var(--game-floating-button-hover-border);
 }
 
 /* Back button */
@@ -253,7 +569,7 @@
   max-width: 470px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.42);
+  background: var(--game-status-bg);
   color: white;
   text-align: center;
 }
@@ -292,6 +608,168 @@
   --game-completion-empty-star: rgba(255, 255, 255, 0.24);
   --game-completion-nested-dialog-bg: rgba(15, 23, 42, 0.98);
   --game-completion-nested-dialog-border: rgba(255, 255, 255, 0.16);
+}
+
+.gameCompletionTheme--original {
+  --game-completion-surface-border: rgba(226, 232, 240, 0.16);
+  --game-completion-surface-bg:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(148, 163, 184, 0.1), transparent 42%),
+    linear-gradient(180deg, rgba(63, 72, 89, 0.94), rgba(49, 58, 74, 0.95));
+  --game-completion-surface-shadow: 0 18px 38px rgba(15, 23, 42, 0.24);
+  --game-completion-muted-text: rgba(226, 232, 240, 0.74);
+  --game-completion-dial-track: rgba(226, 232, 240, 0.18);
+  --game-completion-dial-inner: rgba(43, 51, 65, 0.96);
+  --game-completion-overlay-bg: rgba(15, 23, 42, 0.52);
+  --game-completion-dialog-bg:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.08), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(148, 163, 184, 0.11), transparent 44%),
+    linear-gradient(180deg, rgba(67, 77, 94, 0.97), rgba(52, 61, 78, 0.98));
+  --game-completion-dialog-border: rgba(226, 232, 240, 0.18);
+  --game-completion-dialog-shadow: 0 24px 64px rgba(15, 23, 42, 0.3);
+  --game-completion-hero-bg: rgba(255, 255, 255, 0.06);
+  --game-completion-hero-border: rgba(226, 232, 240, 0.14);
+  --game-completion-secondary-border: rgba(148, 163, 184, 0.28);
+  --game-completion-secondary-bg: rgba(71, 85, 105, 0.42);
+  --game-completion-secondary-hover-bg: rgba(100, 116, 139, 0.56);
+  --game-completion-secondary-hover-border: rgba(203, 213, 225, 0.42);
+  --game-completion-secondary-solid-bg: rgba(51, 65, 85, 0.74);
+  --game-completion-primary-border: rgba(248, 113, 113, 0.28);
+  --game-completion-primary-bg: linear-gradient(180deg, rgba(239, 68, 68, 0.72), rgba(220, 38, 38, 0.76));
+  --game-completion-primary-hover-bg: linear-gradient(180deg, rgba(248, 113, 113, 0.78), rgba(220, 38, 38, 0.82));
+  --game-completion-primary-hover-border: rgba(254, 202, 202, 0.46);
+  --game-completion-primary-shadow: 0 14px 28px rgba(127, 29, 29, 0.22);
+  --game-completion-list-border: rgba(191, 219, 254, 0.24);
+  --game-completion-list-bg: rgba(59, 130, 246, 0.16);
+  --game-completion-empty-star: rgba(226, 232, 240, 0.28);
+  --game-completion-nested-dialog-bg: rgba(42, 49, 61, 0.98);
+  --game-completion-nested-dialog-border: rgba(226, 232, 240, 0.16);
+}
+
+.gameCompletionTheme--classic {
+  --game-completion-surface-border: rgba(224, 231, 255, 0.2);
+  --game-completion-surface-bg:
+    radial-gradient(circle at top left, rgba(196, 181, 253, 0.18), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(244, 114, 182, 0.16), transparent 42%),
+    linear-gradient(180deg, rgba(55, 48, 163, 0.94), rgba(91, 33, 182, 0.95));
+  --game-completion-surface-shadow: 0 18px 38px rgba(46, 16, 101, 0.28);
+  --game-completion-muted-text: rgba(224, 231, 255, 0.8);
+  --game-completion-dial-track: rgba(224, 231, 255, 0.2);
+  --game-completion-dial-inner: rgba(49, 46, 129, 0.96);
+  --game-completion-overlay-bg: rgba(30, 27, 75, 0.58);
+  --game-completion-dialog-bg:
+    radial-gradient(circle at top left, rgba(192, 132, 252, 0.18), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.14), transparent 44%),
+    linear-gradient(180deg, rgba(67, 56, 202, 0.97), rgba(88, 28, 135, 0.98));
+  --game-completion-dialog-border: rgba(224, 231, 255, 0.22);
+  --game-completion-dialog-shadow: 0 24px 64px rgba(46, 16, 101, 0.34);
+  --game-completion-hero-bg: rgba(255, 255, 255, 0.08);
+  --game-completion-hero-border: rgba(224, 231, 255, 0.18);
+  --game-completion-secondary-border: rgba(196, 181, 253, 0.3);
+  --game-completion-secondary-bg: rgba(99, 102, 241, 0.34);
+  --game-completion-secondary-hover-bg: rgba(129, 140, 248, 0.46);
+  --game-completion-secondary-hover-border: rgba(224, 231, 255, 0.42);
+  --game-completion-secondary-solid-bg: rgba(79, 70, 229, 0.62);
+  --game-completion-primary-border: rgba(251, 207, 232, 0.34);
+  --game-completion-primary-bg: linear-gradient(180deg, rgba(236, 72, 153, 0.74), rgba(168, 85, 247, 0.78));
+  --game-completion-primary-hover-bg: linear-gradient(180deg, rgba(244, 114, 182, 0.82), rgba(192, 132, 252, 0.84));
+  --game-completion-primary-hover-border: rgba(251, 207, 232, 0.48);
+  --game-completion-primary-shadow: 0 14px 28px rgba(147, 51, 234, 0.26);
+  --game-completion-list-border: rgba(191, 219, 254, 0.24);
+  --game-completion-list-bg: rgba(96, 165, 250, 0.18);
+  --game-completion-empty-star: rgba(224, 231, 255, 0.28);
+  --game-completion-nested-dialog-bg: rgba(49, 46, 129, 0.98);
+  --game-completion-nested-dialog-border: rgba(224, 231, 255, 0.18);
+}
+
+.gameCompletionTheme--ocean {
+  --game-completion-surface-border: rgba(165, 243, 252, 0.2);
+  --game-completion-surface-bg: linear-gradient(180deg, rgba(8, 47, 73, 0.94), rgba(14, 116, 144, 0.96));
+  --game-completion-surface-shadow: 0 18px 38px rgba(8, 47, 73, 0.28);
+  --game-completion-muted-text: rgba(207, 250, 254, 0.76);
+  --game-completion-dial-track: rgba(207, 250, 254, 0.18);
+  --game-completion-dial-inner: rgba(8, 47, 73, 0.96);
+  --game-completion-overlay-bg: rgba(8, 47, 73, 0.58);
+  --game-completion-dialog-bg: linear-gradient(180deg, rgba(8, 47, 73, 0.98), rgba(14, 116, 144, 0.98));
+  --game-completion-dialog-border: rgba(165, 243, 252, 0.2);
+  --game-completion-dialog-shadow: 0 24px 64px rgba(8, 47, 73, 0.34);
+  --game-completion-hero-bg: rgba(255, 255, 255, 0.08);
+  --game-completion-hero-border: rgba(165, 243, 252, 0.18);
+  --game-completion-secondary-border: rgba(165, 243, 252, 0.22);
+  --game-completion-secondary-bg: rgba(14, 116, 144, 0.38);
+  --game-completion-secondary-hover-bg: rgba(14, 165, 233, 0.48);
+  --game-completion-secondary-hover-border: rgba(165, 243, 252, 0.32);
+  --game-completion-secondary-solid-bg: rgba(8, 47, 73, 0.72);
+  --game-completion-primary-border: rgba(165, 243, 252, 0.28);
+  --game-completion-primary-bg: linear-gradient(135deg, rgba(34, 211, 238, 0.72), rgba(20, 184, 166, 0.72));
+  --game-completion-primary-hover-bg: linear-gradient(135deg, rgba(34, 211, 238, 0.82), rgba(20, 184, 166, 0.82));
+  --game-completion-primary-hover-border: rgba(207, 250, 254, 0.38);
+  --game-completion-primary-shadow: 0 14px 28px rgba(8, 145, 178, 0.22);
+  --game-completion-list-border: rgba(165, 243, 252, 0.24);
+  --game-completion-list-bg: rgba(14, 165, 233, 0.16);
+  --game-completion-empty-star: rgba(207, 250, 254, 0.24);
+  --game-completion-nested-dialog-bg: rgba(8, 47, 73, 0.98);
+  --game-completion-nested-dialog-border: rgba(165, 243, 252, 0.18);
+}
+
+.gameCompletionTheme--sunset {
+  --game-completion-surface-border: rgba(253, 186, 116, 0.2);
+  --game-completion-surface-bg: linear-gradient(180deg, rgba(67, 20, 7, 0.94), rgba(194, 65, 12, 0.96));
+  --game-completion-surface-shadow: 0 18px 38px rgba(67, 20, 7, 0.28);
+  --game-completion-muted-text: rgba(255, 237, 213, 0.76);
+  --game-completion-dial-track: rgba(255, 237, 213, 0.18);
+  --game-completion-dial-inner: rgba(67, 20, 7, 0.96);
+  --game-completion-overlay-bg: rgba(67, 20, 7, 0.58);
+  --game-completion-dialog-bg: linear-gradient(180deg, rgba(67, 20, 7, 0.98), rgba(194, 65, 12, 0.98));
+  --game-completion-dialog-border: rgba(253, 186, 116, 0.2);
+  --game-completion-dialog-shadow: 0 24px 64px rgba(67, 20, 7, 0.34);
+  --game-completion-hero-bg: rgba(255, 255, 255, 0.08);
+  --game-completion-hero-border: rgba(253, 186, 116, 0.18);
+  --game-completion-secondary-border: rgba(253, 186, 116, 0.22);
+  --game-completion-secondary-bg: rgba(124, 45, 18, 0.38);
+  --game-completion-secondary-hover-bg: rgba(194, 65, 12, 0.48);
+  --game-completion-secondary-hover-border: rgba(252, 211, 77, 0.3);
+  --game-completion-secondary-solid-bg: rgba(67, 20, 7, 0.74);
+  --game-completion-primary-border: rgba(253, 186, 116, 0.28);
+  --game-completion-primary-bg: linear-gradient(135deg, rgba(251, 146, 60, 0.76), rgba(244, 114, 182, 0.68));
+  --game-completion-primary-hover-bg: linear-gradient(135deg, rgba(251, 146, 60, 0.84), rgba(244, 114, 182, 0.78));
+  --game-completion-primary-hover-border: rgba(255, 237, 213, 0.36);
+  --game-completion-primary-shadow: 0 14px 28px rgba(124, 45, 18, 0.24);
+  --game-completion-list-border: rgba(253, 186, 116, 0.24);
+  --game-completion-list-bg: rgba(251, 146, 60, 0.16);
+  --game-completion-empty-star: rgba(255, 237, 213, 0.24);
+  --game-completion-nested-dialog-bg: rgba(67, 20, 7, 0.98);
+  --game-completion-nested-dialog-border: rgba(253, 186, 116, 0.18);
+}
+
+.gameCompletionTheme--forest {
+  --game-completion-surface-border: rgba(134, 239, 172, 0.2);
+  --game-completion-surface-bg: linear-gradient(180deg, rgba(20, 83, 45, 0.94), rgba(21, 128, 61, 0.96));
+  --game-completion-surface-shadow: 0 18px 38px rgba(20, 83, 45, 0.28);
+  --game-completion-muted-text: rgba(220, 252, 231, 0.76);
+  --game-completion-dial-track: rgba(220, 252, 231, 0.18);
+  --game-completion-dial-inner: rgba(20, 83, 45, 0.96);
+  --game-completion-overlay-bg: rgba(20, 83, 45, 0.58);
+  --game-completion-dialog-bg: linear-gradient(180deg, rgba(20, 83, 45, 0.98), rgba(21, 128, 61, 0.98));
+  --game-completion-dialog-border: rgba(134, 239, 172, 0.2);
+  --game-completion-dialog-shadow: 0 24px 64px rgba(20, 83, 45, 0.34);
+  --game-completion-hero-bg: rgba(255, 255, 255, 0.08);
+  --game-completion-hero-border: rgba(134, 239, 172, 0.18);
+  --game-completion-secondary-border: rgba(134, 239, 172, 0.22);
+  --game-completion-secondary-bg: rgba(21, 128, 61, 0.38);
+  --game-completion-secondary-hover-bg: rgba(22, 163, 74, 0.48);
+  --game-completion-secondary-hover-border: rgba(134, 239, 172, 0.32);
+  --game-completion-secondary-solid-bg: rgba(20, 83, 45, 0.74);
+  --game-completion-primary-border: rgba(134, 239, 172, 0.28);
+  --game-completion-primary-bg: linear-gradient(135deg, rgba(74, 222, 128, 0.72), rgba(20, 184, 166, 0.62));
+  --game-completion-primary-hover-bg: linear-gradient(135deg, rgba(74, 222, 128, 0.82), rgba(20, 184, 166, 0.72));
+  --game-completion-primary-hover-border: rgba(220, 252, 231, 0.38);
+  --game-completion-primary-shadow: 0 14px 28px rgba(20, 83, 45, 0.24);
+  --game-completion-list-border: rgba(134, 239, 172, 0.24);
+  --game-completion-list-bg: rgba(74, 222, 128, 0.16);
+  --game-completion-empty-star: rgba(220, 252, 231, 0.24);
+  --game-completion-nested-dialog-bg: rgba(20, 83, 45, 0.98);
+  --game-completion-nested-dialog-border: rgba(134, 239, 172, 0.18);
 }
 
 .gameCompletionTheme--light {
@@ -377,8 +855,8 @@
 }
 
 .gamePageStatus--neutral {
-  background: rgba(15, 23, 42, 0.56);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--game-status-bg);
+  border: 1px solid var(--game-status-neutral-border);
 }
 
 .gameCompletionPinnedScore {
@@ -723,9 +1201,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 1px solid var(--game-floating-button-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--game-floating-button-bg);
   color: white;
   font-size: 1.15rem;
   font-weight: 700;
@@ -737,8 +1215,8 @@
 }
 
 .gameInfoButton {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--game-floating-button-bg);
+  border-color: var(--game-floating-button-border);
 }
 
 .gameHistoryButton {
@@ -771,8 +1249,8 @@
 }
 
 .gameInfoButton:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.36);
+  background: var(--game-floating-button-hover-bg);
+  border-color: var(--game-floating-button-hover-border);
   transform: translateX(-50%) translateY(-2px);
 }
 
@@ -783,7 +1261,7 @@
   align-items: center;
   justify-content: center;
   padding: 36px;
-  background: rgba(2, 6, 23, 0.5);
+  background: var(--game-rules-overlay-bg);
   backdrop-filter: blur(6px);
   z-index: 30;
 }
@@ -796,9 +1274,9 @@
   height: 85%;
   max-height: min(96vh, 1250px);
   padding: 30px 34px 28px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--game-rules-dialog-border);
   border-radius: 18px;
-  background: rgba(15, 23, 42, 0.88);
+  background: var(--game-rules-dialog-bg);
   color: white;
   box-sizing: border-box;
   overflow-y: auto;
@@ -830,9 +1308,9 @@
 .gameRulesTab {
   min-width: 0;
   padding: 0.9rem 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--game-rules-tab-border);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--game-rules-tab-bg);
   color: rgba(255, 255, 255, 0.8);
   text-align: left;
   font: inherit;
@@ -843,13 +1321,13 @@
 
 .gameRulesTab:hover,
 .gameRulesTab:focus-visible {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--game-rules-tab-hover-bg);
+  border-color: var(--game-rules-tab-hover-border);
 }
 
 .gameRulesTab--active {
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.18), rgba(255, 255, 255, 0.08));
-  border-color: rgba(125, 211, 252, 0.28);
+  background: var(--game-rules-tab-active-bg);
+  border-color: var(--game-rules-tab-active-border);
   color: rgba(255, 255, 255, 0.96);
 }
 

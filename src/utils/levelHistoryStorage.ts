@@ -1,4 +1,4 @@
-import type { NodeSummary } from "../types";
+import type { LevelNode, NodeSummary } from "../types";
 import type { LevelScoreTier } from "./calculateLevelScore";
 
 export type SavedLevelAttempt = {
@@ -56,7 +56,7 @@ export type HopLeaderboardGroup = {
   attempts: SavedLevelAttempt[];
 };
 
-const LEVEL_HISTORY_STORAGE_KEY = "costars.level-history.v1";
+const LEVEL_HISTORY_STORAGE_KEY = "costars.level-history.v2";
 const LEVEL_HISTORY_UPDATED_EVENT = "costars:level-history-updated";
 const EMPTY_LEVEL_HISTORY_COLLECTION = {} as LevelHistoryCollection;
 
@@ -69,6 +69,21 @@ function canUseBrowserStorage() {
 
 function normalizeKeyPart(value: string) {
   return value.trim().toLocaleLowerCase();
+}
+
+type HistoryEndpoint = string | Pick<LevelNode, "label"> | Pick<LevelNode, "label" | "type">;
+
+function buildLevelKeyPart(endpoint: HistoryEndpoint, includeType: boolean) {
+  if (typeof endpoint === "string") {
+    return normalizeKeyPart(endpoint);
+  }
+
+  const normalizedLabel = normalizeKeyPart(endpoint.label);
+  if (!includeType || !("type" in endpoint) || !endpoint.type) {
+    return normalizedLabel;
+  }
+
+  return `${endpoint.type}:${normalizedLabel}`;
 }
 
 function createNodeSignature(node: NodeSummary) {
@@ -234,9 +249,17 @@ function estimateStringStorageBytes(value: string) {
   return value.length * 2;
 }
 
-export function buildLevelStorageKey(endpointA: string, endpointB: string) {
+export function buildLevelStorageKey(endpointA: HistoryEndpoint, endpointB: HistoryEndpoint) {
   const [left, right] = [endpointA, endpointB]
-    .map(normalizeKeyPart)
+    .map((endpoint) => buildLevelKeyPart(endpoint, true))
+    .sort((first, second) => first.localeCompare(second));
+
+  return `${left}__${right}`;
+}
+
+function buildLegacyLevelStorageKey(endpointA: HistoryEndpoint, endpointB: HistoryEndpoint) {
+  const [left, right] = [endpointA, endpointB]
+    .map((endpoint) => buildLevelKeyPart(endpoint, false))
     .sort((first, second) => first.localeCompare(second));
 
   return `${left}__${right}`;
@@ -257,14 +280,19 @@ export function getLevelHistoryStorageSizeBytes(
 }
 
 export function getLevelHistory(
-  endpointA: string,
-  endpointB: string,
+  endpointA: HistoryEndpoint,
+  endpointB: HistoryEndpoint,
   collection: LevelHistoryCollection = readCollectionFromStorage(),
 ) {
-  return collection[buildLevelStorageKey(endpointA, endpointB)] ?? null;
+  const levelKey = buildLevelStorageKey(endpointA, endpointB);
+  if (collection[levelKey]) {
+    return collection[levelKey];
+  }
+
+  return collection[buildLegacyLevelStorageKey(endpointA, endpointB)] ?? null;
 }
 
-export function saveLevelAttempt(endpointA: string, endpointB: string, input: SaveLevelAttemptInput) {
+export function saveLevelAttempt(endpointA: HistoryEndpoint, endpointB: HistoryEndpoint, input: SaveLevelAttemptInput) {
   const collection = readCollectionFromStorage();
   const levelKey = buildLevelStorageKey(endpointA, endpointB);
   const timestamp = input.timestamp ?? Date.now();

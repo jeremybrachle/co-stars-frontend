@@ -3,6 +3,8 @@ import type {
 	ActorSuggestion,
 	GeneratedPath,
 	Level,
+	LevelGroup,
+	LevelNode,
 	Movie,
 	MovieSuggestion,
 	NodeSummary,
@@ -89,10 +91,32 @@ type ApiPathHint = {
 	path: ApiNodeSummary[];
 };
 
-type ApiLevel = {
-	actor_a: string;
-	actor_b: string;
-	stars: number;
+type ApiLevelNode = {
+	id: number;
+	type: NodeType;
+	label: string;
+};
+
+type ApiLevelGame = {
+	"game-id": string;
+	"game-type": string;
+	startNode: ApiLevelNode;
+	targetNode: ApiLevelNode;
+	notes?: {
+		text?: string;
+	} | null;
+	settings?: Record<string, unknown>;
+};
+
+type ApiLevelGroup = {
+	"level-id": string;
+	"level-name": string;
+	"game-data": ApiLevelGame[];
+};
+
+type ApiLevelsDocumentV2 = {
+	"schema-version": number;
+	levels: ApiLevelGroup[];
 };
 
 type ApiActor = {
@@ -206,13 +230,35 @@ export function getApiBaseUrl() {
 	return API_BASE_URL || "/api via Vite dev proxy";
 }
 
-export async function fetchLevels(): Promise<Level[]> {
-	const levels = await fetchJson<ApiLevel[]>("/api/levels");
+function mapLevelNode(node: ApiLevelNode): LevelNode {
+	return {
+		id: node.id,
+		type: node.type,
+		label: node.label,
+	};
+}
 
-	return levels.map((level) => ({
-		actorA: level.actor_a,
-		actorB: level.actor_b,
-		stars: level.stars,
+function mapLevelGame(levelGroup: ApiLevelGroup, game: ApiLevelGame): Level {
+	return {
+		levelGroupId: levelGroup["level-id"],
+		levelGroupName: levelGroup["level-name"],
+		gameId: game["game-id"],
+		gameType: game["game-type"],
+		startNode: mapLevelNode(game.startNode),
+		targetNode: mapLevelNode(game.targetNode),
+		notes: game.notes?.text ? { text: game.notes.text } : null,
+		settings: game.settings ?? {},
+	};
+
+}
+
+export async function fetchLevels(): Promise<LevelGroup[]> {
+	const document = await fetchJson<ApiLevelsDocumentV2>("/api/v2/levels");
+
+	return document.levels.map((levelGroup) => ({
+		levelId: levelGroup["level-id"],
+		levelName: levelGroup["level-name"],
+		games: levelGroup["game-data"].map((game) => mapLevelGame(levelGroup, game)),
 	}));
 }
 

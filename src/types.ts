@@ -24,6 +24,16 @@ export type NodeSummary = {
 	label: string;
 };
 
+export type LevelNode = {
+	id?: number;
+	type: NodeType;
+	label: string;
+};
+
+export type LevelNotes = {
+	text: string;
+};
+
 export type PathHint = {
 	reachable: boolean;
 	stepsToTarget: number | null;
@@ -65,11 +75,22 @@ export type MovieSuggestion = Movie & {
 };
 
 export type Level = {
-	actorA: string;
-	actorB: string;
-	stars: number;
+	levelGroupId: string;
+	levelGroupName: string;
+	gameId: string;
+	gameType: string;
+	startNode: LevelNode;
+	targetNode: LevelNode;
+	notes: LevelNotes | null;
+	settings: Record<string, unknown>;
 	optimalHops?: number | null;
 	optimalPath?: NodeSummary[];
+};
+
+export type LevelGroup = {
+	levelId: string;
+	levelName: string;
+	games: Level[];
 };
 
 export type PathEndpoint = {
@@ -107,6 +128,10 @@ export type FrontendManifest = {
 	movieCount: number;
 	relationshipCount: number;
 	levelCount: number;
+	levelGroupCount: number;
+	normalGameCount: number;
+	bossGameCount: number;
+	levelSchemaVersion: number;
 	recommendedRefreshIntervalHours: number;
 	snapshotEndpoint: string;
 };
@@ -118,6 +143,10 @@ export type FrontendSnapshotMeta = {
 	movieCount: number;
 	relationshipCount: number;
 	levelCount: number;
+	levelGroupCount: number;
+	normalGameCount: number;
+	bossGameCount: number;
+	levelSchemaVersion: number;
 };
 
 export type MovieActorLink = {
@@ -134,7 +163,7 @@ export type FrontendSnapshot = {
 		actorToMovies: Record<string, number[]>;
 		movieToActors: Record<string, number[]>;
 	};
-	levels: Level[];
+	levels: LevelGroup[];
 };
 
 export type SnapshotIndexes = {
@@ -214,12 +243,30 @@ export type GameDataFilters = {
 	actorSortMode: "popularity" | "random";
 };
 
+export type BoardThemeTone = "light" | "dark" | "custom";
+
+export type BoardThemePalette = "original" | "classic" | "light" | "dark" | "ocean" | "sunset" | "forest";
+
+export type BoardThemeScope = "adventure" | "standard" | "shell";
+
+export type BoardThemePreset = "dynamic" | "classic" | "light" | "dark" | "custom";
+
+export type BoardThemeSettings = {
+	preset: BoardThemePreset;
+	adventureTone: BoardThemeTone;
+	standardTone: BoardThemeTone;
+	shellTone: BoardThemeTone;
+	adventurePalette: BoardThemePalette;
+	standardPalette: BoardThemePalette;
+	shellPalette: BoardThemePalette;
+};
+
 export type GameDifficultySettings = {
 	difficulty: DifficultyOption;
 	customSettings: DifficultySettings;
 	dataFilters: GameDataFilters;
 	suggestionDisplay: SuggestionDisplaySettings;
-	completionDarkMode: boolean;
+	boardTheme: BoardThemeSettings;
 };
 
 export type DataIndicatorVariant =

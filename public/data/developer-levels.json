@@ -1,26 +1,41 @@
-[
-  {
-    "startNode": { "id": 224513, "type": "actor", "label": "Ana de Armas" },
-    "targetNode": { "id": 6193, "type": "actor", "label": "Leonardo DiCaprio" },
-    "actorPopularityCutoff": 1.8,
-    "releaseYearCutoff": null,
-    "optimalHops": null,
-    "optimalPath": []
-  },
-  {
-    "startNode": { "id": 615777, "type": "movie", "label": "Babylon" },
-    "targetNode": { "id": 546554, "type": "movie", "label": "Knives Out" },
-    "actorPopularityCutoff": 1.8,
-    "releaseYearCutoff": null,
-    "optimalHops": null,
-    "optimalPath": []
-  },
-  {
-    "startNode": { "id": 234352, "type": "actor", "label": "Margot Robbie" },
-    "targetNode": { "id": 414906, "type": "movie", "label": "The Batman" },
-    "actorPopularityCutoff": 0,
-    "releaseYearCutoff": null,
-    "optimalHops": null,
-    "optimalPath": []
-  }
-]
+{
+  "schema-version": 2,
+  "levels": [
+    {
+      "level-id": "1",
+      "level-name": "Spotlight Pairs",
+      "game-data": [
+        {
+          "game-id": "1",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 224513, "type": "actor", "label": "Ana de Armas" },
+          "targetNode": { "id": 6193, "type": "actor", "label": "Leonardo DiCaprio" },
+          "notes": { "text": "Developer sample migrated to the grouped v2 contract." },
+          "settings": {}
+        },
+        {
+          "game-id": "2",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 234352, "type": "actor", "label": "Margot Robbie" },
+          "targetNode": { "id": 414906, "type": "movie", "label": "The Batman" },
+          "notes": { "text": "Mixed actor-to-movie sample for typed endpoint support." },
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "level-id": "2",
+      "level-name": "Movie Matchups",
+      "game-data": [
+        {
+          "game-id": "1",
+          "game-type": "normal-non-boss",
+          "startNode": { "id": 615777, "type": "movie", "label": "Babylon" },
+          "targetNode": { "id": 546554, "type": "movie", "label": "Knives Out" },
+          "notes": { "text": "Movie-to-movie developer sample." },
+          "settings": {}
+        }
+      ]
+    }
+  ]
+}

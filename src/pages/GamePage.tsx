@@ -32,7 +32,7 @@ import {
   nodeFromSummary,
 } from "../gameplay";
 import { useDataSourceMode } from "../context/dataSourceMode";
-import { DEFAULT_DATA_FILTERS, useGameSettings } from "../context/gameSettings";
+import { DEFAULT_DATA_FILTERS, resolveBoardThemeVariant, useGameSettings } from "../context/gameSettings";
 import { useSnapshotData } from "../context/snapshotData";
 import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
 import { getDemoSnapshotBundle } from "../data/demoSnapshot";
@@ -124,6 +124,10 @@ type GamePageRouteState = {
   optimalPath?: NodeSummary[];
   levelIndex?: number;
   totalLevels?: number;
+  levelGroupId?: string;
+  levelGroupName?: string;
+  levelGroupIndex?: number;
+  gameId?: string;
   customLevelId?: string | null;
   customLevelDraft?: CustomLevelDraft | null;
 };
@@ -387,6 +391,19 @@ function hydrateCompletionPath(path: GameNode[], referenceNodes: GameNode[]) {
   return path.map((node) => referenceNodes.find((referenceNode) => isSameNode(node, referenceNode)) ?? node);
 }
 
+function createLevelIdentity(startNode: GameNode, endNode: GameNode) {
+  return {
+    startNode: {
+      label: startNode.label,
+      type: startNode.type,
+    },
+    endNode: {
+      label: endNode.label,
+      type: endNode.type,
+    },
+  };
+}
+
 
 
 function uniqueText(values: Array<string | null | undefined>) {
@@ -558,11 +575,14 @@ function GamePage() {
     errorMessage: snapshotError,
   } = useSnapshotData();
   const { mode } = useDataSourceMode();
-  const { settings, setDifficulty, setCustomSetting, setCompletionDarkMode, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
+  const { settings, setDifficulty, setCustomSetting, setBoardThemePreset, setBoardThemeTone, setBoardThemePalette, setActorPopularityCutoff, setReleaseYearCutoff, setSubsetCount, setSuggestionOrderMode, setSuggestionSortMode } = useGameSettings();
   const helperSettings = settings.customSettings;
   const suggestionDisplay = settings.suggestionDisplay;
   const dataFilters = settings.dataFilters;
-  const completionThemeClassName = settings.completionDarkMode ? "gameCompletionTheme--dark" : "gameCompletionTheme--light";
+  const boardThemeScope = routeState?.returnTo === "/adventure" ? "adventure" : "standard";
+  const resolvedBoardThemeVariant = resolveBoardThemeVariant(settings.boardTheme, boardThemeScope, routeState?.levelGroupIndex ?? null);
+  const boardThemeClassName = `gameBoardTheme--${resolvedBoardThemeVariant}`;
+  const completionThemeClassName = `gameCompletionTheme--${resolvedBoardThemeVariant}`;
   const shouldGuaranteeBestPathSuggestion = helperSettings["guarantee-best-path-suggestion"];
   const showVisitedSuggestions = helperSettings["show-visited-suggestions"];
   const shuffleAddsPenalty = helperSettings["shuffle-adds-penalty"];
@@ -613,7 +633,7 @@ function GamePage() {
   const [savedCustomLevelId, setSavedCustomLevelId] = useState<string | null>(routeState?.customLevelId ?? null);
   const [didJustSaveCustomLevel, setDidJustSaveCustomLevel] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<CompletedLevelsCollection>(() => readCompletedLevels());
-  const [currentLevelIdentity, setCurrentLevelIdentity] = useState<{ startLabel: string; endLabel: string } | null>(null);
+  const [currentLevelIdentity, setCurrentLevelIdentity] = useState<ReturnType<typeof createLevelIdentity> | null>(null);
   const [levelHistory, setLevelHistory] = useState<LevelHistoryRecord | null>(null);
   const [resolvedDataSource, setResolvedDataSource] = useState<EffectiveDataSource | null>(null);
   const [isNetworkUnavailable, setIsNetworkUnavailable] = useState(false);
@@ -627,7 +647,7 @@ function GamePage() {
   const [leftWriteInSuggestionPool, setLeftWriteInSuggestionPool] = useState<GameNode[]>([]);
   const rulesDialogRef = useRef<HTMLDivElement | null>(null);
   const cycleRiskChildCacheRef = useRef<Map<string, GameNode[]>>(new Map());
-  const levelIdentityRef = useRef<{ startLabel: string; endLabel: string } | null>(null);
+  const levelIdentityRef = useRef<ReturnType<typeof createLevelIdentity> | null>(null);
   const actorsCatalogById = useMemo(
     () => new Map(actorsCatalog.map((actor) => [actor.id, actor])),
     [actorsCatalog],
@@ -739,7 +759,7 @@ function GamePage() {
       return false;
     }
 
-    return isLevelCompleted(currentLevelIdentity.startLabel, currentLevelIdentity.endLabel, completedLevels);
+    return isLevelCompleted(currentLevelIdentity.startNode, currentLevelIdentity.endNode, completedLevels);
   }, [completedLevels, currentLevelIdentity]);
   const levelHistoryContent = levelHistoryAttempts.length === 0 ? (
     <div className="gameCompletionHistoryEmpty">This level does not have any saved history yet.</div>
@@ -928,7 +948,7 @@ function GamePage() {
         return;
       }
 
-      setLevelHistory(getLevelHistory(levelIdentity.startLabel, levelIdentity.endLabel));
+      setLevelHistory(getLevelHistory(levelIdentity.startNode, levelIdentity.endNode));
     };
 
     syncLevelHistory();
@@ -1048,15 +1068,9 @@ function GamePage() {
       return;
     }
 
-    levelIdentityRef.current = {
-      startLabel: demoSetup.actorA.label,
-      endLabel: demoSetup.actorB.label,
-    };
-    setCurrentLevelIdentity({
-      startLabel: demoSetup.actorA.label,
-      endLabel: demoSetup.actorB.label,
-    });
-    setLevelHistory(getLevelHistory(demoSetup.actorA.label, demoSetup.actorB.label));
+    levelIdentityRef.current = createLevelIdentity(demoSetup.actorA, demoSetup.actorB);
+    setCurrentLevelIdentity(createLevelIdentity(demoSetup.actorA, demoSetup.actorB));
+    setLevelHistory(getLevelHistory(demoSetup.actorA, demoSetup.actorB));
 
     setActorA(demoSetup.actorA);
     setActorB(demoSetup.actorB);
@@ -1107,15 +1121,9 @@ function GamePage() {
               return;
             }
 
-            levelIdentityRef.current = {
-              startLabel: apiSetup.actorA.label,
-              endLabel: apiSetup.actorB.label,
-            };
-            setCurrentLevelIdentity({
-              startLabel: apiSetup.actorA.label,
-              endLabel: apiSetup.actorB.label,
-            });
-            setLevelHistory(getLevelHistory(apiSetup.actorA.label, apiSetup.actorB.label));
+            levelIdentityRef.current = createLevelIdentity(apiSetup.actorA, apiSetup.actorB);
+            setCurrentLevelIdentity(createLevelIdentity(apiSetup.actorA, apiSetup.actorB));
+            setLevelHistory(getLevelHistory(apiSetup.actorA, apiSetup.actorB));
 
             setActorA(apiSetup.actorA);
             setActorB(apiSetup.actorB);
@@ -1132,15 +1140,9 @@ function GamePage() {
             }
 
             if (snapshotSetup) {
-              levelIdentityRef.current = {
-                startLabel: snapshotSetup.actorA.label,
-                endLabel: snapshotSetup.actorB.label,
-              };
-              setCurrentLevelIdentity({
-                startLabel: snapshotSetup.actorA.label,
-                endLabel: snapshotSetup.actorB.label,
-              });
-              setLevelHistory(getLevelHistory(snapshotSetup.actorA.label, snapshotSetup.actorB.label));
+              levelIdentityRef.current = createLevelIdentity(snapshotSetup.actorA, snapshotSetup.actorB);
+              setCurrentLevelIdentity(createLevelIdentity(snapshotSetup.actorA, snapshotSetup.actorB));
+              setLevelHistory(getLevelHistory(snapshotSetup.actorA, snapshotSetup.actorB));
               setActorA(snapshotSetup.actorA);
               setActorB(snapshotSetup.actorB);
 				setActorsCatalog([]);
@@ -1162,15 +1164,9 @@ function GamePage() {
             return;
           }
 
-          levelIdentityRef.current = {
-            startLabel: snapshotSetup.actorA.label,
-            endLabel: snapshotSetup.actorB.label,
-          };
-          setCurrentLevelIdentity({
-            startLabel: snapshotSetup.actorA.label,
-            endLabel: snapshotSetup.actorB.label,
-          });
-          setLevelHistory(getLevelHistory(snapshotSetup.actorA.label, snapshotSetup.actorB.label));
+          levelIdentityRef.current = createLevelIdentity(snapshotSetup.actorA, snapshotSetup.actorB);
+          setCurrentLevelIdentity(createLevelIdentity(snapshotSetup.actorA, snapshotSetup.actorB));
+          setLevelHistory(getLevelHistory(snapshotSetup.actorA, snapshotSetup.actorB));
 
           setActorA(snapshotSetup.actorA);
           setActorB(snapshotSetup.actorB);
@@ -2036,11 +2032,11 @@ function GamePage() {
     const score = scoreBreakdown.score;
 
     // Only save if actorA and actorB are not null and have label or are strings
-    const actorALabel = levelIdentityRef.current?.startLabel;
-    const actorBLabel = levelIdentityRef.current?.endLabel;
-    if (actorALabel && actorBLabel) {
-      setCompletedLevels(markLevelCompleted(actorALabel, actorBLabel));
-      const savedHistory = saveLevelAttempt(actorALabel, actorBLabel, {
+    const startNode = levelIdentityRef.current?.startNode;
+    const endNode = levelIdentityRef.current?.endNode;
+    if (startNode && endNode) {
+      setCompletedLevels(markLevelCompleted(startNode, endNode));
+      const savedHistory = saveLevelAttempt(startNode, endNode, {
         path: hydratedFullPath.filter(n => typeof n.id === "number").map(({ id, type, label }) => ({ id: id as number, type, label })),
         score,
         tier: scoreBreakdown.tier,
@@ -2294,9 +2290,16 @@ function GamePage() {
   const handleReturnToOrigin = () => {
     if (backDestination === "/adventure") {
       navigate("/adventure", {
-        state: {
-          focusLevelIndex: routeState?.levelIndex,
-        },
+        state: routeState?.levelGroupId && typeof routeState?.levelIndex === "number"
+          ? {
+              focusLevel: {
+                groupId: routeState.levelGroupId,
+                gameIndex: routeState.levelIndex,
+              },
+            }
+          : {
+              focusLevelIndex: routeState?.levelIndex,
+            },
       });
       return;
     }
@@ -2343,9 +2346,16 @@ function GamePage() {
     }
 
     navigate("/adventure", {
-      state: {
-        autoStartLevelIndex: routeState.levelIndex + 1,
-      },
+      state: routeState?.levelGroupId
+        ? {
+            autoStartLevel: {
+              groupId: routeState.levelGroupId,
+              gameIndex: routeState.levelIndex + 1,
+            },
+          }
+        : {
+            autoStartLevelIndex: routeState.levelIndex + 1,
+          },
     });
   };
 
@@ -2777,7 +2787,7 @@ function GamePage() {
   );
 
   return (
-    <div className="gamePage">
+    <div className={`gamePage ${boardThemeClassName}`}>
       <PageNavigationHeader
         backTo={backDestination}
         backLabel="Back"
@@ -3029,8 +3039,10 @@ function GamePage() {
                       These appearance settings apply immediately while you are still in the current level.
                     </p>
                     <DisplaySettingsPanel
-                      completionDarkMode={settings.completionDarkMode}
-                      onCompletionDarkModeChange={setCompletionDarkMode}
+                      boardTheme={settings.boardTheme}
+                      onBoardThemePresetChange={setBoardThemePreset}
+                      onBoardThemeToneChange={setBoardThemeTone}
+                      onBoardThemePaletteChange={setBoardThemePalette}
                     />
                   </div>
                 ) : null}

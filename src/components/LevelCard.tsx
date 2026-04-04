@@ -1,6 +1,6 @@
 import { useState, type KeyboardEvent, type MouseEvent } from "react";
 import EntityArtwork from "./EntityArtwork";
-import type { Level } from "../types";
+import type { BoardThemePalette, Level } from "../types";
 import type { LevelHistoryRecord } from "../utils/levelHistoryStorage";
 import { getLevelScoreStars } from "../utils/calculateLevelScore";
 import { useIsCompactPhoneViewport } from "../hooks/useIsCompactPhoneViewport";
@@ -136,7 +136,15 @@ function formatAverageReleaseYear(value: number | null | undefined) {
 	return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-function splitActorName(value: string) {
+function getNotePreview(noteText: string | null) {
+	if (!noteText) {
+		return null;
+	}
+
+	return noteText.length > 180 ? `${noteText.slice(0, 177).trimEnd()}...` : noteText;
+}
+
+function splitDisplayLabel(value: string) {
 	const parts = value.trim().split(/\s+/).filter(Boolean);
 
 	if (parts.length <= 1) {
@@ -173,6 +181,8 @@ function getHigherScoreAttempt(
 type Props = {
 	level: Level;
 	levelIndex: number;
+	itemLabel?: string;
+	themeVariant?: BoardThemePalette;
 	leftImageUrl: string | null;
 	rightImageUrl: string | null;
 	isCompleted: boolean;
@@ -181,9 +191,43 @@ type Props = {
 	onStart: () => void;
 };
 
+function getThemeClassName(themeVariant: BoardThemePalette | undefined) {
+	if (themeVariant === "original") {
+		return styles.themeOriginal;
+	}
+
+	if (themeVariant === "classic") {
+		return styles.themeClassic;
+	}
+
+	if (themeVariant === "light") {
+		return styles.themeLight;
+	}
+
+	if (themeVariant === "dark") {
+		return styles.themeDark;
+	}
+
+	if (themeVariant === "ocean") {
+		return styles.themeOcean;
+	}
+
+	if (themeVariant === "sunset") {
+		return styles.themeSunset;
+	}
+
+	if (themeVariant === "forest") {
+		return styles.themeForest;
+	}
+
+	return "";
+}
+
 function LevelCard({
 	level,
 	levelIndex,
+	itemLabel = "Level",
+	themeVariant,
 	leftImageUrl,
 	rightImageUrl,
 	isCompleted,
@@ -210,11 +254,19 @@ function LevelCard({
 	const completionSummaryStars = highestScoreAttempt
 		? (typeof highestScoreAttempt.stars === "number" ? highestScoreAttempt.stars : getLevelScoreStars(highestScoreAttempt.score))
 		: 0;
-	const leftActorName = splitActorName(level.actorA);
-	const rightActorName = splitActorName(level.actorB);
+	const startLabel = level.startNode.label;
+	const targetLabel = level.targetNode.label;
+	const startType = level.startNode.type;
+	const targetType = level.targetNode.type;
+	const noteText = level.notes?.text?.trim() || null;
+	const notePreview = getNotePreview(noteText);
+	const itemTitle = `${itemLabel} ${levelIndex + 1}`;
+	const leftActorName = splitDisplayLabel(startLabel);
+	const rightActorName = splitDisplayLabel(targetLabel);
 	const optimalIntermediateCount = getIntermediateCount(level.optimalHops);
 	const compactCompletionLabel = isCompleted ? "Completed" : "Not completed";
 	const playButtonLabel = isCompleted ? "Replay" : "Play Now";
+	const themeClassName = getThemeClassName(themeVariant);
 
 	const handleOpenCompactDetails = () => {
 		if (disabled) {
@@ -279,18 +331,31 @@ function LevelCard({
 		</span>
 	);
 
+	const renderNotePanel = (variant: "card" | "dialog") => {
+		if (!noteText) {
+			return null;
+		}
+
+		return (
+			<div className={variant === "dialog" ? styles.levelNotesDialog : styles.levelNotesCard}>
+				<div className={styles.levelNotesEyebrow}>Designer note</div>
+				<p className={styles.levelNotesText}>{variant === "dialog" ? noteText : notePreview}</p>
+			</div>
+		);
+	};
+
 	return (
-		<div className={`${styles.card} ${isCompleted ? styles.cardCompleted : ""}`}>
+		<div className={`${styles.card} ${themeClassName} ${isCompleted ? styles.cardCompleted : ""}`}>
 			{isCompactPhoneViewport ? (
 				<div className={styles.compactCardLayout}>
 					<div className={styles.compactCardTopRow}>
-						<div className={styles.compactLevelBadge}>Level {levelIndex + 1}</div>
+						<div className={styles.compactLevelBadge}>{itemTitle}</div>
 						{isCompleted ? (
 							<button
 								type="button"
 								className={`${styles.completionBadge} ${styles.completionBadgeDone} ${styles.completionBadgeButton} ${styles.compactCompletionBadgeButton}`}
 								onClick={handleOpenCompactLeaderboardDetails}
-								aria-label={`Open leaderboard for level ${levelIndex + 1}`}
+								aria-label={`Open leaderboard for ${itemLabel.toLowerCase()} ${levelIndex + 1}`}
 							>
 								{renderCompletionSummary()}
 							</button>
@@ -309,15 +374,15 @@ function LevelCard({
 						aria-disabled={disabled}
 						aria-haspopup="dialog"
 						aria-expanded={isCompactDetailOpen}
-						aria-label={`Open details for level ${levelIndex + 1}: ${level.actorA} versus ${level.actorB}`}
+						aria-label={`Open details for ${itemLabel.toLowerCase()} ${levelIndex + 1}: ${startLabel} versus ${targetLabel}`}
 					>
 						<div className={styles.compactMatchupRow}>
 							<span className={styles.levelActorLeft}>
 								<span className={styles.levelActorIdentity}>
 									<span className={styles.artworkButton}>
 										<EntityArtwork
-											type="actor"
-											label={level.actorA}
+											type={startType}
+											label={startLabel}
 											imageUrl={leftImageUrl}
 											className={styles.levelActorArtwork}
 											imageClassName={styles.levelActorArtworkImage}
@@ -335,8 +400,8 @@ function LevelCard({
 								<span className={`${styles.levelActorIdentity} ${styles.levelActorIdentityRight}`}>
 									<span className={styles.artworkButton}>
 										<EntityArtwork
-											type="actor"
-											label={level.actorB}
+											type={targetType}
+											label={targetLabel}
 											imageUrl={rightImageUrl}
 											className={styles.levelActorArtwork}
 											imageClassName={styles.levelActorArtworkImage}
@@ -350,6 +415,7 @@ function LevelCard({
 								</span>
 							</span>
 						</div>
+						{renderNotePanel("card")}
 						<div className={styles.actionRow}>
 							<button
 								type="button"
@@ -366,7 +432,7 @@ function LevelCard({
 				<>
 					<div className={styles.headerRow}>
 						<div className={styles.levelLabel}>
-							<span>Level {levelIndex + 1}</span>
+							<span>{itemTitle}</span>
 							{levelStars.length > 0 ? (
 								<span className={styles.starRow}>
 									{levelStars.map((star, starIndex) => (
@@ -387,7 +453,7 @@ function LevelCard({
 									type="button"
 									className={`${styles.completionBadge} ${styles.completionBadgeDone} ${styles.completionBadgeButton}`}
 									onClick={() => setIsLeaderboardOpen(true)}
-									aria-label={`Open leaderboard for level ${levelIndex + 1}`}
+									aria-label={`Open leaderboard for ${itemLabel.toLowerCase()} ${levelIndex + 1}`}
 								>
 									{renderCompletionSummary()}
 								</button>
@@ -408,7 +474,7 @@ function LevelCard({
 						aria-disabled={disabled}
 						aria-haspopup="dialog"
 						aria-expanded={isCompactDetailOpen}
-						aria-label={`Open details for level ${levelIndex + 1}: ${level.actorA} versus ${level.actorB}`}
+						aria-label={`Open details for ${itemLabel.toLowerCase()} ${levelIndex + 1}: ${startLabel} versus ${targetLabel}`}
 					>
 						<div className={styles.matchupPanel}>
 							<div className={styles.matchupRow}>
@@ -416,8 +482,8 @@ function LevelCard({
 									<span className={styles.levelActorIdentity}>
 										<span className={styles.artworkButton}>
 											<EntityArtwork
-												type="actor"
-												label={level.actorA}
+												type={startType}
+												label={startLabel}
 												imageUrl={leftImageUrl}
 												className={styles.levelActorArtwork}
 												imageClassName={styles.levelActorArtworkImage}
@@ -435,8 +501,8 @@ function LevelCard({
 									<span className={`${styles.levelActorIdentity} ${styles.levelActorIdentityRight}`}>
 										<span className={styles.artworkButton}>
 											<EntityArtwork
-												type="actor"
-												label={level.actorB}
+												type={targetType}
+												label={targetLabel}
 												imageUrl={rightImageUrl}
 												className={styles.levelActorArtwork}
 												imageClassName={styles.levelActorArtworkImage}
@@ -450,6 +516,7 @@ function LevelCard({
 									</span>
 								</span>
 							</div>
+							{renderNotePanel("card")}
 							<div className={styles.actionRow}>
 								<button className={styles.playNowButton} disabled={disabled} onClick={handleStartButtonClick}>
 									{playButtonLabel}
@@ -471,37 +538,38 @@ function LevelCard({
 						>
 							×
 						</button>
-						<div className={styles.compactDetailLevelTag}>Level {levelIndex + 1}</div>
-						<h3 className={styles.leaderboardDialogTitle}>{level.actorA} vs. {level.actorB}</h3>
+						<div className={styles.compactDetailLevelTag}>{itemTitle}</div>
+						<h3 className={styles.leaderboardDialogTitle}>{startLabel} vs. {targetLabel}</h3>
 						<div className={styles.compactDetailMatchup}>
 							<div className={styles.compactDetailActor}>
 								<span className={`${styles.artworkButton} ${styles.compactDetailArtworkButton}`}>
 									<EntityArtwork
-										type="actor"
-										label={level.actorA}
+										type={startType}
+										label={startLabel}
 										imageUrl={leftImageUrl}
 										className={styles.compactDetailArtwork}
 										imageClassName={styles.levelActorArtworkImage}
 										placeholderClassName={styles.levelActorArtworkEmoji}
 									/>
 								</span>
-								<div className={styles.compactDetailActorName}>{level.actorA}</div>
+								<div className={styles.compactDetailActorName}>{startLabel}</div>
 							</div>
 							<div className={styles.compactDetailVs}>vs.</div>
 							<div className={styles.compactDetailActor}>
 								<span className={`${styles.artworkButton} ${styles.compactDetailArtworkButton}`}>
 									<EntityArtwork
-										type="actor"
-										label={level.actorB}
+										type={targetType}
+										label={targetLabel}
 										imageUrl={rightImageUrl}
 										className={styles.compactDetailArtwork}
 										imageClassName={styles.levelActorArtworkImage}
 										placeholderClassName={styles.levelActorArtworkEmoji}
 									/>
 								</span>
-								<div className={styles.compactDetailActorName}>{level.actorB}</div>
+								<div className={styles.compactDetailActorName}>{targetLabel}</div>
 							</div>
 						</div>
+						{renderNotePanel("dialog")}
 						<div className={styles.compactDetailSummaryGrid}>
 							<button
 								type="button"
@@ -510,7 +578,7 @@ function LevelCard({
 								disabled={!isCompleted}
 								aria-expanded={isCompactLeaderboardOpen}
 								aria-controls={`compact-level-leaderboard-${levelIndex}`}
-								aria-label={isCompleted ? `Toggle leaderboard for level ${levelIndex + 1}` : `No leaderboard entries for level ${levelIndex + 1} yet`}
+								aria-label={isCompleted ? `Toggle leaderboard for ${itemLabel.toLowerCase()} ${levelIndex + 1}` : `No leaderboard entries for ${itemLabel.toLowerCase()} ${levelIndex + 1} yet`}
 							>
 								<span className={`${styles.compactDetailTrophy} ${isCompleted ? styles.compactDetailTrophyFilled : styles.compactDetailTrophyEmpty} ${bestAttemptTone ? styles[`completionBadgeTrophyTone${getToneClassSuffix(bestAttemptTone)}`] : ""}`} aria-hidden="true">🏆</span>
 								<span className={`${styles.compactDetailStars} ${bestAttemptTone ? styles[`compactDetailStars--${bestAttemptTone}`] : ""}`} aria-label={`${completionSummaryStars} out of 3 stars`}>
@@ -535,7 +603,7 @@ function LevelCard({
 							<div id={`compact-level-leaderboard-${levelIndex}`} className={styles.compactDetailLeaderboardPanel}>
 								<div className={styles.compactDetailLeaderboardHeader}>Leaderboard</div>
 								{displayedLeaderboardAttempts.length === 0 ? (
-									<div className={styles.leaderboardEmpty}>No saved routes for this level yet. Finish the level once to start building a personal leaderboard here.</div>
+										<div className={styles.leaderboardEmpty}>No saved routes for this {itemLabel.toLowerCase()} yet. Finish it once to start building a personal leaderboard here.</div>
 								) : (
 									<ol className={styles.leaderboardList}>
 										{displayedLeaderboardAttempts.map((attempt, index) => {
@@ -606,11 +674,12 @@ function LevelCard({
 						>
 							×
 						</button>
-						<h3 className={styles.leaderboardDialogTitle}>Level {levelIndex + 1} Leaderboard</h3>
-						<p className={styles.leaderboardDialogSubtitle}>{level.actorA} → {level.actorB}</p>
+						<h3 className={styles.leaderboardDialogTitle}>{itemTitle} Leaderboard</h3>
+						<p className={styles.leaderboardDialogSubtitle}>{startLabel} → {targetLabel}</p>
 						<p className={styles.leaderboardDialogDescription}>
-							Review your saved attempts for this level. Entries are ordered by fewest intermediates first, then highest score, so your best route stays at the top.
+							Review your saved attempts for this {itemLabel.toLowerCase()}. Entries are ordered by fewest intermediates first, then highest score, so your best route stays at the top.
 						</p>
+						{renderNotePanel("dialog")}
 						<div className={styles.leaderboardSummaryInline}>
 							<span className={styles.leaderboardSummaryPill}>Optimal {formatIntermediateLabel(optimalIntermediateCount)}</span>
 							<span className={styles.leaderboardSummaryPill}>{totalAttempts} saved route{totalAttempts === 1 ? "" : "s"}</span>
@@ -625,7 +694,7 @@ function LevelCard({
 							)}
 						</div>
 						{displayedLeaderboardAttempts.length === 0 ? (
-							<div className={styles.leaderboardEmpty}>No saved routes for this level yet. Finish the level once to start building a personal leaderboard here.</div>
+							<div className={styles.leaderboardEmpty}>No saved routes for this {itemLabel.toLowerCase()} yet. Finish it once to start building a personal leaderboard here.</div>
 						) : (
 							<ol className={styles.leaderboardList}>
 								{displayedLeaderboardAttempts.map((attempt, index) => {
